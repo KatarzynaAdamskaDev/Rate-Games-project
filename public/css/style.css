@@ -176,7 +176,7 @@ header.site {
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 14px;
 }
 
 .icon-btn {
@@ -380,7 +380,7 @@ header.site {
 
 .hero h1 {
   font-family: var(--font-body);
-  font-size: 44px;
+  font-size: 30px;
   line-height: 1.12;
   font-weight: 700;
   margin-bottom: 18px;
@@ -392,7 +392,7 @@ header.site {
 
 .hero p {
   color: var(--text-mid);
-  font-size: 16.5px;
+  font-size: 15px;
   max-width: 520px;
   margin-bottom: 30px;
 }
@@ -465,7 +465,6 @@ section {
   color: var(--text-lo);
   font-size: 14px;
   margin-top: 6px;
-  max-width: 520px;
 }
 
 .see-all {
@@ -478,12 +477,13 @@ section {
 .seo-intro {
   border-bottom: 1px solid var(--panel-border);
   padding: 40px 0;
+  text-align:justify;
 }
 
 .seo-intro p {
   color: var(--text-mid);
   font-size: 15px;
-  max-width: 900px;
+  max-width: 1200px;
 }
 
 .seo-intro strong {
@@ -612,6 +612,7 @@ section {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-l);
   padding: 22px;
+  width:1200px;
   margin-bottom: 18px;
 }
 
