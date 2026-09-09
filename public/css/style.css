@@ -1275,3 +1275,29 @@ section {
   margin-bottom: 20px;
   line-height: 1.5;
 }
+
+.gv-pw-wrap {
+  position: relative;
+}
+
+.gv-pw-wrap input {
+  padding-right: 42px;
+}
+
+.gv-pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  color: var(--text-lo);
+  transition: color 0.15s ease;
+}
+
+.gv-pw-toggle:hover {
+  color: var(--text-hi);
+}
