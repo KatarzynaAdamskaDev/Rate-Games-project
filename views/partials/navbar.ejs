@@ -1,96 +1,59 @@
-<nav class="gv-navbar" id="gvNavbar">
-  <div class="container gv-navbar-inner">
-    <a class="gv-brand" href="/">
-      <span class="gv-brand-icon"><img src="/images/Game2.png" alt="GameVerse"></span>
-      <span class="gv-brand-text">GameVerse</span>
-    </a>
+<% const path = typeof currentPath !== 'undefined' ? currentPath : ''; %>
+<% const user = typeof currentUser !== 'undefined' ? currentUser : (locals.user || null); %>
 
-    <button
-      class="gv-nav-toggler d-lg-none"
-      type="button"
-      id="gvMobileToggle"
-      aria-label="Przełącz nawigację"
-      aria-expanded="false"
-    >
-      <span></span><span></span><span></span>
-    </button>
+<header class="site">
+  <div class="wrap">
+    <div class="nav-row">
+      <!-- Logo -->
+      <a class="logo" href="/">
+        <div class="logo-mark"></div>
+        <span>GameVerse</span>
+      </a>
 
-    <div class="gv-nav-right" id="gvNavRight">
-      <ul class="gv-nav-links" id="gvNavLinks">
-        <li>
-          <a class="gv-nav-item <%= currentPath.startsWith('/games') ? 'active' : '' %>" href="/games">
-            <span class="gv-nav-text">GAMES</span>
-            <i class="bi bi-controller gv-nav-icon"></i>
-          </a>
-        </li>
-        <li>
-          <a class="gv-nav-item <%= currentPath.startsWith('/category') ? 'active' : '' %>" href="/category">
-            <span class="gv-nav-text">CATEGORY</span>
-            <i class="bi bi-tags gv-nav-icon"></i>
-          </a>
-        </li>
-        <li>
-          <a class="gv-nav-item <%= currentPath.startsWith('/blog') ? 'active' : '' %>" href="/blog">
-            <span class="gv-nav-text">BLOG</span>
-            <i class="bi bi-window gv-nav-icon"></i>
-          </a>
-        </li>
+      <!-- Główne menu z dynamiczną klasą .active -->
+      <nav class="main-nav">
+        <a href="/games" class="<%= path.startsWith('/games') ? 'active' : '' %>">GAMES</a>
+        <a href="/category" class="<%= path.startsWith('/category') ? 'active' : '' %>">CATEGORIES</a>
+        <a href="/blog" class="<%= path.startsWith('/blog') ? 'active' : '' %>">BLOG</a>
+      </nav>
 
-        <% if (currentUser) { %>
-          <li class="dropdown">
-            <button
-              class="gv-nav-item dropdown-toggle"
-              type="button"
-              id="userMenu"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              <span class="gv-nav-text"><%= currentUser.username %></span>
-              <i class="bi bi-person-circle gv-nav-icon"></i>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end gv-dropdown" aria-labelledby="userMenu">
-              <% if (currentUser.role === 'admin') { %>
-                <li><a class="dropdown-item" href="/games/new">Dodaj grę</a></li>
-                <li><a class="dropdown-item" href="/blog/new">Nowy wpis na blogu</a></li>
-                <li><hr class="dropdown-divider" /></li>
-              <% } %>
-              <li>
-                <form action="/auth/logout" method="POST" class="m-0">
-                  <button type="submit" class="dropdown-item">Wyloguj się</button>
-                </form>
-              </li>
-            </ul>
-          </li>
+      <!-- Wyszukiwarka -->
+      <div class="nav-search">
+        <form action="/search" method="GET">
+          <input
+            type="search"
+            name="q"
+            placeholder="Szukaj gier, wpisów..."
+            autocomplete="off"
+          />
+        </form>
+      </div>
+
+      <!-- Akcje użytkownika / Logowanie -->
+      <div class="nav-actions">
+        <% if (user) { %>
+          <!-- Panel zalogowanego użytkownika (przykładowy avatar i menu) -->
+          <a href="/profile" class="avatar" title="<%= user.username %>"></a>
+          
+          <% if (user.role === 'admin') { %>
+            <a href="/games/new" class="icon-btn" title="Dodaj grę">+</a>
+          <% } %>
+
+          <form action="/auth/logout" method="POST" style="display: inline;">
+            <button type="submit" class="btn-ghost" style="padding: 8px 12px; font-size: 12px;">Wyloguj</button>
+          </form>
         <% } else { %>
-          <li>
-            <button
-              type="button"
-              class="gv-nav-item gv-nav-button"
-              data-bs-toggle="modal"
-              data-bs-target="#signInModal"
-            >
-              <span class="gv-nav-text">SIGN IN</span>
-              <i class="bi bi-person gv-nav-icon"></i>
-            </button>
-          </li>
+          <!-- Przycisk dla niezalogowanych -->
+          <button
+            type="button"
+            class="btn-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#signInModal"
+          >
+            SIGN IN
+          </button>
         <% } %>
-      </ul>
-
-      <form action="/search" method="GET" class="gv-search-bar" id="gvSearchBar">
-        <input
-          type="search"
-          name="q"
-          id="gvSearchInput"
-          class="gv-search-input"
-          placeholder="Szukaj gier, kategorii, wpisów..."
-          autocomplete="off"
-        />
-      </form>
-
-      <button type="button" class="gv-search-icon-btn" id="gvSearchToggle" aria-label="Szukaj">
-        <i class="bi bi-search gv-search-icon-glyph"></i>
-        <i class="bi bi-x-lg gv-search-icon-glyph gv-search-close-glyph"></i>
-      </button>
+      </div>
     </div>
   </div>
-</nav>
+</header>
