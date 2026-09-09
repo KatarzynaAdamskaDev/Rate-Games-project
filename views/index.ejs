@@ -222,6 +222,25 @@
 <%- include('partials/footer') %>
 
 <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('signInModal');
+    if (!modal) return;
+
+    const views = modal.querySelectorAll('.gv-auth-view');
+
+    function showView(name) {
+      views.forEach(v => {
+        v.classList.toggle('d-none', v.dataset.view !== name);
+      });
+    }
+
+    modal.querySelectorAll('[data-switch]').forEach(btn => {
+      btn.addEventListener('click', () => showView(btn.dataset.switch));
+    });
+
+    // reset do widoku logowania za każdym razem, gdy modal się otwiera
+    modal.addEventListener('show.bs.modal', () => showView('signin'));
+  });
   document.querySelectorAll('.action-btn').forEach(btn=>{
     if(btn.textContent.trim().startsWith('❤')){
       btn.addEventListener('click',()=>{

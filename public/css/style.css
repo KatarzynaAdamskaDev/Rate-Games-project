@@ -1108,3 +1108,171 @@ section {
     grid-template-columns: 1fr;
   }
 }
+
+/* MODAL - SIGN IN */
+.modal-backdrop.show {
+  opacity: 0.75;
+  background: var(--bg-0);
+}
+
+.gv-modal-content {
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-l);
+  color: var(--text-hi);
+  box-shadow: 0 26px 70px rgba(12, 10, 20, 0.6);
+}
+
+.gv-modal-header {
+  border-bottom: 1px solid var(--panel-border);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gv-auth-title {
+  font-family: var(--font-body);
+  font-size: 22px;
+  color: var(--text-hi);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.gv-modal-error {
+  background: rgba(255, 93, 162, 0.12);
+  border: 1px solid var(--pink);
+  color: var(--pink);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: var(--radius-s);
+  margin-bottom: 16px;
+}
+
+.gv-label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+
+.gv-input {
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  color: var(--text-hi);
+  padding: 10px 14px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.gv-input:focus {
+  background: var(--bg-2);
+  border-color: var(--accent);
+  color: var(--text-hi);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.gv-input::placeholder {
+  color: var(--text-lo);
+}
+
+.gv-password-wrap {
+  position: relative;
+}
+
+.gv-password-wrap .gv-input {
+  padding-right: 42px;
+}
+
+.gv-password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px;
+}
+
+.gv-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gv-check .form-check-input {
+  background-color: var(--bg-2);
+  border: 1px solid var(--panel-border);
+}
+
+.gv-check .form-check-input:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.gv-check .form-check-label {
+  color: var(--text-mid);
+  font-size: 13px;
+}
+
+.gv-btn-success {
+  background: linear-gradient(135deg, var(--accent), #5b3df0);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: var(--radius-s);
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+.gv-btn-success:hover {
+  filter: brightness(1.08);
+}
+
+.gv-auth-alt-link {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+.gv-auth-alt-link a {
+  color: var(--cyan);
+}
+
+.gv-auth-alt-link a:hover {
+  text-decoration: underline;
+}
+
+.btn-close-white {
+  filter: invert(1) grayscale(100%) brightness(200%);
+  opacity: 0.7;
+}
+
+.btn-close-white:hover {
+  opacity: 1;
+}
+.gv-auth-switch {
+  background: transparent;
+  border: none;
+  color: var(--cyan);
+  font-size: 13px;
+  padding: 0;
+  font-family: inherit;
+}
+
+.gv-auth-switch:hover {
+  text-decoration: underline;
+}
+
+.gv-auth-subtext {
+  color: var(--text-mid);
+  font-size: 13.5px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
