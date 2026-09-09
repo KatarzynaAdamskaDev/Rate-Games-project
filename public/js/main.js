@@ -149,3 +149,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+  const searchForm = document.getElementById('navSearchForm');
+  if (searchForm) {
+    searchForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const query = searchForm.querySelector('input[name="q"]').value.trim();
+      if (query) {
+        window.location.href = '/szukaj?q=' + encodeURIComponent(query);
+      }
+    });
+  }
+});
