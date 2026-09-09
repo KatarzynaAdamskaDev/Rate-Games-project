@@ -110,22 +110,19 @@ header.site {
 }
 
 .logo-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--pink));
+  width: 50px;
+  height: 50px;
+  background: url("/images/Game2.png") center / cover no-repeat;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-body);
-  font-size: 12px;
-  box-shadow: 0 0 22px var(--accent-glow);
 }
 
 .main-nav {
   display: flex;
-  gap: 26px;
-  font-size: 14.5px;
+  gap: 20px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-mid);
   flex: 1;
@@ -153,7 +150,7 @@ header.site {
   padding: 8px 14px;
   width: 230px;
   color: var(--text-lo);
-  font-size: 13.5px;
+  font-size: 12px;
 }
 
 .nav-search form {
@@ -212,7 +209,7 @@ header.site {
   padding: 10px 18px;
   border-radius: 10px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 12px;
   box-shadow: 0 6px 20px var(--accent-glow);
   display: inline-block;
 }

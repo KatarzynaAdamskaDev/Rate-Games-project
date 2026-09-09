@@ -13,14 +13,12 @@
 
 <header class="site">
   <div class="wrap nav-row">
-    <a href="/" class="logo"><div class="logo-mark">GV</div>GameVerse</a>
+    <a href="/" class="logo"><div class="logo-mark"></div>GameVerse</a>
     <nav class="main-nav">
       <a href="/" class="active">Gry</a>
       <a href="#kategorie">Kategorie</a>
       <a href="#recenzje">Recenzje</a>
       <a href="/blog">Blog</a>
-      <a href="#">Rankingi</a>
-      <a href="#">Społeczność</a>
     </nav>
     <div class="nav-search" role="search">
       <form action="/search" method="GET">
@@ -38,10 +36,10 @@
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.4-.7L3 21l1.8-5.7A8.4 8.4 0 1 1 21 11.5Z"/></svg>
         </button>
         <a href="/profile" class="avatar" title="<%= user.username %>"></a>
-        <a href="/auth/logout" class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">Wyloguj</a>
+        <a href="/auth/logout" class="btn-ghost" style="padding: 6px 12px; font-size: 11px;">Wyloguj</a>
       <% } else { %>
-        <a href="/auth/login" class="btn-ghost" style="padding: 8px 14px; font-size: 13px;">Zaloguj</a>
-        <a href="/auth/register" class="btn-primary" style="padding: 8px 14px; font-size: 13px;">Zarejestruj</a>
+        <a href="/auth/login" class="btn-ghost" style="padding: 8px 14px; font-size: 11px;">Zaloguj</a>
+        <a href="/auth/register" class="btn-primary" style="padding: 8px 14px; font-size: 11px;">Zarejestruj</a>
       <% } %>
     </div>
   </div>
@@ -204,26 +202,6 @@
           <div class="leader-row"><span class="rank">1</span><div class="l-avatar"></div><div class="leader-info"><b>Marta_K</b><span>128 recenzji · 5,4k obserwujących</span></div><button class="mini-follow">+ Obserwuj</button></div>
           <div class="leader-row"><span class="rank">2</span><div class="l-avatar"></div><div class="leader-info"><b>KubaRPG</b><span>96 recenzji · 3,1k obserwujących</span></div><button class="mini-follow">+ Obserwuj</button></div>
           <div class="leader-row"><span class="rank">3</span><div class="l-avatar"></div><div class="leader-info"><b>AniaPixel</b><span>81 recenzji · 2,7k obserwujących</span></div><button class="mini-follow">+ Obserwuj</button></div>
-        </div>
-
-        <div class="side-card chat-card">
-          <div class="chat-head"><span class="online-dot"></span><b style="font-size:13.5px;">Czat · Znajomi online (4)</b></div>
-          <div class="chat-friend"><div class="f-avatar on"></div><div><b>Tomek89</b><span>gra teraz w Cinderfall Requiem</span></div></div>
-          <div class="chat-friend"><div class="f-avatar on"></div><div><b>KubaRPG</b><span>online</span></div></div>
-          <div class="chat-bubble">Widziałeś już recenzję Wanderhome?</div>
-          <div class="chat-bubble me">Tak, właśnie ją komentuję 😄</div>
-          <div class="chat-input">
-            <input type="text" placeholder="Napisz wiadomość…">
-            <button class="chat-send">➤</button>
-          </div>
-        </div>
-
-        <div class="side-card">
-          <h3>🔥 Popularne tagi</h3>
-          <div class="tag-row">
-            <span class="tag">Soulslike</span><span class="tag">Gry kooperacyjne</span><span class="tag">Roguelike</span>
-            <span class="tag">Symulatory</span><span class="tag">Gry indie 2026</span><span class="tag">Bez mikropłatności</span>
-          </div>
         </div>
       </aside>
     </div>
