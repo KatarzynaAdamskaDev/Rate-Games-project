@@ -15,8 +15,7 @@
   --radius-s: 8px;
   --radius-m: 14px;
   --radius-l: 22px;
-  --font-pixel: "Press Start 2P", "Space Grotesk", monospace;
-  --font-body: "Space Grotesk", system-ui, sans-serif;
+  --font-body:  "Press Start 2P", "Space Grotesk", monospace;
 }
 
 * {
@@ -89,7 +88,7 @@ header.site {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 700;
   font-size: 20px;
   white-space: nowrap;
@@ -103,7 +102,7 @@ header.site {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-pixel);
+  font-family: var(--font-body);
   font-size: 12px;
   box-shadow: 0 0 22px var(--accent-glow);
 }
@@ -236,7 +235,7 @@ header.site {
 }
 
 .eyebrow-pixel {
-  font-family: var(--font-pixel);
+  font-family: var(--font-body);
   font-size: 10px;
   color: var(--cyan);
   letter-spacing: 1px;
@@ -245,7 +244,7 @@ header.site {
 }
 
 .hero h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 44px;
   line-height: 1.12;
   font-weight: 700;
@@ -298,7 +297,7 @@ header.site {
 }
 
 .hero-stats b {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 22px;
 }
 
@@ -322,7 +321,7 @@ section {
 }
 
 .section-head h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 26px;
   font-weight: 700;
 }
@@ -431,7 +430,7 @@ section {
   position: absolute;
   top: 10px;
   left: 10px;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 700;
   font-size: 13px;
   background: rgba(0, 0, 0, 0.5);
@@ -503,7 +502,7 @@ section {
 }
 
 .review-headline .game-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 700;
   font-size: 16px;
 }
@@ -634,7 +633,7 @@ section {
 }
 
 .side-card h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 15px;
   margin-bottom: 16px;
   display: flex;
@@ -650,7 +649,7 @@ section {
 }
 
 .leader-row .rank {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 700;
   color: var(--text-lo);
   width: 16px;
@@ -807,7 +806,7 @@ section {
 }
 
 .cat-card h4 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 15px;
   margin-bottom: 8px;
 }
@@ -845,7 +844,7 @@ section {
 }
 
 .cta-band h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 22px;
   margin-bottom: 8px;
 }
