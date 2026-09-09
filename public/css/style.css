@@ -165,7 +165,7 @@ header.site {
   border: none;
   color: var(--text-hi);
   width: 100%;
-  font-size: 13.5px;
+  font-size: 12px;
   outline: none;
 }
 
@@ -176,7 +176,7 @@ header.site {
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
 }
 
 .icon-btn {
