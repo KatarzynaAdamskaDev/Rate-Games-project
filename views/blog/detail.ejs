@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="container" style="max-width: 760px;">
+      <img src="<%= post.coverImage %>" alt="<%= post.title %>" class="gv-detail-img w-100 mb-4" />
+      <h1 class="gv-page-title mb-2"><%= post.title %></h1>
+      <small class="gv-review-date d-block mb-4">
+        <%= post.author %> · <%= new Date(post.createdAt).toLocaleDateString('pl-PL') %>
+      </small>
+      <p class="gv-detail-desc"><%= post.content %></p>
+
+      <a href="/blog" class="gv-link-more">&larr; Wróć do bloga</a>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

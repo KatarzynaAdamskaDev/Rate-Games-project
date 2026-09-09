@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+  <%- include('partials/flash') %>
+
+  <section class="gv-section">
+    <div class="container">
+      <h1 class="gv-page-title mb-4">Kategorie</h1>
+
+      <div class="gv-category-pills mb-5">
+        <a href="/category" class="gv-pill <%= !selectedCategory ? 'gv-pill-active' : '' %>">Wszystkie</a>
+        <% categories.forEach(function(cat) { %>
+          <a href="/category/<%= cat.name %>" class="gv-pill <%= selectedCategory === cat.name ? 'gv-pill-active' : '' %>">
+            <%= cat.name %> <span class="gv-pill-count">(<%= cat.count %>)</span>
+          </a>
+        <% }) %>
+      </div>
+
+      <% if (selectedCategory) { %>
+        <h2 class="gv-section-title mb-3">Gry w kategorii: <%= selectedCategory %></h2>
+        <% if (games.length === 0) { %>
+          <p class="gv-empty-state">Brak gier w tej kategorii.</p>
+        <% } else { %>
+          <div class="row g-4">
+            <% games.forEach(function(game) { %>
+              <div class="col-12 col-sm-6 col-lg-4">
+                <%- include('partials/game-card', { game }) %>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } else { %>
+        <p class="gv-empty-state">Wybierz kategorię powyżej, aby zobaczyć przypisane do niej gry.</p>
+      <% } %>
+    </div>
+  </section>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

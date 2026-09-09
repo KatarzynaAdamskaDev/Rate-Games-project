@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400">
+  <rect width="300" height="400" fill="#3f6da0"/>
+  <rect x="10" y="10" width="280" height="380" fill="none" stroke="#1a1a2e" stroke-width="4" shape-rendering="crispEdges"/>
+  <text x="150" y="190" fill="#f4f1fa" font-family="monospace" font-size="22" font-weight="bold" text-anchor="middle">
+    <tspan x="150" dy="0">PIXEL</tspan>
+    <tspan x="150" dy="28">KNIGHTS</tspan>
+  </text>
+</svg>

@@ -1,0 +1,43 @@
+<footer class="gv-footer">
+  <div class="container">
+    <div class="gv-footer-grid">
+      <div class="gv-footer-col gv-footer-brand-col">
+        <a href="/" class="gv-footer-brand">
+          <span class="gv-brand-icon">🎮</span>
+          <span>GameVerse</span>
+        </a>
+        <p class="gv-footer-tagline">
+          Miejsce, w którym gracze dzielą się szczerymi opiniami o grach.
+        </p>
+      </div>
+
+      <div class="gv-footer-col">
+        <h4 class="gv-footer-heading">Nawigacja</h4>
+        <ul class="gv-footer-list">
+          <li><a href="/games">Gry</a></li>
+          <li><a href="/category">Kategorie</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/search">Szukaj</a></li>
+        </ul>
+      </div>
+
+      <div class="gv-footer-col">
+        <h4 class="gv-footer-heading">Informacje</h4>
+        <ul class="gv-footer-list">
+          <li><a href="/">Regulamin</a></li>
+          <li><a href="/">Polityka Prywatności</a></li>
+          <li><a href="/">Kontakt</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="gv-footer-bottom">
+      <span>&copy; <%= new Date().getFullYear() %> GameVerse. Wszystkie recenzje należą do ich autorów.</span>
+    </div>
+  </div>
+</footer>
+
+<%- include('signin-modal') %>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/main.js"></script>

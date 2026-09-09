@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-auth-page">
+    <div class="container d-flex justify-content-center">
+      <div class="gv-auth-card">
+        <h1 class="gv-auth-title">Create Account</h1>
+
+        <form action="/auth/signup" method="POST" novalidate>
+          <div class="mb-3">
+            <label for="email" class="gv-label">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="form-control gv-input"
+              value="<%= formData.email || '' %>"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="username" class="gv-label">Username</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="form-control gv-input"
+              value="<%= formData.username || '' %>"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="gv-label">Password</label>
+            <div class="gv-password-wrap">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control gv-input"
+                minlength="8"
+                required
+              />
+              <button type="button" class="gv-password-toggle" data-target="password" aria-label="Pokaż/ukryj hasło">👁️</button>
+            </div>
+          </div>
+
+          <div class="form-check gv-check mb-2">
+            <input class="form-check-input" type="checkbox" id="acceptTerms" name="acceptTerms" required />
+            <label class="form-check-label" for="acceptTerms">
+              I'm at least 16 years old and accept the <a href="/">Terms of Use</a>
+            </label>
+          </div>
+
+          <div class="form-check gv-check mb-3">
+            <input class="form-check-input" type="checkbox" id="acceptPrivacy" name="acceptPrivacy" required />
+            <label class="form-check-label" for="acceptPrivacy">
+              I accept the <a href="/">Private Policy</a> and consent to the processing
+              of my personal information in accordance with it
+            </label>
+          </div>
+
+          <div class="gv-captcha-wrap mb-3">
+            <% if (recaptchaSiteKey) { %>
+              <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div>
+            <% } else { %>
+              <div class="gv-captcha-fallback">
+                ⚠️ reCAPTCHA nie jest skonfigurowana (brak RECAPTCHA_SITE_KEY w .env)
+              </div>
+            <% } %>
+          </div>
+
+          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">sign up</button>
+        </form>
+
+        <p class="gv-auth-alt-link">
+          Masz już konto?
+          <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+  <% if (recaptchaSiteKey) { %>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <% } %>
+</body>
+</html>

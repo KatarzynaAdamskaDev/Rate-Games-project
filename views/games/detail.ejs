@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="container">
+      <div class="row g-4 mb-5">
+        <div class="col-12 col-md-4">
+          <img src="<%= game.coverImage %>" alt="<%= game.title %>" class="gv-detail-img w-100" />
+        </div>
+        <div class="col-12 col-md-8">
+          <span class="gv-game-card-category gv-static-badge"><%= game.category %></span>
+          <h1 class="gv-page-title mt-2"><%= game.title %></h1>
+          <p class="gv-detail-meta"><%= game.platform %> · <%= game.releaseYear %></p>
+          <p class="gv-detail-desc"><%= game.description %></p>
+
+          <div class="gv-detail-rating">
+            <% if (averageRating) { %>
+              <span class="gv-star">★</span>
+              <span class="gv-detail-rating-value"><%= averageRating %> / 5</span>
+              <span class="gv-game-card-count">(<%= reviews.length %> opinii)</span>
+            <% } else { %>
+              <span class="gv-game-card-count">Brak opinii - bądź pierwszy!</span>
+            <% } %>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="gv-section-title mb-3">Opinie graczy</h2>
+
+      <% if (currentUser) { %>
+        <form action="/games/<%= game.id %>/reviews" method="POST" class="gv-review-form mb-5">
+          <div class="mb-3">
+            <label class="gv-label d-block">Twoja ocena</label>
+            <select name="rating" class="form-select gv-select" style="max-width: 160px;" required>
+              <option value="">Wybierz...</option>
+              <option value="5">★★★★★ (5)</option>
+              <option value="4">★★★★ (4)</option>
+              <option value="3">★★★ (3)</option>
+              <option value="2">★★ (2)</option>
+              <option value="1">★ (1)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="gv-label d-block">Twoja opinia</label>
+            <textarea name="text" rows="3" class="form-control gv-input" required></textarea>
+          </div>
+          <button type="submit" class="btn gv-btn-success">Dodaj opinię</button>
+        </form>
+      <% } else { %>
+        <p class="gv-empty-state">
+          <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>,
+          aby dodać własną opinię o tej grze.
+        </p>
+      <% } %>
+
+      <% if (reviews.length === 0) { %>
+        <p class="gv-empty-state">Ta gra nie ma jeszcze żadnych opinii.</p>
+      <% } else { %>
+        <div class="gv-review-list">
+          <% reviews.forEach(function(review) { %>
+            <div class="gv-review-item">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="gv-review-author"><%= review.username %></strong>
+                <span class="gv-review-rating">★ <%= review.rating %>/5</span>
+              </div>
+              <p class="gv-review-text mb-1"><%= review.text %></p>
+              <small class="gv-review-date">
+                <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
+              </small>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

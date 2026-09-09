@@ -1,0 +1,14 @@
+<% if (success && success.length) { %>
+  <div class="container mt-3">
+    <% success.forEach(function(msg) { %>
+      <div class="alert alert-success gv-alert" role="alert"><%= msg %></div>
+    <% }) %>
+  </div>
+<% } %>
+<% if (error && error.length) { %>
+  <div class="container mt-3">
+    <% error.forEach(function(msg) { %>
+      <div class="alert alert-danger gv-alert" role="alert"><%= msg %></div>
+    <% }) %>
+  </div>
+<% } %>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="gv-page-title">Blog</h1>
+        <% if (currentUser && currentUser.role === 'admin') { %>
+          <a href="/blog/new" class="btn gv-btn-primary">Nowy wpis</a>
+        <% } %>
+      </div>
+
+      <% if (posts.length === 0) { %>
+        <p class="gv-empty-state">Brak wpisów na blogu.</p>
+      <% } else { %>
+        <div class="row g-4">
+          <% posts.forEach(function(post) { %>
+            <div class="col-12 col-md-6 col-lg-4">
+              <a href="/blog/<%= post.id %>" class="gv-blog-card d-block text-decoration-none h-100">
+                <img src="<%= post.coverImage %>" alt="<%= post.title %>" class="gv-blog-card-img" />
+                <div class="gv-blog-card-body">
+                  <h3 class="gv-blog-card-title"><%= post.title %></h3>
+                  <p class="gv-blog-card-excerpt"><%= post.excerpt %></p>
+                  <small class="gv-review-date">
+                    <%= post.author %> · <%= new Date(post.createdAt).toLocaleDateString('pl-PL') %>
+                  </small>
+                </div>
+              </a>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

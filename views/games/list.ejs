@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="container">
+      <h1 class="gv-page-title mb-4">Gry</h1>
+
+      <form method="GET" class="gv-filters d-flex flex-wrap gap-3 mb-4">
+        <div>
+          <label class="gv-label d-block">Kategoria</label>
+          <select name="category" class="form-select gv-select" onchange="this.form.submit()">
+            <option value="">Wszystkie</option>
+            <% categories.forEach(function(cat) { %>
+              <option value="<%= cat %>" <%= activeCategory === cat ? 'selected' : '' %>><%= cat %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div>
+          <label class="gv-label d-block">Sortuj</label>
+          <select name="sort" class="form-select gv-select" onchange="this.form.submit()">
+            <option value="title" <%= activeSort === 'title' ? 'selected' : '' %>>Alfabetycznie</option>
+            <option value="rating" <%= activeSort === 'rating' ? 'selected' : '' %>>Najwyżej oceniane</option>
+            <option value="newest" <%= activeSort === 'newest' ? 'selected' : '' %>>Najnowsze</option>
+          </select>
+        </div>
+      </form>
+
+      <% if (games.length === 0) { %>
+        <p class="gv-empty-state">Brak gier spełniających kryteria.</p>
+      <% } else { %>
+        <div class="row g-4">
+          <% games.forEach(function(game) { %>
+            <div class="col-12 col-sm-6 col-lg-4">
+              <%- include('../partials/game-card', { game }) %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

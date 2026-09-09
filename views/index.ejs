@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+  <%- include('partials/flash') %>
+
+  <section class="gv-hero">
+    <div class="container">
+      <div class="gv-hero-card">
+        <h1 class="gv-hero-title">What game did you finish lately?</h1>
+        <p class="gv-hero-text">
+          Show your friends your opinion about a game which you played.
+          Add games to your favourites and make new friends who also like
+          games like you.
+        </p>
+        <a href="/games" class="btn gv-btn-primary">Explore Now</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="gv-section">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="gv-section-title">Najnowsze gry</h2>
+        <a href="/games" class="gv-link-more">Zobacz wszystkie &rarr;</a>
+      </div>
+
+      <div class="row g-4">
+        <% games.forEach(function(game) { %>
+          <div class="col-12 col-sm-6 col-lg-4">
+            <%- include('partials/game-card', { game }) %>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <% if (latestPosts.length) { %>
+  <section class="gv-section gv-section-alt">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="gv-section-title">Z bloga</h2>
+        <a href="/blog" class="gv-link-more">Wszystkie wpisy &rarr;</a>
+      </div>
+      <div class="row g-4">
+        <% latestPosts.forEach(function(post) { %>
+          <div class="col-12 col-md-4">
+            <a href="/blog/<%= post.id %>" class="gv-blog-card d-block text-decoration-none">
+              <img src="<%= post.coverImage %>" alt="<%= post.title %>" class="gv-blog-card-img" />
+              <div class="gv-blog-card-body">
+                <h3 class="gv-blog-card-title"><%= post.title %></h3>
+                <p class="gv-blog-card-excerpt"><%= post.excerpt %></p>
+              </div>
+            </a>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+  <% } %>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

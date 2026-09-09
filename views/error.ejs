@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('partials/head') %>
+</head>
+<body>
+  <%- include('partials/navbar') %>
+
+  <section class="gv-section text-center">
+    <div class="container">
+      <h1 class="gv-error-code"><%= statusCode %></h1>
+      <p class="gv-error-message"><%= message %></p>
+      <a href="/" class="btn gv-btn-primary">Wróć na stronę główną</a>
+    </div>
+  </section>
+
+  <%- include('partials/footer') %>
+</body>
+</html>

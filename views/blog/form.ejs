@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-auth-page">
+    <div class="container d-flex justify-content-center">
+      <div class="gv-auth-card gv-auth-card-wide">
+        <h1 class="gv-auth-title">Nowy wpis na blogu</h1>
+
+        <form action="/blog/new" method="POST" novalidate>
+          <div class="mb-3">
+            <label class="gv-label">Tytuł</label>
+            <input type="text" name="title" class="form-control gv-input" value="<%= formData.title || '' %>" required />
+          </div>
+          <div class="mb-3">
+            <label class="gv-label">Ścieżka do obrazka okładki</label>
+            <input type="text" name="coverImage" class="form-control gv-input" placeholder="/images/game-placeholder.svg" value="<%= formData.coverImage || '' %>" />
+          </div>
+          <div class="mb-3">
+            <label class="gv-label">Krótki opis (excerpt)</label>
+            <input type="text" name="excerpt" class="form-control gv-input" value="<%= formData.excerpt || '' %>" />
+          </div>
+          <div class="mb-4">
+            <label class="gv-label">Treść wpisu</label>
+            <textarea name="content" rows="6" class="form-control gv-input" required><%= formData.content || '' %></textarea>
+          </div>
+
+          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Opublikuj</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

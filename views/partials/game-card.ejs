@@ -1,0 +1,19 @@
+<a href="/games/<%= game.id %>" class="gv-game-card d-block text-decoration-none h-100">
+  <div class="gv-game-card-img-wrap">
+    <img src="<%= game.coverImage %>" alt="<%= game.title %>" class="gv-game-card-img" />
+    <span class="gv-game-card-category"><%= game.category %></span>
+  </div>
+  <div class="gv-game-card-body">
+    <h3 class="gv-game-card-title"><%= game.title %></h3>
+    <p class="gv-game-card-meta"><%= game.platform %> · <%= game.releaseYear %></p>
+    <div class="gv-game-card-rating">
+      <% if (game.averageRating) { %>
+        <span class="gv-star">★</span>
+        <span><%= game.averageRating %> / 5</span>
+        <span class="gv-game-card-count">(<%= game.reviewCount %> opinii)</span>
+      <% } else { %>
+        <span class="gv-game-card-count">Brak opinii - bądź pierwszy!</span>
+      <% } %>
+    </div>
+  </div>
+</a>

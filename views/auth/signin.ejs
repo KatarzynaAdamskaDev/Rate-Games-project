@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-auth-page">
+    <div class="container d-flex justify-content-center">
+      <div class="gv-auth-card">
+        <h1 class="gv-auth-title">Sign in</h1>
+
+        <form action="/auth/signin" method="POST" novalidate>
+          <div class="mb-3">
+            <label for="identifier" class="gv-label">Username/e-mail</label>
+            <input
+              type="text"
+              id="identifier"
+              name="identifier"
+              class="form-control gv-input"
+              value="<%= formData.identifier || '' %>"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="gv-label">Password</label>
+            <div class="gv-password-wrap">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control gv-input"
+                required
+              />
+              <button type="button" class="gv-password-toggle" data-target="password" aria-label="Pokaż/ukryj hasło">👁️</button>
+            </div>
+          </div>
+
+          <div class="form-check gv-check mb-4">
+            <input class="form-check-input" type="checkbox" id="remember" name="remember" />
+            <label class="form-check-label" for="remember">remember me</label>
+          </div>
+
+          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">sign in</button>
+        </form>
+
+        <p class="gv-auth-alt-link">
+          <a href="/auth/reset-password">Forgot password?</a><br />
+          <a href="/auth/signup">create account</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

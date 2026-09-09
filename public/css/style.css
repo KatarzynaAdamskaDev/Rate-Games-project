@@ -1,0 +1,784 @@
+:root {
+  --gv-bg: #1c1730;
+  --gv-bg-alt: #241b3f;
+  --gv-purple: #6a56a8;
+  --gv-purple-dark: #4f3f80;
+  --gv-purple-light: #8a76c8;
+  --gv-navbar: #6d5a9e;
+  --gv-card-grey: #d9d9d9;
+  --gv-text: #f2eefb;
+  --gv-text-muted: #b8aed9;
+  --gv-blue: #5c7cf0;
+  --gv-green: #4caf50;
+  --gv-pixel-font: "Press Start 2P", "Space Grotesk", monospace;
+  --gv-body-font: "Space Grotesk", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--gv-bg);
+  color: var(--gv-text);
+  font-family: var(--gv-body-font);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Wszystko poza navbarem i stopką rośnie, aby wypełnić dostępną przestrzeń -
+   dzięki temu stopka zawsze trzyma się dołu strony, nawet gdy treści jest mało. */
+body > .gv-navbar,
+body > .gv-footer {
+  flex-shrink: 0;
+}
+
+body > *:not(.gv-navbar):not(.gv-footer):not(script) {
+  flex: 1 0 auto;
+}
+
+a {
+  color: inherit;
+}
+
+/* ------------------------------ NAVBAR ------------------------------ */
+/* Ścieśniony, wyśrodkowany układ (styl zbliżony do Letterboxd):
+   25% pustej przestrzeni | 50% logo + zakładki + lupa | 25% pustej przestrzeni */
+
+.gv-navbar {
+  background-color: var(--gv-navbar);
+  padding: 0.75rem 0;
+  position: relative;
+  z-index: 20;
+}
+
+.gv-navbar-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.gv-nav-spacer {
+  flex: 1 1 10%;
+}
+
+.gv-nav-center {
+  flex: 2 1 80%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7rem;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.gv-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gv-text) !important;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.gv-brand-icon {
+  font-size: 1.4rem;
+}
+
+.gv-brand-text {
+  font-family: var(--gv-pixel-font);
+  font-size: 1rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.gv-nav-links {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 1.25rem;
+}
+
+.gv-nav-item {
+  font-family: var(--gv-pixel-font);
+  font-size: 0.65rem;
+  color: var(--gv-text);
+  background: none;
+  border: none;
+  text-decoration: none;
+  padding: 0.4rem 0.1rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.gv-nav-item.active {
+  color: #ffd166;
+}
+
+.gv-nav-icon {
+  display: none;
+  font-size: 1.15rem;
+}
+
+.gv-brand-icon img {
+  width: 50px;
+  height: 50px;
+}
+
+/* Gdy wyszukiwarka jest otwarta, zakładki zamieniają się w ikonki */
+.gv-search-active .gv-nav-text {
+  display: none;
+}
+
+.gv-search-active .gv-nav-icon {
+  display: inline-block;
+}
+
+.gv-search-active .gv-brand-text {
+  display: none;
+}
+
+.gv-dropdown {
+  background-color: var(--gv-purple-dark);
+  border: 2px solid var(--gv-purple-light);
+  border-radius: 6px;
+}
+
+.gv-dropdown .dropdown-item {
+  color: var(--gv-text);
+  font-size: 0.85rem;
+  background: none;
+}
+
+.gv-dropdown .dropdown-item:hover {
+  background-color: var(--gv-purple);
+  color: #fff;
+}
+
+/* --------------------------- SZUKAJ (LUPA) --------------------------- */
+
+.gv-search-icon-btn {
+  background: none;
+  border: none;
+  color: var(--gv-text);
+  font-size: 1.05rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0.25rem;
+}
+
+.gv-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width 0.25s ease, opacity 0.2s ease;
+}
+
+.gv-search-active .gv-search-bar {
+  max-width: 360px;
+  opacity: 1;
+  flex: 1 1 auto;
+}
+
+.gv-search-input {
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.gv-search-close {
+  background: none;
+  border: none;
+  color: var(--gv-text);
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ---------------------------- MENU MOBILNE ---------------------------- */
+
+.gv-nav-toggler {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0.4rem;
+  margin-left: auto;
+}
+
+.gv-nav-toggler span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background-color: var(--gv-text);
+}
+
+@media (max-width: 991.98px) {
+  .gv-nav-spacer {
+    display: none;
+  }
+
+  .gv-nav-center {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .gv-nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    order: 3;
+    gap: 0.25rem;
+    padding-top: 0.75rem;
+  }
+
+  .gv-nav-links.gv-nav-open {
+    display: flex;
+  }
+
+  .gv-nav-item {
+    width: 100%;
+    padding: 0.5rem 0;
+  }
+
+  .gv-search-active .gv-search-bar {
+    max-width: 100%;
+  }
+}
+
+.gv-inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #cdbfff;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ------------------------------- HERO ------------------------------- */
+
+.gv-hero {
+background: url("/images/background.png") center / 120% auto no-repeat;
+  padding: 4rem 0;
+}
+
+.gv-hero-card {
+  background: rgba(0, 0, 0, 0.8);
+  border: none;
+  border-radius: 18px;
+  padding: 2.5rem 0;
+  max-width: 640px;
+}
+
+.gv-hero-title {
+  font-family: var(--gv-pixel-font);
+  font-size: 1.4rem;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+  margin-left: 15px;
+}
+
+.gv-hero-text {
+  color: var(--gv-text-muted);
+  font-size: 1rem;
+  margin-bottom: 1.75rem;
+  margin-left: 15px;
+}
+
+/* ------------------------------ BUTTONS ------------------------------ */
+
+.gv-btn-primary {
+  background-color: var(--gv-blue);
+  border: none;
+  color: #fff;
+  margin-left: 200px;
+  margin-right: 200px;
+  font-family: var(--gv-pixel-font);
+  font-size: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+}
+
+.gv-btn-primary:hover {
+  background-color: #4a63c9;
+  color: #fff;
+}
+
+.gv-btn-success {
+  background-color: var(--gv-green);
+  border: none;
+  color: #fff;
+  font-family: var(--gv-pixel-font);
+  font-size: 0.75rem;
+  padding: 0.65rem 1.5rem;
+  border-radius: 6px;
+}
+
+.gv-btn-success:hover {
+  background-color: #3e8e41;
+  color: #fff;
+}
+
+/* ------------------------------ SECTIONS ------------------------------ */
+
+.gv-section {
+  padding: 3rem 0;
+  margin-left: 250px;
+  margin-right: 250px;
+}
+
+.gv-section-alt {
+  background-color: var(--gv-bg-alt);
+}
+
+.gv-section-title {
+  font-family: var(--gv-pixel-font);
+  font-size: 1.1rem;
+}
+
+.gv-page-title {
+  font-family: var(--gv-pixel-font);
+  font-size: 1.3rem;
+}
+
+.gv-link-more {
+  color: var(--gv-purple-light);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.gv-empty-state {
+  color: var(--gv-text-muted);
+}
+
+/* ---------------------------- GAME CARDS ---------------------------- */
+
+.gv-game-card {
+  background-color: var(--gv-bg-alt);
+  border: 2px solid var(--gv-purple-dark);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.gv-game-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--gv-purple-light);
+}
+
+.gv-game-card-img-wrap {
+  position: relative;
+}
+
+.gv-game-card-img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  display: block;
+}
+
+.gv-game-card-category {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--gv-text);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.gv-static-badge {
+  position: static;
+  display: inline-block;
+}
+
+.gv-game-card-body {
+  padding: 1rem;
+}
+
+.gv-game-card-title {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+  color: var(--gv-text);
+}
+
+.gv-game-card-meta {
+  color: var(--gv-text-muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.gv-game-card-rating {
+  font-size: 0.85rem;
+}
+
+.gv-game-card-count {
+  color: var(--gv-text-muted);
+  font-size: 0.75rem;
+}
+
+.gv-star {
+  color: #ffd166;
+}
+
+/* ----------------------------- DETAIL PAGE ---------------------------- */
+
+.gv-detail-img {
+  border-radius: 10px;
+  border: 2px solid var(--gv-purple-dark);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+
+.gv-detail-meta {
+  color: var(--gv-text-muted);
+}
+
+.gv-detail-desc {
+  color: var(--gv-text);
+  line-height: 1.6;
+}
+
+.gv-detail-rating {
+  font-size: 1.1rem;
+  margin-top: 1rem;
+}
+
+.gv-detail-rating-value {
+  font-weight: 700;
+}
+
+/* ------------------------------ REVIEWS ------------------------------ */
+
+.gv-review-form {
+  background-color: var(--gv-bg-alt);
+  border: 2px solid var(--gv-purple-dark);
+  border-radius: 10px;
+  padding: 1.5rem;
+  max-width: 560px;
+}
+
+.gv-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gv-review-item {
+  background-color: var(--gv-bg-alt);
+  border-left: 4px solid var(--gv-purple-light);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+}
+
+.gv-review-author {
+  color: var(--gv-text);
+}
+
+.gv-review-rating {
+  color: #ffd166;
+  font-size: 0.9rem;
+}
+
+.gv-review-text {
+  color: var(--gv-text-muted);
+}
+
+.gv-review-date {
+  color: var(--gv-text-muted);
+  font-size: 0.75rem;
+}
+
+/* ------------------------------- BLOG -------------------------------- */
+
+.gv-blog-card {
+  background-color: var(--gv-bg-alt);
+  border: 2px solid var(--gv-purple-dark);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.gv-blog-card-img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+}
+
+.gv-blog-card-body {
+  padding: 1rem;
+}
+
+.gv-blog-card-title {
+  font-size: 1rem;
+  color: var(--gv-text);
+}
+
+.gv-blog-card-excerpt {
+  color: var(--gv-text-muted);
+  font-size: 0.85rem;
+}
+
+/* ---------------------------- CATEGORY PILLS --------------------------- */
+
+.gv-category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.gv-pill {
+  background-color: var(--gv-bg-alt);
+  border: 2px solid var(--gv-purple-dark);
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--gv-text);
+}
+
+.gv-pill-active,
+.gv-pill:hover {
+  background-color: var(--gv-purple);
+  border-color: var(--gv-purple-light);
+  color: #fff;
+}
+
+.gv-pill-count {
+  color: var(--gv-text-muted);
+  font-size: 0.75rem;
+}
+
+/* ----------------------------- AUTH FORMS ----------------------------- */
+
+.gv-auth-page {
+  padding: 3.5rem 0;
+}
+
+.gv-auth-card {
+  background-color: var(--gv-navbar);
+  border-radius: 10px;
+  padding: 2rem 2.5rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.gv-auth-card-wide {
+  max-width: 640px;
+}
+
+.gv-auth-title {
+  font-family: var(--gv-pixel-font);
+  font-size: 1.2rem;
+  color: var(--gv-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.gv-auth-desc {
+  color: var(--gv-text);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.gv-label {
+  color: var(--gv-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.gv-input,
+.gv-select {
+  border-radius: 4px;
+  border: none;
+  padding: 0.55rem 0.75rem;
+}
+
+.gv-password-wrap {
+  position: relative;
+}
+
+.gv-password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.gv-check {
+  color: var(--gv-text-muted);
+  font-size: 0.8rem;
+}
+
+.gv-check a {
+  color: #cdbfff;
+  text-decoration: underline;
+}
+
+.gv-captcha-fallback {
+  background-color: #fff;
+  color: #333;
+  font-size: 0.8rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+}
+
+.gv-auth-alt-link {
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--gv-text-muted);
+}
+
+.gv-auth-alt-link a {
+  color: #cdbfff;
+}
+
+/* ------------------------------- ALERTS ------------------------------- */
+
+.gv-alert {
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* ------------------------------- ERROR -------------------------------- */
+
+.gv-error-code {
+  font-family: var(--gv-pixel-font);
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.gv-error-message {
+  color: var(--gv-text-muted);
+  margin-bottom: 2rem;
+}
+
+/* ------------------------------- FOOTER -------------------------------- */
+
+.gv-footer {
+  background-color: #150f26;
+  color: var(--gv-text-muted);
+  font-size: 0.9rem;
+  border-top: 2px solid var(--gv-purple-dark);
+  padding: 3rem 0 1.5rem;
+}
+
+.gv-footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 2rem;
+  padding-bottom: 2rem;
+}
+
+.gv-footer-brand-col .gv-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--gv-pixel-font);
+  font-size: 0.9rem;
+  color: var(--gv-text);
+  text-decoration: none;
+}
+
+.gv-footer-tagline {
+  margin-top: 0.75rem;
+  max-width: 320px;
+  color: var(--gv-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.gv-footer-heading {
+  font-family: var(--gv-pixel-font);
+  font-size: 0.7rem;
+  color: var(--gv-text);
+  letter-spacing: 0.5px;
+  margin-bottom: 1rem;
+}
+
+.gv-footer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.gv-footer-list a {
+  color: var(--gv-text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.gv-footer-list a:hover {
+  color: var(--gv-text);
+}
+
+.gv-footer-bottom {
+  border-top: 1px solid var(--gv-purple-dark);
+  padding-top: 1.25rem;
+  font-size: 0.75rem;
+  color: var(--gv-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  .gv-footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gv-footer-brand-col {
+    grid-column: 1 / -1;
+  }
+}
+
+/* -------------------------- MODAL LOGOWANIA -------------------------- */
+
+.gv-modal-content {
+  background-color: var(--gv-navbar);
+  border: none;
+  border-radius: 10px;
+  color: var(--gv-text);
+}
+
+.gv-modal-header {
+  border-bottom: 1px solid var(--gv-purple-dark);
+  padding: 1.5rem 1.5rem 1rem;
+}
+
+.gv-modal-error {
+  background-color: rgba(220, 53, 69, 0.15);
+  border: 1px solid #dc3545;
+  color: #ffb3bb;
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 576px) {
+  .gv-auth-card {
+    padding: 1.5rem;
+  }
+  .gv-hero-card {
+    padding: 1.5rem;
+  }
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "1",
+    "title": "Cyber Streets 2088",
+    "category": "RPG",
+    "platform": "PC / PS5 / Xbox",
+    "releaseYear": 2088,
+    "coverImage": "/images/games/cyber-streets.svg",
+    "description": "Futurystyczne RPG akcji rozgrywające się w neonowym mieście przyszłości, pełnym korporacyjnych intryg i cybernetycznych ulepszeń."
+  },
+  {
+    "id": "2",
+    "title": "Pixel Knights",
+    "category": "Platformówka",
+    "platform": "PC / Switch",
+    "releaseYear": 2021,
+    "coverImage": "/images/games/pixel-knights.svg",
+    "description": "Retro platformówka z pikselową grafiką, w której wcielasz się w rycerza broniącego królestwa przed pikselowymi smokami."
+  },
+  {
+    "id": "3",
+    "title": "Galactic Siege",
+    "category": "Strategia",
+    "platform": "PC",
+    "releaseYear": 2023,
+    "coverImage": "/images/games/galactic-siege.svg",
+    "description": "Strategia 4X w kosmicznym uniwersum - buduj flotę, kolonizuj planety i podbijaj galaktykę."
+  },
+  {
+    "id": "4",
+    "title": "Shadow Runners",
+    "category": "Akcja",
+    "platform": "PS5 / Xbox",
+    "releaseYear": 2022,
+    "coverImage": "/images/games/shadow-runners.svg",
+    "description": "Dynamiczna gra akcji z systemem parkour i skradania w postapokaliptycznym świecie."
+  },
+  {
+    "id": "5",
+    "title": "Farmstead Tales",
+    "category": "Symulator",
+    "platform": "PC / Switch / Mobile",
+    "releaseYear": 2020,
+    "coverImage": "/images/games/farmstead-tales.svg",
+    "description": "Relaksujący symulator farmy - uprawiaj rośliny, hoduj zwierzęta i zaprzyjaźniaj się z mieszkańcami wioski."
+  },
+  {
+    "id": "6",
+    "title": "Deep Abyss",
+    "category": "Horror",
+    "platform": "PC / PS5",
+    "releaseYear": 2024,
+    "coverImage": "/images/games/deep-abyss.svg",
+    "description": "Survival horror w klaustrofobicznych korytarzach podwodnej stacji badawczej."
+  }
+]
