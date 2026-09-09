@@ -48,7 +48,7 @@ a {
 
 .gv-navbar {
   background-color: var(--gv-navbar);
-  padding: 0.75rem 0;
+  height: 64px;
   position: relative;
   z-index: 20;
 }
@@ -56,20 +56,15 @@ a {
 .gv-navbar-inner {
   display: flex;
   align-items: center;
-  width: 100%;
-  padding: 0 1rem;
+  justify-content: space-between;
+  height: 100%;
+  gap: 1.5rem;
 }
 
-.gv-nav-spacer {
-  flex: 1 1 10%;
-}
-
-.gv-nav-center {
-  flex: 2 1 80%;
+.gv-nav-right {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 7rem;
+  gap: 1.5rem;
   flex-wrap: nowrap;
   min-width: 0;
 }
@@ -85,13 +80,28 @@ a {
 
 .gv-brand-icon {
   font-size: 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.gv-brand-icon img {
+  height: 32px;
+  width: auto;
+  max-width: 40px;
+  object-fit: contain;
+  display: block;
 }
 
 .gv-brand-text {
   font-family: var(--gv-pixel-font);
-  font-size: 1rem;
+  font-size: 0.9rem;
   letter-spacing: 1px;
   white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.3s ease, max-width 0.3s ease;
 }
 
 .gv-nav-links {
@@ -106,11 +116,16 @@ a {
 .gv-nav-item {
   font-family: var(--gv-pixel-font);
   font-size: 0.65rem;
+  letter-spacing: 0.5px;
   color: var(--gv-text);
   background: none;
   border: none;
   text-decoration: none;
-  padding: 0.4rem 0.1rem;
+  padding: 0;
+  height: 32px;
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -119,27 +134,38 @@ a {
   color: #ffd166;
 }
 
-.gv-nav-icon {
-  display: none;
+/* Tekst i ikonka nakładają się w tej samej komórce siatki i płynnie się
+   przenikają (crossfade), zamiast znikać/pojawiać się skokowo. */
+.gv-nav-item .gv-nav-text,
+.gv-nav-item .gv-nav-icon {
+  grid-area: 1 / 1;
+  transition: opacity 0.3s ease;
+}
+
+.gv-nav-item .gv-nav-text {
+  opacity: 1;
+}
+
+.gv-nav-item .gv-nav-icon {
   font-size: 1.15rem;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.gv-brand-icon img {
-  width: 50px;
-  height: 50px;
-}
-
-/* Gdy wyszukiwarka jest otwarta, zakładki zamieniają się w ikonki */
+/* Gdy wyszukiwarka jest otwarta, zakładki płynnie zamieniają się w ikonki */
 .gv-search-active .gv-nav-text {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .gv-search-active .gv-nav-icon {
-  display: inline-block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .gv-search-active .gv-brand-text {
-  display: none;
+  opacity: 0;
+  max-width: 0;
 }
 
 .gv-dropdown {
@@ -168,41 +194,67 @@ a {
   font-size: 1.05rem;
   cursor: pointer;
   flex-shrink: 0;
-  padding: 0.25rem;
+  height: 32px;
+  width: 32px;
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+  padding: 0;
+  order: 3;
+}
+
+/* Ikonka lupy i "X" nakładają się na siebie i płynnie się przenikają */
+.gv-search-icon-glyph {
+  grid-area: 1 / 1;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.gv-search-close-glyph {
+  opacity: 0;
+  transform: rotate(-90deg);
+}
+
+.gv-search-active .gv-search-icon-glyph:not(.gv-search-close-glyph) {
+  opacity: 0;
+  transform: rotate(90deg);
+}
+
+.gv-search-active .gv-search-close-glyph {
+  opacity: 1;
+  transform: rotate(0deg);
 }
 
 .gv-search-bar {
   display: flex;
   align-items: center;
+  height: 32px;
   gap: 0.4rem;
   max-width: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-width 0.25s ease, opacity 0.2s ease;
+  order: 2;
+  transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease 0.05s;
 }
 
 .gv-search-active .gv-search-bar {
   max-width: 360px;
   opacity: 1;
-  flex: 1 1 auto;
 }
 
 .gv-search-input {
   border: none;
   border-radius: 999px;
-  padding: 0.45rem 1rem;
+  height: 32px;
+  padding: 0 1rem;
   font-size: 0.85rem;
   width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 
-.gv-search-close {
-  background: none;
-  border: none;
-  color: var(--gv-text);
-  font-size: 1rem;
-  cursor: pointer;
-  flex-shrink: 0;
+.gv-nav-links {
+  order: 1;
 }
 
 /* ---------------------------- MENU MOBILNE ---------------------------- */
@@ -225,11 +277,18 @@ a {
 }
 
 @media (max-width: 991.98px) {
-  .gv-nav-spacer {
-    display: none;
+  .gv-navbar {
+    height: auto;
+    min-height: 64px;
+    padding: 0.5rem 0;
   }
 
-  .gv-nav-center {
+  .gv-navbar-inner {
+    height: auto;
+    flex-wrap: wrap;
+  }
+
+  .gv-nav-right {
     flex: 1 1 100%;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -251,6 +310,7 @@ a {
 
   .gv-nav-item {
     width: 100%;
+    height: auto;
     padding: 0.5rem 0;
   }
 
@@ -272,7 +332,7 @@ a {
 /* ------------------------------- HERO ------------------------------- */
 
 .gv-hero {
-background: url("/images/background.png") center / 120% auto no-repeat;
+  background: url("/images/background.png") center / 120% auto no-repeat;
   padding: 4rem 0;
 }
 

@@ -10,9 +10,8 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   /* -------------------- Rozwijana wyszukiwarka -------------------- */
-  var navCenter = document.getElementById('gvNavCenter');
+  var navCenter = document.getElementById('gvNavRight');
   var searchToggle = document.getElementById('gvSearchToggle');
-  var searchClose = document.getElementById('gvSearchClose');
   var searchInput = document.getElementById('gvSearchInput');
 
   function openSearch() {
@@ -33,12 +32,6 @@ document.addEventListener('DOMContentLoaded', function () {
       } else {
         openSearch();
       }
-    });
-  }
-  if (searchClose) {
-    searchClose.addEventListener('click', function (e) {
-      e.preventDefault();
-      closeSearch();
     });
   }
   document.addEventListener('keydown', function (e) {

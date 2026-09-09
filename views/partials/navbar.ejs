@@ -1,40 +1,38 @@
 <nav class="gv-navbar" id="gvNavbar">
-  <div class="gv-navbar-inner">
-    <div class="gv-nav-spacer" aria-hidden="true"></div>
+  <div class="container gv-navbar-inner">
+    <a class="gv-brand" href="/">
+      <span class="gv-brand-icon"><img src="/images/Game2.png" alt="GameVerse"></span>
+      <span class="gv-brand-text">GameVerse</span>
+    </a>
 
-    <div class="gv-nav-center" id="gvNavCenter">
-      <a class="gv-brand" href="/">
-        <span class="gv-brand-icon"><img src="/images/Game2.png" alt="GameVerse"></span>
-        <span class="gv-brand-text">GameVerse</span>
-      </a>
+    <button
+      class="gv-nav-toggler d-lg-none"
+      type="button"
+      id="gvMobileToggle"
+      aria-label="Przełącz nawigację"
+      aria-expanded="false"
+    >
+      <span></span><span></span><span></span>
+    </button>
 
-      <button
-        class="gv-nav-toggler d-lg-none"
-        type="button"
-        id="gvMobileToggle"
-        aria-label="Przełącz nawigację"
-        aria-expanded="false"
-      >
-        <span></span><span></span><span></span>
-      </button>
-
+    <div class="gv-nav-right" id="gvNavRight">
       <ul class="gv-nav-links" id="gvNavLinks">
         <li>
           <a class="gv-nav-item <%= currentPath.startsWith('/games') ? 'active' : '' %>" href="/games">
             <span class="gv-nav-text">GAMES</span>
-            <span class="gv-nav-icon">🎮</span>
+            <i class="bi bi-controller gv-nav-icon"></i>
           </a>
         </li>
         <li>
           <a class="gv-nav-item <%= currentPath.startsWith('/category') ? 'active' : '' %>" href="/category">
             <span class="gv-nav-text">CATEGORY</span>
-            <span class="gv-nav-icon">🏷️</span>
+            <i class="bi bi-tags gv-nav-icon"></i>
           </a>
         </li>
         <li>
           <a class="gv-nav-item <%= currentPath.startsWith('/blog') ? 'active' : '' %>" href="/blog">
             <span class="gv-nav-text">BLOG</span>
-            <span class="gv-nav-icon">📰</span>
+            <i class="bi bi-window gv-nav-icon"></i>
           </a>
         </li>
 
@@ -48,7 +46,7 @@
               aria-expanded="false"
             >
               <span class="gv-nav-text"><%= currentUser.username %></span>
-              <span class="gv-nav-icon">👤</span>
+              <i class="bi bi-person-circle gv-nav-icon"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end gv-dropdown" aria-labelledby="userMenu">
               <% if (currentUser.role === 'admin') { %>
@@ -72,13 +70,11 @@
               data-bs-target="#signInModal"
             >
               <span class="gv-nav-text">SIGN IN</span>
-              <span class="gv-nav-icon">👤</span>
+              <i class="bi bi-person gv-nav-icon"></i>
             </button>
           </li>
         <% } %>
       </ul>
-
-      <button type="button" class="gv-search-icon-btn" id="gvSearchToggle" aria-label="Szukaj">🔍</button>
 
       <form action="/search" method="GET" class="gv-search-bar" id="gvSearchBar">
         <input
@@ -89,10 +85,12 @@
           placeholder="Szukaj gier, kategorii, wpisów..."
           autocomplete="off"
         />
-        <button type="button" class="gv-search-close" id="gvSearchClose" aria-label="Zamknij wyszukiwanie">✕</button>
       </form>
-    </div>
 
-    <div class="gv-nav-spacer" aria-hidden="true"></div>
+      <button type="button" class="gv-search-icon-btn" id="gvSearchToggle" aria-label="Szukaj">
+        <i class="bi bi-search gv-search-icon-glyph"></i>
+        <i class="bi bi-x-lg gv-search-icon-glyph gv-search-close-glyph"></i>
+      </button>
+    </div>
   </div>
 </nav>
