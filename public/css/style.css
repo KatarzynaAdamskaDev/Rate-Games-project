@@ -46,8 +46,11 @@ a {
 
 img, 
 svg {
+  height: 32px;
+  width: auto;
+  max-width: 40px;
+  object-fit: contain;
   display: block;
-  max-width: 100%;
 }
 
 button {
