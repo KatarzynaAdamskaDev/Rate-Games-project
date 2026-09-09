@@ -1,67 +1,353 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <%- include('partials/head') %>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameVerse — recenzje gier, społeczność graczy i czat na żywo</title>
+<meta name="description" content="GameVerse to portal dla graczy: zamieszczaj recenzje gier PC, PS5, Xbox i Switch, dodawaj tytuły do ulubionych, obserwuj innych graczy i rozmawiaj z nimi na czacie w czasie rzeczywistym.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <%- include('partials/navbar') %>
-  <%- include('partials/flash') %>
 
-  <section class="gv-hero">
-    <div class="container">
-      <div class="gv-hero-card">
-        <h1 class="gv-hero-title">What game did you finish lately?</h1>
-        <p class="gv-hero-text">
-          Show your friends your opinion about a game which you played.
-          Add games to your favourites and make new friends who also like
-          games like you.
-        </p>
-        <a href="/games" class="btn gv-btn-primary">Explore Now</a>
+<header class="site">
+  <div class="wrap nav-row">
+    <a href="/" class="logo"><div class="logo-mark">GV</div>GameVerse</a>
+    <nav class="main-nav">
+      <a href="/" class="active">Gry</a>
+      <a href="#kategorie">Kategorie</a>
+      <a href="#recenzje">Recenzje</a>
+      <a href="/blog">Blog</a>
+      <a href="#">Rankingi</a>
+      <a href="#">Społeczność</a>
+    </nav>
+    <div class="nav-search" role="search">
+      <form action="/search" method="GET">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" name="q" placeholder="Szukaj gry, recenzji, gracza…">
+      </form>
+    </div>
+    <div class="nav-actions">
+      <% if (locals.user) { %>
+        <button class="icon-btn" aria-label="Powiadomienia">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="dot"></span>
+        </button>
+        <button class="icon-btn" aria-label="Wiadomości czat">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.4-.7L3 21l1.8-5.7A8.4 8.4 0 1 1 21 11.5Z"/></svg>
+        </button>
+        <a href="/profile" class="avatar" title="<%= user.username %>"></a>
+        <a href="/auth/logout" class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">Wyloguj</a>
+      <% } else { %>
+        <a href="/auth/login" class="btn-ghost" style="padding: 8px 14px; font-size: 13px;">Zaloguj</a>
+        <a href="/auth/register" class="btn-primary" style="padding: 8px 14px; font-size: 13px;">Zarejestruj</a>
+      <% } %>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="wrap hero-inner">
+    <span class="eyebrow-pixel">SPOŁECZNOŚĆ GRACZY</span>
+    <h1>Pisz recenzje gier, <span>obserwuj graczy</span> i rozmawiaj o tym, w co właśnie grasz</h1>
+    <p>GameVerse to portal z recenzjami gier PC, PS5, Xbox i Nintendo Switch — dodawaj tytuły do ulubionych, komentuj opinie innych graczy i czatuj ze znajomymi w czasie rzeczywistym.</p>
+    <div class="hero-ctas">
+      <a href="/reviews/new" class="btn-primary hero-cta">Napisz swoją pierwszą recenzję</a>
+      <a href="#recenzje" class="btn-ghost hero-cta">Przeglądaj recenzje gier</a>
+    </div>
+    <div class="hero-stats">
+      <div><b>48 200+</b><span>recenzji gier</span></div>
+      <div><b>12 900</b><span>aktywnych graczy</span></div>
+      <div><b>3 400</b><span>gier w bazie</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="seo-intro">
+  <div class="wrap">
+    <p><strong>GameVerse</strong> to miejsce, w którym gracze PC i konsolowi dzielą się opiniami o najnowszych premierach — od recenzji gier akcji i RPG, przez opinie o grach indie, po rankingi najlepszych gier na PS5, Xbox Series X i Nintendo Switch. Dodawaj recenzje gier do ulubionych, obserwuj innych recenzentów i dołączaj do rozmów na czacie o grach wideo, zamiast szukać opinii na rozproszonych forach dla graczy.</p>
+  </div>
+</div>
+
+<section id="kategorie">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <h2>Recenzje gier według platformy</h2>
+        <p>Wybierz platformę i przejdź do opinii graczy o najnowszych tytułach na PC i konsole.</p>
       </div>
     </div>
-  </section>
-
-  <section class="gv-section">
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="gv-section-title">Najnowsze gry</h2>
-        <a href="/games" class="gv-link-more">Zobacz wszystkie &rarr;</a>
-      </div>
-
-      <div class="row g-4">
-        <% games.forEach(function(game) { %>
-          <div class="col-12 col-sm-6 col-lg-4">
-            <%- include('partials/game-card', { game }) %>
-          </div>
-        <% }) %>
-      </div>
+    <div class="platform-grid">
+      <a class="platform-card" href="/category/pc"><div class="pf-icon">🖥️</div><b>Gry PC</b><span>recenzje i wymagania</span></a>
+      <a class="platform-card" href="/category/ps5"><div class="pf-icon">🎮</div><b>Gry na PS5</b><span>opinie graczy</span></a>
+      <a class="platform-card" href="/category/xbox"><div class="pf-icon">🟩</div><b>Gry na Xbox</b><span>Series X/S</span></a>
+      <a class="platform-card" href="/category/switch"><div class="pf-icon">🔴</div><b>Nintendo Switch</b><span>gry przygodowe</span></a>
+      <a class="platform-card" href="/category/mobile"><div class="pf-icon">📱</div><b>Gry mobilne</b><span>Android i iOS</span></a>
+      <a class="platform-card" href="/category/vr"><div class="pf-icon">🕶️</div><b>Gry VR</b><span>nowa kategoria</span></a>
     </div>
-  </section>
+  </div>
+</section>
 
-  <% if (latestPosts.length) { %>
-  <section class="gv-section gv-section-alt">
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="gv-section-title">Z bloga</h2>
-        <a href="/blog" class="gv-link-more">Wszystkie wpisy &rarr;</a>
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <h2>Najczęściej recenzowane gry tego tygodnia</h2>
+        <p>Ranking gier na podstawie liczby recenzji i ocen dodanych przez społeczność w ostatnich 7 dniach.</p>
       </div>
-      <div class="row g-4">
-        <% latestPosts.forEach(function(post) { %>
-          <div class="col-12 col-md-4">
-            <a href="/blog/<%= post.id %>" class="gv-blog-card d-block text-decoration-none">
-              <img src="<%= post.coverImage %>" alt="<%= post.title %>" class="gv-blog-card-img" />
-              <div class="gv-blog-card-body">
-                <h3 class="gv-blog-card-title"><%= post.title %></h3>
-                <p class="gv-blog-card-excerpt"><%= post.excerpt %></p>
+      <a class="see-all" href="/games">Zobacz pełny ranking →</a>
+    </div>
+    <div class="trend-scroll">
+      <% if (locals.games && games.length > 0) { %>
+        <% games.forEach((game, idx) => { %>
+          <article class="trend-card">
+            <div class="trend-cover" style="background-image: url('<%= game.imageUrl || '' %>');">
+              <span class="rank-badge">#<%= idx + 1 %></span>
+            </div>
+            <div class="trend-body">
+              <b><a href="/games/<%= game.id %>"><%= game.title %></a></b>
+              <div class="meta"><%= game.category %> · <%= game.platform || 'PC, PS5' %></div>
+              <div class="rating">
+                <% const starsCount = Math.round(game.averageRating || 5); %>
+                <%= '★'.repeat(starsCount) + '☆'.repeat(5 - starsCount) %> 
+                <%= (game.averageRating || 5.0).toFixed(1) %>
               </div>
-            </a>
+            </div>
+          </article>
+        <% }); %>
+      <% } else { %>
+        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#1</span></div><div class="trend-body"><b>Cinderfall Requiem</b><div class="meta">RPG akcji · PC, PS5</div><div class="rating">★★★★★ 4.8 (2 130 ocen)</div></div></article>
+        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#2</span></div><div class="trend-body"><b>Northreach Colony</b><div class="meta">Strategia · PC</div><div class="rating">★★★★☆ 4.4 (980 ocen)</div></div></article>
+        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#3</span></div><div class="trend-body"><b>Static Horizon</b><div class="meta">FPS · Xbox, PC</div><div class="rating">★★★★☆ 4.2 (1 450 ocen)</div></div></article>
+        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#4</span></div><div class="trend-body"><b>Wanderhome</b><div class="meta">Gra przygodowa · Switch</div><div class="rating">★★★★★ 4.9 (760 ocen)</div></div></article>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<section id="recenzje">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <h2>Najnowsze recenzje graczy</h2>
+        <p>Opinie o grach dodane przez społeczność GameVerse — polub, skomentuj lub dodaj recenzenta do obserwowanych.</p>
+      </div>
+      <a class="see-all" href="/reviews">Wszystkie recenzje →</a>
+    </div>
+
+    <div class="content-grid">
+      <div class="review-list">
+
+        <% if (locals.latestReviews && latestReviews.length > 0) { %>
+          <% latestReviews.forEach(review => { %>
+            <article class="review-card">
+              <div class="review-top">
+                <div class="review-cover" style="background-image: url('<%= review.gameImage || '' %>');"></div>
+                <div class="review-headline">
+                  <span class="game-title"><%= review.gameTitle %><span class="platform-tag"><%= review.platform || 'PC / PS5' %></span></span>
+                  <div class="stars">
+                    <% const rStars = Math.round(review.rating || 5); %>
+                    <%= '★'.repeat(rStars) + '☆'.repeat(5 - rStars) %>
+                  </div>
+                  <div class="reviewer-row">
+                    <div class="r-avatar"></div> <%= review.username || 'Anonim' %> · <%= review.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'niedawno' %>
+                  </div>
+                </div>
+                <button class="follow-pill">Obserwuj</button>
+              </div>
+              <p class="review-text"><%= review.comment %></p>
+              <div class="tag-row">
+                <span class="tag"><%= review.category || 'Gry Akcji' %></span>
+                <span class="tag">Polecane</span>
+              </div>
+              <div class="review-actions">
+                <button class="action-btn">❤ <%= review.likesCount || 0 %></button>
+                <button class="action-btn">💬 <%= review.commentsCount || 0 %> komentarzy</button>
+                <button class="action-btn">↗ Udostępnij</button>
+                <button class="action-btn">☆ Do ulubionych</button>
+              </div>
+            </article>
+          <% }); %>
+        <% } else { %>
+          <article class="review-card">
+            <div class="review-top">
+              <div class="review-cover"></div>
+              <div class="review-headline">
+                <span class="game-title">Cinderfall Requiem<span class="platform-tag">PC / PS5</span></span>
+                <div class="stars">★★★★★</div>
+                <div class="reviewer-row"><div class="r-avatar"></div> Marta_K · 3 godziny temu</div>
+              </div>
+              <button class="follow-pill following">Obserwujesz</button>
+            </div>
+            <p class="review-text">Świat gry wciąga od pierwszej minuty, a system walki nagradza eksperymentowanie z buildami postaci. Największym zaskoczeniem jest fabuła poboczna — momentami lepsza niż wątek główny.</p>
+            <div class="tag-row">
+              <span class="tag">RPG akcji</span><span class="tag">Open world</span><span class="tag">Bez mikropłatności</span>
+            </div>
+            <div class="review-actions">
+              <button class="action-btn liked">❤ 214</button>
+              <button class="action-btn">💬 38 komentarzy</button>
+              <button class="action-btn">↗ Udostępnij</button>
+              <button class="action-btn">☆ Do ulubionych</button>
+            </div>
+            <div class="comment-preview"><b>Tomek89:</b> Zgadzam się co do wątku pobocznego, sekcja w bagnach urwała mi łeb.</div>
+          </article>
+        <% } %>
+
+        <button class="btn-ghost" style="width:100%; padding:14px;">Wczytaj więcej recenzji</button>
+      </div>
+
+      <aside class="sidebar">
+        <div class="side-card">
+          <h3>🏆 Top recenzenci tygodnia</h3>
+          <div class="leader-row"><span class="rank">1</span><div class="l-avatar"></div><div class="leader-info"><b>Marta_K</b><span>128 recenzji · 5,4k obserwujących</span></div><button class="mini-follow">+ Obserwuj</button></div>
+          <div class="leader-row"><span class="rank">2</span><div class="l-avatar"></div><div class="leader-info"><b>KubaRPG</b><span>96 recenzji · 3,1k obserwujących</span></div><button class="mini-follow">+ Obserwuj</button></div>
+          <div class="leader-row"><span class="rank">3</span><div class="l-avatar"></div><div class="leader-info"><b>AniaPixel</b><span>81 recenzji · 2,7k obserwujących</span></div><button class="mini-follow">+ Obserwuj</button></div>
+        </div>
+
+        <div class="side-card chat-card">
+          <div class="chat-head"><span class="online-dot"></span><b style="font-size:13.5px;">Czat · Znajomi online (4)</b></div>
+          <div class="chat-friend"><div class="f-avatar on"></div><div><b>Tomek89</b><span>gra teraz w Cinderfall Requiem</span></div></div>
+          <div class="chat-friend"><div class="f-avatar on"></div><div><b>KubaRPG</b><span>online</span></div></div>
+          <div class="chat-bubble">Widziałeś już recenzję Wanderhome?</div>
+          <div class="chat-bubble me">Tak, właśnie ją komentuję 😄</div>
+          <div class="chat-input">
+            <input type="text" placeholder="Napisz wiadomość…">
+            <button class="chat-send">➤</button>
           </div>
-        <% }) %>
+        </div>
+
+        <div class="side-card">
+          <h3>🔥 Popularne tagi</h3>
+          <div class="tag-row">
+            <span class="tag">Soulslike</span><span class="tag">Gry kooperacyjne</span><span class="tag">Roguelike</span>
+            <span class="tag">Symulatory</span><span class="tag">Gry indie 2026</span><span class="tag">Bez mikropłatności</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <h2>Przeglądaj gry według gatunku i tematu</h2>
+        <p>Znajdź recenzje i rankingi dopasowane do gatunku, który lubisz najbardziej.</p>
       </div>
     </div>
-  </section>
-  <% } %>
+    <div class="cat-grid">
+      <div class="cat-card">
+        <h4>Gry akcji i przygodowe</h4>
+        <ul>
+          <li><a href="#">Najlepsze gry akcji na PC 2026</a></li>
+          <li><a href="#">Recenzje gier przygodowych na PS5</a></li>
+          <li><a href="#">Gry akcji z otwartym światem</a></li>
+        </ul>
+      </div>
+      <div class="cat-card">
+        <h4>RPG i strategie</h4>
+        <ul>
+          <li><a href="#">Ranking najlepszych RPG na konsole</a></li>
+          <li><a href="#">Gry strategiczne na PC dla początkujących</a></li>
+          <li><a href="#">Recenzje gier fabularnych 2026</a></li>
+        </ul>
+      </div>
+      <div class="cat-card">
+        <h4>Gry indie i mobilne</h4>
+        <ul>
+          <li><a href="#">Najlepsze gry indie na Nintendo Switch</a></li>
+          <li><a href="#">Recenzje gier mobilnych na Androida</a></li>
+          <li><a href="#">Gry indie bez mikropłatności</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <%- include('partials/footer') %>
+<section>
+  <div class="wrap">
+    <div class="cta-band">
+      <div>
+        <h3>Dołącz do społeczności graczy GameVerse</h3>
+        <p>Zakładaj profil, obserwuj recenzentów, których cenisz, i rozmawiaj o grach na czacie — za darmo i bez reklam między recenzjami.</p>
+      </div>
+      <a href="/auth/register" class="btn-primary hero-cta">Załóż darmowe konto</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <div class="logo" style="margin-bottom:12px;"><div class="logo-mark">GV</div>GameVerse</div>
+        <p style="font-size:13px; color:var(--text-lo); max-width:260px;">Portal społecznościowy dla graczy PC i konsolowych — recenzje gier, rankingi, ulubione tytuły i czat z innymi graczami.</p>
+      </div>
+      <div>
+        <h5>Platformy</h5>
+        <ul>
+          <li><a href="#">Recenzje gier na PC</a></li>
+          <li><a href="#">Recenzje gier na PS5</a></li>
+          <li><a href="#">Recenzje gier na Xbox</a></li>
+          <li><a href="#">Gry na Nintendo Switch</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Gatunki</h5>
+        <ul>
+          <li><a href="#">Gry RPG</a></li>
+          <li><a href="#">Gry akcji</a></li>
+          <li><a href="#">Gry indie</a></li>
+          <li><a href="#">Gry strategiczne</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Społeczność</h5>
+        <ul>
+          <li><a href="#">Ranking recenzentów</a></li>
+          <li><a href="#">Czat dla graczy</a></li>
+          <li><a href="#">Obserwowani gracze</a></li>
+          <li><a href="#">Ulubione gry</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Portal</h5>
+        <ul>
+          <li><a href="#">O GameVerse</a></li>
+          <li><a href="#">Regulamin</a></li>
+          <li><a href="#">Polityka praw autorskich</a></li>
+          <li><a href="#">Kontakt</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 GameVerse. Wszystkie okładki gier i znaki towarowe należą do ich właścicieli.</span>
+      <span>Zbudowane dla graczy, przez graczy.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.action-btn').forEach(btn=>{
+    if(btn.textContent.trim().startsWith('❤')){
+      btn.addEventListener('click',()=>{
+        const liked = btn.classList.toggle('liked');
+        const count = parseInt(btn.textContent.replace('❤','').trim(),10);
+        btn.innerHTML = '❤ ' + (liked ? count+1 : count-1);
+      });
+    }
+  });
+  document.querySelectorAll('.follow-pill, .mini-follow').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const following = btn.classList.toggle('following');
+      if(btn.classList.contains('follow-pill')){
+        btn.textContent = following ? 'Obserwujesz' : 'Obserwuj';
+      }
+    });
+  });
+</script>
 </body>
 </html>
