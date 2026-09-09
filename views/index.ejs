@@ -1,49 +1,12 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GameVerse — recenzje gier, społeczność graczy i czat na żywo</title>
-<meta name="description" content="GameVerse to portal dla graczy: zamieszczaj recenzje gier PC, PS5, Xbox i Switch, dodawaj tytuły do ulubionych, obserwuj innych graczy i rozmawiaj z nimi na czacie w czasie rzeczywistym.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/style.css">
+  <%- include('partials/head') %>
 </head>
 <body>
 
-<header class="site">
-  <div class="wrap nav-row">
-    <a href="/" class="logo"><div class="logo-mark"></div>GameVerse</a>
-    <nav class="main-nav">
-      <a href="/" class="active">Gry</a>
-      <a href="#kategorie">Kategorie</a>
-      <a href="#recenzje">Recenzje</a>
-      <a href="/blog">Blog</a>
-    </nav>
-    <div class="nav-search" role="search">
-      <form action="/search" method="GET">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" name="q" placeholder="Szukaj gry, recenzji, gracza…">
-      </form>
-    </div>
-    <div class="nav-actions">
-      <% if (locals.user) { %>
-        <button class="icon-btn" aria-label="Powiadomienia">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-          <span class="dot"></span>
-        </button>
-        <button class="icon-btn" aria-label="Wiadomości czat">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.9 8.9 0 0 1-3.4-.7L3 21l1.8-5.7A8.4 8.4 0 1 1 21 11.5Z"/></svg>
-        </button>
-        <a href="/profile" class="avatar" title="<%= user.username %>"></a>
-        <a href="/auth/logout" class="btn-ghost" style="padding: 6px 12px; font-size: 11px;">Wyloguj</a>
-      <% } else { %>
-        <a href="/auth/login" class="btn-ghost" style="padding: 8px 14px; font-size: 11px;">Zaloguj</a>
-        <a href="/auth/register" class="btn-primary" style="padding: 8px 14px; font-size: 11px;">Zarejestruj</a>
-      <% } %>
-    </div>
-  </div>
-</header>
+  <%- include('partials/navbar') %>
+  <%- include('partials/flash') %>
 
 <section class="hero gv-hero">
   <div class="hero-bg"></div>
@@ -53,7 +16,6 @@
     <p class="gv-hero-text">GameVerse to portal z recenzjami gier PC, PS5, Xbox i Nintendo Switch — dodawaj tytuły do ulubionych, komentuj opinie innych graczy i czatuj ze znajomymi w czasie rzeczywistym.</p>
     <div class="hero-ctas">
       <a href="/reviews/new" class="btn-primary hero-cta">Napisz swoją pierwszą recenzję</a>
-      <a href="#recenzje" class="btn-ghost hero-cta">Przeglądaj recenzje gier</a>
     </div>
     <div class="hero-stats">
       <div><b>48 200+</b><span>recenzji gier</span></div>
@@ -257,56 +219,7 @@
   </div>
 </section>
 
-<footer>
-  <div class="wrap">
-    <div class="footer-grid">
-      <div>
-        <div class="logo" style="margin-bottom:12px;"><div class="logo-mark">GV</div>GameVerse</div>
-        <p style="font-size:13px; color:var(--text-lo); max-width:260px;">Portal społecznościowy dla graczy PC i konsolowych — recenzje gier, rankingi, ulubione tytuły i czat z innymi graczami.</p>
-      </div>
-      <div>
-        <h5>Platformy</h5>
-        <ul>
-          <li><a href="#">Recenzje gier na PC</a></li>
-          <li><a href="#">Recenzje gier na PS5</a></li>
-          <li><a href="#">Recenzje gier na Xbox</a></li>
-          <li><a href="#">Gry na Nintendo Switch</a></li>
-        </ul>
-      </div>
-      <div>
-        <h5>Gatunki</h5>
-        <ul>
-          <li><a href="#">Gry RPG</a></li>
-          <li><a href="#">Gry akcji</a></li>
-          <li><a href="#">Gry indie</a></li>
-          <li><a href="#">Gry strategiczne</a></li>
-        </ul>
-      </div>
-      <div>
-        <h5>Społeczność</h5>
-        <ul>
-          <li><a href="#">Ranking recenzentów</a></li>
-          <li><a href="#">Czat dla graczy</a></li>
-          <li><a href="#">Obserwowani gracze</a></li>
-          <li><a href="#">Ulubione gry</a></li>
-        </ul>
-      </div>
-      <div>
-        <h5>Portal</h5>
-        <ul>
-          <li><a href="#">O GameVerse</a></li>
-          <li><a href="#">Regulamin</a></li>
-          <li><a href="#">Polityka praw autorskich</a></li>
-          <li><a href="#">Kontakt</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <span>© 2026 GameVerse. Wszystkie okładki gier i znaki towarowe należą do ich właścicieli.</span>
-      <span>Zbudowane dla graczy, przez graczy.</span>
-    </div>
-  </div>
-</footer>
+<%- include('partials/footer') %>
 
 <script>
   document.querySelectorAll('.action-btn').forEach(btn=>{
