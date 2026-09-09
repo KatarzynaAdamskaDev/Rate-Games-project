@@ -47,7 +47,7 @@ a {
 img, 
 svg {
   display: block;
-  max-width: 80%;
+  max-width: 100%;
 }
 
 button {
