@@ -59,6 +59,8 @@ a {
   justify-content: space-between;
   height: 100%;
   gap: 1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 .gv-nav-right {
@@ -336,15 +338,46 @@ a {
   padding: 4rem 0;
 }
 
+.gv-hero .container {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
 .gv-hero-card {
-  background: rgba(0, 0, 0, 0.8);
-  border: none;
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.78) 0%,
+    rgba(0, 0, 0, 0.46) 38%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 18px;
   padding: 2.5rem 0;
   max-width: 640px;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transform: translateX(-220px);
+  animation: heroCardSlide 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.gv-hero-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.02) 40%,
+    rgba(255, 255, 255, 0) 72%
+  );
+  pointer-events: none;
 }
 
 .gv-hero-title {
+  position: relative;
+  z-index: 1;
   font-family: var(--gv-pixel-font);
   font-size: 1.4rem;
   line-height: 1.6;
@@ -353,10 +386,26 @@ a {
 }
 
 .gv-hero-text {
+  position: relative;
+  z-index: 1;
   color: var(--gv-text-muted);
   font-size: 1rem;
   margin-bottom: 1.75rem;
   margin-left: 15px;
+}
+
+@keyframes heroCardSlide {
+  0% {
+    opacity: 0;
+    transform: translateX(-220px);
+  }
+  45% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ------------------------------ BUTTONS ------------------------------ */
@@ -397,8 +446,11 @@ a {
 
 .gv-section {
   padding: 3rem 0;
-  margin-left: 250px;
-  margin-right: 250px;
+}
+
+.gv-section .container {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 .gv-section-alt {
