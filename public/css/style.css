@@ -15,9 +15,8 @@
   --radius-s: 8px;
   --radius-m: 14px;
   --radius-l: 22px;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-pixel: 'Press Start 2P', monospace;
-  --font-body: 'Inter', sans-serif;
+  --font-pixel: "Press Start 2P", "Space Grotesk", monospace;
+  --font-body: "Space Grotesk", system-ui, sans-serif;
 }
 
 * {
