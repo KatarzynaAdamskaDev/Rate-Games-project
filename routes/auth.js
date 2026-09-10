@@ -39,9 +39,12 @@ async function verifyRecaptcha(token) {
 /* ---------------------------- SIGN UP ---------------------------- */
 
 router.get('/signup', ensureGuest, (req, res) => {
-  res.render('auth/signup', { title: 'Utwórz konto', formData: {} });
+  res.render('auth/signup', {
+    title: 'Utwórz konto',
+    formData: {},
+    recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY 
+  });
 });
-
 router.post('/signup', ensureGuest, async (req, res, next) => {
   try {
     const {
@@ -84,6 +87,7 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
       return res.status(400).render('auth/signup', {
         title: 'Utwórz konto',
         formData: { email, username },
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY
       });
     }
 
