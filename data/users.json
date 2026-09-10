@@ -14,5 +14,13 @@
     "passwordHash": "$2a$10$dtM4S9b8RH1w/aqRthZcB.2Sq6emL2FOg0Fb09oTW7Y25sOeyv6ni",
     "role": "user",
     "createdAt": "2026-09-10T17:49:02.961Z"
+  },
+  {
+    "id": "2a58feab-202c-42e7-91db-603352045555",
+    "email": "wojtyl34@gmail.com",
+    "username": "wp",
+    "passwordHash": "$2a$10$V3PNHlWkLo/UK4TYOnxnv.ZciG6jk4fHRt33DA0NNTyMOsz/1DnG2",
+    "role": "user",
+    "createdAt": "2026-09-10T22:27:16.859Z"
   }
 ]

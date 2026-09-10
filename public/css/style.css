@@ -569,6 +569,11 @@ section {
   color: var(--accent-soft);
 }
 
+.pf-icon i {
+  font-size: 20px;
+  color: var(--accent-soft);
+}
+
 .platform-card b {
   font-size: 13.5px;
   display: block;
@@ -1413,4 +1418,90 @@ section {
 .gv-filter-select option:hover {
   background: var(--accent);
   color: #fff;
+}
+
+.gv-modal-error.is-success {
+  background: rgba(63, 224, 197, 0.12);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+}
+
+.gv-captcha-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.gv-captcha-wrap .g-recaptcha {
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+
+.gv-captcha-fallback {
+  background: rgba(255, 178, 56, 0.12);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 12.5px;
+  padding: 10px 14px;
+  border-radius: var(--radius-s);
+  text-align: center;
+}
+
+.gv-toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+}
+
+.gv-toast {
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-left: 4px solid var(--pink);
+  border-radius: var(--radius-s);
+  padding: 14px 40px 14px 16px;
+  color: var(--text-hi);
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 12px 30px rgba(12, 10, 20, 0.5);
+  position: relative;
+  animation: gvToastIn 0.25s ease forwards;
+}
+
+.gv-toast.gv-toast-success {
+  border-left-color: var(--cyan);
+}
+
+.gv-toast-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.gv-toast-close:hover {
+  color: var(--text-hi);
+}
+
+.gv-toast.gv-toast-out {
+  animation: gvToastOut 0.2s ease forwards;
+}
+
+@keyframes gvToastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes gvToastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(40px); }
 }
