@@ -3,20 +3,62 @@ const router = express.Router();
 
 const { getCategories, getAllGames, withRatings } = require('../utils/gameHelpers');
 
+const PLATFORM_GROUPS = {
+  konsole: ['ps5', 'xbox', 'switch'],
+  mobilne: ['android', 'ios'],
+};
+
+function filterByPlatformAndYear(games, platform, year) {
+  let filtered = games;
+
+  if (platform) {
+    const platformLower = platform.toLowerCase();
+    const group = PLATFORM_GROUPS[platformLower];
+
+    filtered = filtered.filter((g) => {
+      const gamePlatforms = (g.platform || '')
+        .split('/')
+        .map((p) => p.trim().toLowerCase());
+
+      if (group) {
+        return group.some((p) => gamePlatforms.includes(p));
+      }
+      return gamePlatforms.includes(platformLower);
+    });
+  }
+
+  if (year) {
+    filtered = filtered.filter((g) => String(g.releaseYear) === String(year));
+  }
+
+  return filtered;
+}
+
+function getAvailableYears() {
+  const years = getAllGames().map((g) => g.releaseYear);
+  return [...new Set(years)].sort((a, b) => b - a);
+}
+
 /* Lista wszystkich kategorii */
 router.get('/', (req, res) => {
+  const { platform, year } = req.query;
+
   const categories = getCategories().map((name) => {
     const count = getAllGames().filter((g) => g.category === name).length;
     return { name, count };
   });
 
+  let games = filterByPlatformAndYear(getAllGames(), platform, year);
+  games = withRatings(games);
+
   res.render('category', {
     title: 'Kategorie',
     categories,
     selectedCategory: null,
-    selectedPlatform: null,
-    selectedYear: null,
-    games: [],
+    selectedPlatform: platform || null,
+    selectedYear: year || null,
+    availableYears: getAvailableYears(),
+    games,
   });
 });
 
@@ -33,21 +75,7 @@ router.get('/:name', (req, res) => {
   let games = getAllGames().filter(
     (g) => g.category.toLowerCase() === name.toLowerCase()
   );
-
-  if (platform) {
-    games = games.filter((g) => {
-      // "PC / PS5 / Xbox" -> ["pc", "ps5", "xbox"]
-      const platforms = (g.platform || '')
-        .split('/')
-        .map((p) => p.trim().toLowerCase());
-      return platforms.includes(platform.toLowerCase());
-    });
-  }
-
-  if (year) {
-    games = games.filter((g) => String(g.releaseYear) === String(year));
-  }
-
+  games = filterByPlatformAndYear(games, platform, year);
   games = withRatings(games);
 
   res.render('category', {
@@ -56,6 +84,7 @@ router.get('/:name', (req, res) => {
     selectedCategory: name,
     selectedPlatform: platform || null,
     selectedYear: year || null,
+    availableYears: getAvailableYears(),
     games,
   });
 });
