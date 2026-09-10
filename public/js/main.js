@@ -148,6 +148,24 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+    /* -------------------- Walidacja formularza rejestracji (modal) -------------------- */
+  var signupForm = document.getElementById('signupForm');
+  var signupError = document.getElementById('signupModalError');
+
+  if (signupForm) {
+    signupForm.addEventListener('submit', function (e) {
+      var pass1 = document.getElementById('signupPassword').value;
+      var pass2 = document.getElementById('signupPassword2').value;
+
+      if (pass1 !== pass2) {
+        e.preventDefault();
+        if (signupError) {
+          signupError.textContent = 'Podane hasła nie są identyczne.';
+          signupError.classList.remove('d-none');
+        }
+      }
+    });
+  }
 });
 
 document.addEventListener('DOMContentLoaded', function () {

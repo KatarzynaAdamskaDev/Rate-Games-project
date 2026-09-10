@@ -38,71 +38,81 @@
       </div>
 
       <!-- WIDOK: FORGOT PASSWORD -->
-      <div class="gv-auth-view d-none" data-view="forgot">
-        <div class="modal-header gv-modal-header">
-          <h2 class="gv-auth-title mb-0">Reset password</h2>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
-        </div>
-        <div class="modal-body">
-          <div class="gv-modal-error d-none" id="forgotModalError"></div>
-          <p class="gv-auth-subtext">Podaj adres e-mail, na który wyślemy link do zresetowania hasła.</p>
+<div class="gv-auth-view d-none" data-view="forgot">
+  <div class="modal-header gv-modal-header">
+    <h2 class="gv-auth-title mb-0">Reset password</h2>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+  </div>
+  <div class="modal-body">
+    <p class="gv-auth-subtext">Podaj adres e-mail, na który wyślemy link do zresetowania hasła.</p>
 
-          <form id="forgotForm" novalidate>
-            <div class="mb-4">
-              <label for="forgotEmail" class="gv-label">E-mail</label>
-              <input type="email" id="forgotEmail" name="email" class="form-control gv-input" required />
-            </div>
-
-            <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Wyślij link resetujący</button>
-          </form>
-
-          <p class="gv-auth-alt-link mb-0">
-            <button type="button" class="gv-auth-switch" data-switch="signin">← Wróć do logowania</button>
-          </p>
-        </div>
+    <form id="forgotForm" action="/auth/reset-password" method="POST" novalidate>
+      <div class="mb-4">
+        <label for="forgotEmail" class="gv-label">E-mail</label>
+        <input type="email" id="forgotEmail" name="email" class="form-control gv-input" required />
       </div>
 
-      <!-- WIDOK: CREATE ACCOUNT -->
-      <div class="gv-auth-view d-none" data-view="signup">
-        <div class="modal-header gv-modal-header">
-          <h2 class="gv-auth-title mb-0">Create account</h2>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
-        </div>
-        <div class="modal-body">
-          <div class="gv-modal-error d-none" id="signupModalError"></div>
+      <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Wyślij link resetujący</button>
+    </form>
 
-          <form id="signupForm" novalidate>
-            <div class="mb-3">
-              <label for="signupUsername" class="gv-label">Username</label>
-              <input type="text" id="signupUsername" name="username" class="form-control gv-input" required />
-            </div>
+    <p class="gv-auth-alt-link mb-0">
+      <button type="button" class="gv-auth-switch" data-switch="signin">← Wróć do logowania</button>
+    </p>
+  </div>
+</div>
 
-            <div class="mb-3">
-              <label for="signupEmail" class="gv-label">E-mail</label>
-              <input type="email" id="signupEmail" name="email" class="form-control gv-input" required />
-            </div>
+<!-- WIDOK: CREATE ACCOUNT -->
+<div class="gv-auth-view d-none" data-view="signup">
+  <div class="modal-header gv-modal-header">
+    <h2 class="gv-auth-title mb-0">Create account</h2>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+  </div>
+  <div class="modal-body">
+    <div class="gv-modal-error d-none" id="signupModalError"></div>
 
-            <div class="mb-3">
-              <label for="signupPassword" class="gv-label">Password</label>
-              <div class="gv-password-wrap">
-                <input type="password" id="signupPassword" name="password" class="form-control gv-input" required />
-                <button type="button" class="gv-password-toggle" data-target="signupPassword" aria-label="Pokaż/ukryj hasło">👁️</button>
-              </div>
-            </div>
-
-            <div class="mb-4">
-              <label for="signupPassword2" class="gv-label">Confirm password</label>
-              <input type="password" id="signupPassword2" name="password2" class="form-control gv-input" required />
-            </div>
-
-            <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">create account</button>
-          </form>
-
-          <p class="gv-auth-alt-link mb-0">
-            <button type="button" class="gv-auth-switch" data-switch="signin">← Masz już konto? Zaloguj się</button>
-          </p>
-        </div>
+    <form id="signupForm" action="/auth/signup" method="POST" novalidate>
+      <div class="mb-3">
+        <label for="signupUsername" class="gv-label">Username</label>
+        <input type="text" id="signupUsername" name="username" class="form-control gv-input" required />
       </div>
+
+      <div class="mb-3">
+        <label for="signupEmail" class="gv-label">E-mail</label>
+        <input type="email" id="signupEmail" name="email" class="form-control gv-input" required />
+      </div>
+
+      <div class="mb-3">
+        <label for="signupPassword" class="gv-label">Password</label>
+        <input type="password" id="signupPassword" name="password" class="form-control gv-input" minlength="8" required />
+      </div>
+
+      <div class="mb-3">
+        <label for="signupPassword2" class="gv-label">Confirm password</label>
+        <input type="password" id="signupPassword2" name="password2" class="form-control gv-input" minlength="8" required />
+      </div>
+
+      <div class="form-check gv-check mb-2">
+        <input class="form-check-input" type="checkbox" id="modalAcceptTerms" name="acceptTerms" required />
+        <label class="form-check-label" for="modalAcceptTerms">
+          Mam co najmniej 16 lat i akceptuję <a href="/">Regulamin</a>
+        </label>
+      </div>
+
+      <div class="form-check gv-check mb-4">
+        <input class="form-check-input" type="checkbox" id="modalAcceptPrivacy" name="acceptPrivacy" required />
+        <label class="form-check-label" for="modalAcceptPrivacy">
+          Akceptuję <a href="/">Politykę Prywatności</a>
+        </label>
+      </div>
+
+      <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">create account</button>
+    </form>
+
+    <p class="gv-auth-alt-link mb-0">
+      <button type="button" class="gv-auth-switch" data-switch="signin">← Masz już konto? Zaloguj się</button>
+    </p>
+  </div>
+</div>
 
     </div>
   </div>
