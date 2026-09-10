@@ -87,65 +87,151 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+    /* -------------------- Toasty (komunikaty w rogu ekranu) -------------------- */
+  function showToast(message, isSuccess) {
+    var container = document.getElementById('gvToastContainer');
+    if (!container || !message) return;
+
+    var toast = document.createElement('div');
+    toast.className = 'gv-toast' + (isSuccess ? ' gv-toast-success' : '');
+    toast.textContent = message;
+
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'gv-toast-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', function () { removeToast(toast); });
+    toast.appendChild(closeBtn);
+
+    container.appendChild(toast);
+
+    setTimeout(function () { removeToast(toast); }, 5000);
+  }
+
+  function removeToast(toast) {
+    if (!toast || !toast.parentNode) return;
+    toast.classList.add('gv-toast-out');
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 200);
+  }
+
+  /* -------------------- Wspólna funkcja wysyłki JSON -------------------- */
+  function postJson(url, formEl) {
+    var formData = new URLSearchParams(new FormData(formEl));
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: formData.toString(),
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { ok: res.ok, data: data };
+      });
+    });
+  }
+
   /* -------------------- Modal logowania (AJAX) -------------------- */
   var signInForm = document.getElementById('signInForm');
-  var signInError = document.getElementById('signInModalError');
   var signInModalEl = document.getElementById('signInModal');
 
   if (signInForm) {
     signInForm.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (signInError) {
-        signInError.classList.add('d-none');
-        signInError.textContent = '';
-      }
 
-      var formData = new URLSearchParams(new FormData(signInForm));
-
-      fetch('/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: formData.toString(),
-      })
-        .then(function (res) {
-          return res.json().then(function (data) {
-            return { ok: res.ok, data: data };
-          });
-        })
+      postJson('/auth/signin', signInForm)
         .then(function (result) {
           if (result.ok && result.data.success) {
-            // Odśwież bieżącą stronę, aby odzwierciedlić stan zalogowania
             window.location.reload();
           } else {
-            if (signInError) {
-              signInError.textContent =
-                result.data.message || 'Nie udało się zalogować.';
-              signInError.classList.remove('d-none');
-            }
+            showToast(result.data.message || 'Nie udało się zalogować.', false);
           }
         })
         .catch(function () {
-          if (signInError) {
-            signInError.textContent =
-              'Wystąpił błąd połączenia. Spróbuj ponownie.';
-            signInError.classList.remove('d-none');
-          }
+          showToast('Wystąpił błąd połączenia. Spróbuj ponownie.', false);
         });
     });
   }
 
-  // Wyczyść formularz i błędy przy każdym otwarciu modala
+  /* -------------------- Modal rejestracji (AJAX + auto-login) -------------------- */
+  var signupForm = document.getElementById('signupForm');
+
+  if (signupForm) {
+    signupForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var pass1 = document.getElementById('signupPassword').value;
+      var pass2 = document.getElementById('signupPassword2').value;
+
+      if (pass1 !== pass2) {
+        showToast('Podane hasła nie są identyczne.', false);
+        return;
+      }
+
+      postJson('/auth/signup', signupForm)
+        .then(function (result) {
+          if (result.ok && result.data.success) {
+            var loginData = new URLSearchParams();
+            loginData.set('identifier', document.getElementById('signupUsername').value);
+            loginData.set('password', pass1);
+
+            return fetch('/auth/signin', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+              body: loginData.toString(),
+            }).then(function () {
+              window.location.reload();
+            });
+          } else {
+            showToast(result.data.message || 'Nie udało się utworzyć konta.', false);
+          }
+        })
+        .catch(function () {
+          showToast('Wystąpił błąd połączenia. Spróbuj ponownie.', false);
+        });
+    });
+  }
+
+  /* -------------------- Modal resetu hasła (AJAX) -------------------- */
+  var forgotForm = document.getElementById('forgotForm');
+
+  if (forgotForm) {
+    forgotForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var email = document.getElementById('forgotEmail').value.trim();
+
+      if (!email) {
+        showToast('Podaj adres e-mail.', false);
+        return;
+      }
+
+      postJson('/auth/reset-password', forgotForm)
+        .then(function (result) {
+          showToast(result.data.message, result.ok && result.data.success);
+          if (result.ok && result.data.success) {
+            forgotForm.reset();
+          }
+        })
+        .catch(function () {
+          showToast('Wystąpił błąd połączenia. Spróbuj ponownie.', false);
+        });
+    });
+  }
+
+  // Wyczyść wszystkie formularze przy każdym otwarciu modala
   if (signInModalEl) {
     signInModalEl.addEventListener('show.bs.modal', function () {
-      if (signInForm) signInForm.reset();
-      if (signInError) {
-        signInError.classList.add('d-none');
-        signInError.textContent = '';
-      }
+      [signInForm, signupForm, forgotForm].forEach(function (form) {
+        if (form) form.reset();
+      });
     });
   }
     /* -------------------- Walidacja formularza rejestracji (modal) -------------------- */

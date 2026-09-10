@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const router = express.Router();
 
 const { ensureGuest } = require('../middleware/auth');
@@ -10,6 +11,7 @@ const {
   createUser,
   updatePassword,
 } = require('../utils/userHelpers');
+const { sendPasswordResetEmail } = require('../utils/mailer');
 
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 
@@ -17,8 +19,6 @@ const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 async function verifyRecaptcha(token) {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
   if (!secret) {
-    // Brak skonfigurowanych kluczy - nie blokuj działania aplikacji w dev,
-    // ale wypisz ostrzeżenie w konsoli.
     console.warn(
       '[reCAPTCHA] Brak RECAPTCHA_SECRET_KEY w .env - weryfikacja pominięta.'
     );
@@ -36,16 +36,24 @@ async function verifyRecaptcha(token) {
   return data.success === true;
 }
 
+/** Sprawdza, czy klient oczekuje odpowiedzi JSON (fetch z modala) czy pełnej strony. */
+function wantsJsonResponse(req) {
+  return req.xhr || (req.headers.accept || '').includes('application/json');
+}
+
 /* ---------------------------- SIGN UP ---------------------------- */
 
 router.get('/signup', ensureGuest, (req, res) => {
   res.render('auth/signup', {
     title: 'Utwórz konto',
     formData: {},
-    recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY 
+    recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY,
   });
 });
+
 router.post('/signup', ensureGuest, async (req, res, next) => {
+  const wantsJson = wantsJsonResponse(req);
+
   try {
     const {
       email,
@@ -83,20 +91,33 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
     }
 
     if (errors.length > 0) {
+      if (wantsJson) {
+        return res.status(400).json({ success: false, message: errors.join(' ') });
+      }
       errors.forEach((e) => req.flash('error', e));
       return res.status(400).render('auth/signup', {
         title: 'Utwórz konto',
         formData: { email, username },
-        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY,
       });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     createUser({ email, username, passwordHash });
 
+    if (wantsJson) {
+      return res.json({
+        success: true,
+        message: 'Konto zostało utworzone.',
+      });
+    }
+
     req.flash('success', 'Konto zostało utworzone. Możesz się teraz zalogować.');
     res.redirect('/auth/signin');
   } catch (err) {
+    if (wantsJson) {
+      return res.status(500).json({ success: false, message: 'Wystąpił błąd serwera.' });
+    }
     next(err);
   }
 });
@@ -108,10 +129,7 @@ router.get('/signin', ensureGuest, (req, res) => {
 });
 
 router.post('/signin', ensureGuest, async (req, res, next) => {
-  // Formularz w modalu wysyła żądanie AJAX (fetch) i oczekuje odpowiedzi JSON,
-  // dzięki czemu strona w tle nie przeładowuje się przy błędnym logowaniu.
-  const wantsJson =
-    req.xhr || (req.headers.accept || '').includes('application/json');
+  const wantsJson = wantsJsonResponse(req);
 
   try {
     const { identifier, password, remember } = req.body;
@@ -141,7 +159,6 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
     };
 
     if (remember) {
-      // 30 dni zamiast domyślnego czasu życia sesji (przeglądarki)
       req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
     }
 
@@ -156,9 +173,7 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
     res.redirect('/');
   } catch (err) {
     if (wantsJson) {
-      return res
-        .status(500)
-        .json({ success: false, message: 'Wystąpił błąd serwera.' });
+      return res.status(500).json({ success: false, message: 'Wystąpił błąd serwera.' });
     }
     next(err);
   }
@@ -176,22 +191,42 @@ router.get('/reset-password', ensureGuest, (req, res) => {
   res.render('auth/reset-password', { title: 'Zresetuj hasło' });
 });
 
-router.post('/reset-password', ensureGuest, (req, res) => {
+router.post('/reset-password', ensureGuest, async (req, res) => {
+  const wantsJson = wantsJsonResponse(req);
   const { email } = req.body;
-  const user = email ? findByEmail(email) : null;
 
-  // Ze względów bezpieczeństwa zawsze pokazujemy ten sam komunikat,
-  // niezależnie od tego, czy e-mail istnieje w bazie.
-  if (user) {
-    // TODO: tutaj docelowo należałoby wysłać e-mail z linkiem resetującym
-    // (np. przez nodemailer) zawierającym jednorazowy token.
-    console.log(`[reset-password] Link resetujący dla: ${user.email}`);
+  if (!email || !email.trim()) {
+    const message = 'Podaj adres e-mail.';
+    if (wantsJson) {
+      return res.status(400).json({ success: false, message });
+    }
+    req.flash('error', message);
+    return res.redirect('/auth/reset-password');
   }
 
-  req.flash(
-    'success',
-    'Jeśli podany adres e-mail istnieje w naszej bazie, wysłaliśmy na niego wiadomość z dalszymi instrukcjami.'
-  );
+  const user = findByEmail(email);
+
+  if (user) {
+    try {
+      const token = crypto.randomBytes(32).toString('hex');
+
+      // TODO: Zapisz ten token przy użytkowniku w bazie z czasem wygaśnięcia
+
+      await sendPasswordResetEmail(user.email, token);
+      console.log(`Prawdziwy e-mail wysłany na: ${user.email}`);
+    } catch (err) {
+      console.error('Błąd podczas wysyłania maila:', err);
+    }
+  }
+
+  const message =
+    'Jeśli podany adres e-mail istnieje w naszej bazie, wysłaliśmy na niego wiadomość z dalszymi instrukcjami.';
+
+  if (wantsJson) {
+    return res.json({ success: true, message });
+  }
+
+  req.flash('success', message);
   res.redirect('/auth/signin');
 });
 
