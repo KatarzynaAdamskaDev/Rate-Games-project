@@ -14,6 +14,8 @@ router.get('/', (req, res) => {
     title: 'Kategorie',
     categories,
     selectedCategory: null,
+    selectedPlatform: null,
+    selectedYear: null,
     games: [],
   });
 });
@@ -21,21 +23,39 @@ router.get('/', (req, res) => {
 /* Gry w danej kategorii */
 router.get('/:name', (req, res) => {
   const { name } = req.params;
+  const { platform, year } = req.query;
+
   const categories = getCategories().map((c) => ({
     name: c,
     count: getAllGames().filter((g) => g.category === c).length,
   }));
 
-  const games = withRatings(
-    getAllGames().filter(
-      (g) => g.category.toLowerCase() === name.toLowerCase()
-    )
+  let games = getAllGames().filter(
+    (g) => g.category.toLowerCase() === name.toLowerCase()
   );
+
+  if (platform) {
+    games = games.filter((g) => {
+      // "PC / PS5 / Xbox" -> ["pc", "ps5", "xbox"]
+      const platforms = (g.platform || '')
+        .split('/')
+        .map((p) => p.trim().toLowerCase());
+      return platforms.includes(platform.toLowerCase());
+    });
+  }
+
+  if (year) {
+    games = games.filter((g) => String(g.releaseYear) === String(year));
+  }
+
+  games = withRatings(games);
 
   res.render('category', {
     title: `Kategoria: ${name}`,
     categories,
     selectedCategory: name,
+    selectedPlatform: platform || null,
+    selectedYear: year || null,
     games,
   });
 });
