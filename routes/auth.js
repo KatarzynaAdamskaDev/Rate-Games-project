@@ -10,10 +10,14 @@ const {
   findByUsernameOrEmail,
   createUser,
   updatePassword,
+  setResetToken,
+  findByResetToken,
+  clearResetToken,
 } = require('../utils/userHelpers');
 const { sendPasswordResetEmail } = require('../utils/mailer');
 
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
+const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minut
 
 /** Weryfikuje token reCAPTCHA v2 po stronie serwera. */
 async function verifyRecaptcha(token) {
@@ -36,7 +40,7 @@ async function verifyRecaptcha(token) {
   return data.success === true;
 }
 
-/** Sprawdza, czy klient oczekuje odpowiedzi JSON (fetch z modala) czy pełnej strony. */
+/** Sprawdza, czy klient oczekuje odpowiedzi JSON (fetch) czy pełnej strony. */
 function wantsJsonResponse(req) {
   return req.xhr || (req.headers.accept || '').includes('application/json');
 }
@@ -185,7 +189,7 @@ router.post('/logout', (req, res) => {
   });
 });
 
-/* ------------------------- RESET PASSWORD ------------------------- */
+/* ------------------------- RESET PASSWORD (WYSYŁKA LINKU) ------------------------- */
 
 router.get('/reset-password', ensureGuest, (req, res) => {
   res.render('auth/reset-password', { title: 'Zresetuj hasło' });
@@ -210,10 +214,11 @@ router.post('/reset-password', ensureGuest, async (req, res) => {
     try {
       const token = crypto.randomBytes(32).toString('hex');
 
-      // TODO: Zapisz ten token przy użytkowniku w bazie z czasem wygaśnięcia
+      // Zapisujemy zahaszowany token przy użytkowniku, ważny przez 15 minut.
+      setResetToken(user.id, token, RESET_TOKEN_TTL_MS);
 
       await sendPasswordResetEmail(user.email, token);
-      console.log(`Prawdziwy e-mail wysłany na: ${user.email}`);
+      console.log(`Link resetujący wysłany na: ${user.email}`);
     } catch (err) {
       console.error('Błąd podczas wysyłania maila:', err);
     }
@@ -221,6 +226,66 @@ router.post('/reset-password', ensureGuest, async (req, res) => {
 
   const message =
     'Jeśli podany adres e-mail istnieje w naszej bazie, wysłaliśmy na niego wiadomość z dalszymi instrukcjami.';
+
+  if (wantsJson) {
+    return res.json({ success: true, message });
+  }
+
+  req.flash('success', message);
+  res.redirect('/auth/signin');
+});
+
+/* ------------------- USTAWIANIE NOWEGO HASŁA (Z LINKU W MAILU) ------------------- */
+
+router.get('/reset-password/:token', ensureGuest, (req, res) => {
+  const { token } = req.params;
+  const user = findByResetToken(token);
+
+  res.render('auth/new-password', {
+    title: 'Ustaw nowe hasło',
+    valid: !!user,
+    token,
+  });
+});
+
+router.post('/reset-password/:token', ensureGuest, async (req, res) => {
+  const wantsJson = wantsJsonResponse(req);
+  const { token } = req.params;
+  const { password, password2 } = req.body;
+
+  const user = findByResetToken(token);
+
+  if (!user) {
+    const message = 'Link jest nieprawidłowy lub wygasł. Poproś o nowy.';
+    if (wantsJson) {
+      return res.status(400).json({ success: false, message });
+    }
+    req.flash('error', message);
+    return res.redirect('/auth/reset-password');
+  }
+
+  const errors = [];
+  if (!password || password.length < 8) {
+    errors.push('Hasło musi mieć co najmniej 8 znaków.');
+  }
+  if (password !== password2) {
+    errors.push('Podane hasła nie są identyczne.');
+  }
+
+  if (errors.length > 0) {
+    const message = errors.join(' ');
+    if (wantsJson) {
+      return res.status(400).json({ success: false, message });
+    }
+    req.flash('error', message);
+    return res.redirect(`/auth/reset-password/${token}`);
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  updatePassword(user.id, passwordHash);
+  clearResetToken(user.id); // token jednorazowy - unieważniamy po użyciu
+
+  const message = 'Hasło zostało zmienione. Możesz się teraz zalogować.';
 
   if (wantsJson) {
     return res.json({ success: true, message });
