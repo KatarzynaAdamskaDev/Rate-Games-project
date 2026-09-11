@@ -17,7 +17,7 @@ async function sendPasswordResetEmail(toEmail, resetToken) {
   const resetLink = `http://localhost:3000/auth/reset-password/${resetToken}`;
 
   // Link lokalny kierujący na Twój serwer na azure
-  //const resetLink = `https://gameverse-arfgc3cfbvd5crd5.polandcentral-01.azurewebsites.net/auth/reset-password/${resetToken}`;
+  const resetLinkAzure = `https://gameverse-arfgc3cfbvd5crd5.polandcentral-01.azurewebsites.net/auth/reset-password/${resetToken}`;
 
   const mailOptions = {
     from: `"GameVerse" <${process.env.EMAIL_USER}>`,
@@ -30,7 +30,10 @@ async function sendPasswordResetEmail(toEmail, resetToken) {
         <p>Kliknij poniższy przycisk, aby ustawić nowe hasło (link jest aktywny przez 15 minut):</p>
         <p style="text-align: center; margin: 30px 0;">
           <a href="${resetLink}" style="background-color: #5c67f2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            Zresetuj hasło
+            Zresetuj hasło localhost
+          </a>
+          <a href="${resetLinkAzure}" style="background-color: #5c67f2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+            Zresetuj hasło Azure
           </a>
         </p>
         <p style="color: #777; font-size: 12px;">Jeśli to nie Ty zgłaszałeś tę prośbę, zignoruj tę wiadomość.</p>
