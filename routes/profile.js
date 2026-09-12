@@ -33,17 +33,22 @@ const {
 const { getAllGames } = require('../utils/gameHelpers');
 
 /** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
-function buildProfileViewModel(user) {
+async function buildProfileViewModel(user) {
   const reviews = readCollection('reviews')
     .filter((r) => r.username === user.username)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const [followers, following] = await Promise.all([
+    getFollowers(user.id),
+    getFollowing(user.id),
+  ]);
 
   const stats = {
     reviewCount: reviews.length,
     commentCount: 0,
     likesReceived: 0,
-    followersCount: getFollowers(user.id).length,
-    followingCount: getFollowing(user.id).length,
+    followersCount: followers.length,
+    followingCount: following.length,
   };
 
   const progress = levelProgress(pointsFromStats(stats));
@@ -69,9 +74,9 @@ function buildBacklog(userId) {
 
 /* -------------------------- WŁASNY PROFIL -------------------------- */
 
-router.get('/', ensureAuthenticated, (req, res) => {
-  const user = findById(req.session.user.id);
-  const vm = buildProfileViewModel(user);
+router.get('/', ensureAuthenticated, async (req, res) => {
+  const user = await findById(req.session.user.id);
+  const vm = await buildProfileViewModel(user);
 
   res.render('profile/show', {
     title: 'Twój profil',
@@ -85,15 +90,15 @@ router.get('/', ensureAuthenticated, (req, res) => {
   });
 });
 
-router.get('/settings', ensureAuthenticated, (req, res) => {
-  const user = findById(req.session.user.id);
+router.get('/settings', ensureAuthenticated, async (req, res) => {
+  const user = await findById(req.session.user.id);
   res.render('profile/settings', {
     title: 'Ustawienia konta',
     profileUser: getUserPublic(user),
   });
 });
 
-router.post('/settings/username', ensureAuthenticated, (req, res) => {
+router.post('/settings/username', ensureAuthenticated, async (req, res) => {
   const { username } = req.body;
 
   if (!username || username.trim().length < 3) {
@@ -101,7 +106,7 @@ router.post('/settings/username', ensureAuthenticated, (req, res) => {
     return res.redirect('/profile/settings');
   }
 
-  const result = updateUsername(req.session.user.id, username.trim());
+  const result = await updateUsername(req.session.user.id, username.trim());
   if (!result.ok) {
     req.flash(
       'error',
@@ -130,13 +135,13 @@ router.post('/settings/password', ensureAuthenticated, async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  updatePassword(req.session.user.id, passwordHash);
+  await updatePassword(req.session.user.id, passwordHash);
   req.flash('success', 'Hasło zostało zmienione.');
   res.redirect('/profile/settings');
 });
 
-router.post('/settings/delete', ensureAuthenticated, (req, res) => {
-  deleteUser(req.session.user.id);
+router.post('/settings/delete', ensureAuthenticated, async (req, res) => {
+  await deleteUser(req.session.user.id);
   req.session.destroy(() => {
     res.redirect('/');
   });
@@ -159,35 +164,35 @@ router.post('/backlog', ensureAuthenticated, (req, res) => {
 
 /* ----------------------------- OBSERWOWANIE ----------------------------- */
 
-router.post('/follow/:username', ensureAuthenticated, (req, res) => {
-  const target = findByUsername(req.params.username);
+router.post('/follow/:username', ensureAuthenticated, async (req, res) => {
+  const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika.');
     return res.redirect('/');
   }
-  follow(req.session.user.id, target.id);
+  await follow(req.session.user.id, target.id);
   res.redirect(req.get('Referer') || `/profile/${target.username}`);
 });
 
-router.post('/unfollow/:username', ensureAuthenticated, (req, res) => {
-  const target = findByUsername(req.params.username);
+router.post('/unfollow/:username', ensureAuthenticated, async (req, res) => {
+  const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika.');
     return res.redirect('/');
   }
-  unfollow(req.session.user.id, target.id);
+  await unfollow(req.session.user.id, target.id);
   res.redirect(req.get('Referer') || `/profile/${target.username}`);
 });
 
 /* --------------------------- PUBLICZNY PROFIL --------------------------- */
 
-router.get('/:username', (req, res, next) => {
-  const user = findByUsername(req.params.username);
+router.get('/:username', async (req, res, next) => {
+  const user = await findByUsername(req.params.username);
   if (!user) return next();
 
-  const vm = buildProfileViewModel(user);
+  const vm = await buildProfileViewModel(user);
   const alreadyFollowing = req.session.user
-    ? isFollowing(req.session.user.id, user.id)
+    ? await isFollowing(req.session.user.id, user.id)
     : false;
   const isOwnProfile = !!(
     req.session.user && req.session.user.id === user.id
