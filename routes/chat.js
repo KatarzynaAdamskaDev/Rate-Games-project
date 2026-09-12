@@ -38,7 +38,7 @@ router.get('/', (req, res) => {
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
   const messages = canSeeActive ? getMessages(active.id) : [];
 
-  res.render('chat/index', {
+  res.render('chat/chat', {
     title: 'Czat i grupy',
     conversations,
     active: canSeeActive ? active : null,
