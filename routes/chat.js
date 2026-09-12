@@ -21,7 +21,7 @@ router.use(ensureAuthenticated);
 
 /* ------------------------------- WIDOK ------------------------------- */
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const me = req.session.user;
 
   const conversations = getConversationsForUser(me.id).map((c) => {
@@ -38,12 +38,14 @@ router.get('/', (req, res) => {
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
   const messages = canSeeActive ? getMessages(active.id) : [];
 
+  const allUsers = await getAllUsers();
+
   res.render('chat/chat', {
     title: 'Czat i grupy',
     conversations,
     active: canSeeActive ? active : null,
     messages,
-    otherUsers: getAllUsers()
+    otherUsers: allUsers
       .filter((u) => u.id !== me.id)
       .map((u) => u.username),
     popularGames: getAllGames().slice(0, 6),
@@ -52,8 +54,8 @@ router.get('/', (req, res) => {
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
 
-router.post('/start/:username', (req, res) => {
-  const target = findByUsername(req.params.username);
+router.post('/start/:username', async (req, res) => {
+  const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika o takiej nazwie.');
     return res.redirect('/chat');
@@ -69,7 +71,7 @@ router.post('/start/:username', (req, res) => {
 
 /* ------------------------------ GRUPY ------------------------------ */
 
-router.post('/groups/new', (req, res) => {
+router.post('/groups/new', async (req, res) => {
   const { name, usernames } = req.body;
 
   if (!name || !name.trim()) {
@@ -82,8 +84,11 @@ router.post('/groups/new', (req, res) => {
     .map((u) => u.trim())
     .filter(Boolean);
 
-  const members = usernameList
-    .map((u) => findByUsername(u))
+  const foundUsers = await Promise.all(
+    usernameList.map((u) => findByUsername(u))
+  );
+
+  const members = foundUsers
     .filter(Boolean)
     .filter((u) => u.id !== req.session.user.id);
 

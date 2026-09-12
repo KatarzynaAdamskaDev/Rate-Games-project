@@ -1,0 +1,18 @@
+[
+  {
+    "id": "566d1875-8cf4-40b5-9136-4ff782ed1167",
+    "conversationId": "38d49506-0957-4df6-95a8-7ec4ac1fb731",
+    "senderId": "2a58feab-202c-42e7-91db-603352045555",
+    "senderUsername": "wp",
+    "text": "siema",
+    "createdAt": "2026-09-12T21:02:51.857Z"
+  },
+  {
+    "id": "8dff0d4b-af24-4136-aa3d-e242bacb18cf",
+    "conversationId": "38d49506-0957-4df6-95a8-7ec4ac1fb731",
+    "senderId": "818e022b-402e-4609-8b4b-6152dc052e79",
+    "senderUsername": "dupa",
+    "text": "elo",
+    "createdAt": "2026-09-12T21:03:35.759Z"
+  }
+]
