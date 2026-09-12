@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="wrap" style="max-width: 640px;">
+      <h1 class="gv-page-title mb-4">Ustawienia konta</h1>
+
+      <div class="gv-settings-card">
+        <h2>Nazwa użytkownika</h2>
+        <form action="/profile/settings/username" method="POST" class="gv-form-grid">
+          <div class="full">
+            <label class="gv-label">Nowa nazwa użytkownika</label>
+            <input type="text" name="username" class="form-control gv-input" value="<%= profileUser.username %>" minlength="3" required>
+          </div>
+          <div class="full">
+            <button type="submit" class="gv-btn-success">Zapisz nazwę</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="gv-settings-card">
+        <h2>Zmiana hasła</h2>
+        <form action="/profile/settings/password" method="POST" class="gv-form-grid">
+          <div>
+            <label class="gv-label">Nowe hasło</label>
+            <input type="password" name="newPassword" class="form-control gv-input" minlength="8" required>
+          </div>
+          <div>
+            <label class="gv-label">Potwierdź nowe hasło</label>
+            <input type="password" name="confirmPassword" class="form-control gv-input" minlength="8" required>
+          </div>
+          <div class="full">
+            <button type="submit" class="gv-btn-success">Zmień hasło</button>
+          </div>
+        </form>
+        <p class="gv-section-subtitle mt-2 mb-0">
+          Zapomniałeś hasła i nie jesteś zalogowany? Skorzystaj z <a href="/auth/reset-password" class="gv-inline-link">resetu hasła przez e-mail</a>.
+        </p>
+      </div>
+
+      <div class="gv-danger-zone">
+        <div>
+          <h4>Usuń konto</h4>
+          <p>Ta operacja jest nieodwracalna - usunie Twój profil i wyloguje Cię z serwisu.</p>
+        </div>
+        <form action="/profile/settings/delete" method="POST" onsubmit="return confirm('Na pewno chcesz usunąć swoje konto? Tej operacji nie można cofnąć.');">
+          <button type="submit" class="gv-btn-danger">Usuń moje konto</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

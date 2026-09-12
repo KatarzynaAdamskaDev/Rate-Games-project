@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
+  <meta name="description" content="Recenzje gier od społeczności GameVerse - najczęściej recenzowane gry, najwyżej oceniane tytuły, najnowsze opinie graczy i ranking najaktywniejszych recenzentów.">
+</head>
+<body>
+  <%- include('partials/navbar') %>
+  <%- include('partials/flash') %>
+
+  <section class="gv-section">
+    <div class="wrap">
+
+      <h1 class="gv-page-title">Recenzje graczy</h1>
+      <p class="gv-page-lead">
+        Zobacz, co społeczność GameVerse sądzi o najnowszych i najpopularniejszych grach na PC, PS5, Xbox
+        i Nintendo Switch. Poniżej znajdziesz ranking najczęściej recenzowanych tytułów, gry z najwyższą
+        średnią oceną, najnowsze opinie graczy oraz listę najaktywniejszych recenzentów portalu.
+      </p>
+
+      <div class="gv-stats-bar">
+        <div class="gv-stat-card"><b><%= stats.totalReviews %></b><span>recenzji</span></div>
+        <div class="gv-stat-card"><b><%= stats.gamesWithReviews %> / <%= stats.totalGames %></b><span>gier z recenzją</span></div>
+        <div class="gv-stat-card"><b><%= stats.averageRating || '—' %></b><span>średnia ocena</span></div>
+        <div class="gv-stat-card"><b><%= stats.totalReviewers %></b><span>recenzentów</span></div>
+        <div class="gv-stat-card"><b><%= categoryBreakdown.length %></b><span>kategorii gier</span></div>
+      </div>
+
+      <% if (featuredReview && featuredReview.game) { %>
+        <div class="gv-featured-card">
+          <img src="<%= featuredReview.game.coverImage %>" alt="<%= featuredReview.game.title %>" class="gv-featured-cover" />
+          <div>
+            <div class="gv-featured-eyebrow">✨ Recenzja tygodnia</div>
+            <div class="gv-review-top" style="margin-bottom:0;">
+              <span class="gv-review-author"><%= featuredReview.username %> o grze <%= featuredReview.game.title %></span>
+              <span class="gv-review-rating">★ <%= featuredReview.rating %>/5</span>
+            </div>
+            <p class="gv-featured-text">"<%= featuredReview.text %>"</p>
+            <div class="gv-featured-meta">
+              <%= new Date(featuredReview.createdAt).toLocaleDateString('pl-PL') %> ·
+              <a href="/games/<%= featuredReview.game.id %>">Zobacz grę „<%= featuredReview.game.title %>” →</a>
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+      <!-- NAJCZĘŚCIEJ RECENZOWANE -->
+      <h2 class="gv-section-title">🔥 Najczęściej recenzowane gry</h2>
+      <p class="gv-section-subtitle">Top 10 tytułów, o których gracze piszą najwięcej opinii.</p>
+      <% if (mostReviewedGames.length === 0) { %>
+        <p class="gv-empty-state" style="margin-bottom:44px;">Żadna gra nie ma jeszcze recenzji - bądź pierwszy!</p>
+      <% } else { %>
+        <div class="gv-rank-scroll">
+          <% mostReviewedGames.forEach(function(game, i) { %>
+            <a href="/games/<%= game.id %>" class="gv-rank-card text-decoration-none">
+              <div class="gv-rank-cover">
+                <span class="gv-rank-number">#<%= i + 1 %></span>
+                <img src="<%= game.coverImage %>" alt="<%= game.title %>">
+              </div>
+              <div class="gv-rank-body">
+                <b><%= game.title %></b>
+                <span><%= game.category %> · <%= game.releaseYear %></span>
+                <span class="gv-rank-metric"><%= game.reviewCount %> <%= game.reviewCount === 1 ? 'recenzja' : 'recenzji' %></span>
+              </div>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <!-- NAJWYŻEJ OCENIANE -->
+      <h2 class="gv-section-title">⭐ Najwyżej oceniane gry</h2>
+      <p class="gv-section-subtitle">Tytuły z najwyższą średnią oceną wystawioną przez społeczność.</p>
+      <% if (topRatedGames.length === 0) { %>
+        <p class="gv-empty-state" style="margin-bottom:44px;">Brak ocenionych gier.</p>
+      <% } else { %>
+        <div class="gv-rank-scroll">
+          <% topRatedGames.forEach(function(game, i) { %>
+            <a href="/games/<%= game.id %>" class="gv-rank-card text-decoration-none">
+              <div class="gv-rank-cover">
+                <span class="gv-rank-number">#<%= i + 1 %></span>
+                <img src="<%= game.coverImage %>" alt="<%= game.title %>">
+              </div>
+              <div class="gv-rank-body">
+                <b><%= game.title %></b>
+                <span><%= game.category %> · <%= game.releaseYear %></span>
+                <span class="gv-rank-metric">★ <%= game.averageRating %> / 5</span>
+              </div>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <div class="row g-4" style="margin-bottom:8px;">
+        <div class="col-12 col-lg-7">
+          <!-- NAJNOWSZE RECENZJE -->
+          <h2 class="gv-section-title">📝 Najnowsze recenzje</h2>
+          <p class="gv-section-subtitle">Świeże opinie graczy, prosto z ostatnich dni.</p>
+          <% if (latestReviews.length === 0) { %>
+            <p class="gv-empty-state">Brak recenzji.</p>
+          <% } else { %>
+            <div class="gv-feed">
+              <% latestReviews.forEach(function(r) { %>
+                <div class="gv-feed-item">
+                  <img src="<%= r.game ? r.game.coverImage : '/images/game-placeholder.svg' %>" alt="" class="gv-feed-cover">
+                  <div class="gv-feed-body">
+                    <div class="gv-feed-top">
+                      <span class="gv-feed-game"><%= r.game ? r.game.title : 'Nieznana gra' %></span>
+                      <span class="gv-feed-rating">★ <%= r.rating %>/5</span>
+                    </div>
+                    <p class="gv-feed-text"><%= r.text.length > 140 ? r.text.slice(0, 140) + '…' : r.text %></p>
+                    <div class="gv-feed-meta">
+                      <a href="/profile/<%= r.username %>"><%= r.username %></a> ·
+                      <%= new Date(r.createdAt).toLocaleDateString('pl-PL') %>
+                      <% if (r.game) { %> · <a href="/games/<%= r.game.id %>">Zobacz grę</a><% } %>
+                    </div>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <div class="col-12 col-lg-5">
+          <!-- NAJAKTYWNIEJSI RECENZENCI -->
+          <h2 class="gv-section-title">🏆 Najaktywniejsi recenzenci</h2>
+          <p class="gv-section-subtitle">Gracze, którzy dzielą się opiniami najczęściej.</p>
+          <% if (topReviewers.length === 0) { %>
+            <p class="gv-empty-state">Brak recenzentów.</p>
+          <% } else { %>
+            <div class="gv-leaderboard">
+              <% topReviewers.forEach(function(rev, i) { %>
+                <a href="/profile/<%= rev.username %>" class="gv-leader-row text-decoration-none">
+                  <span class="gv-leader-rank">#<%= i + 1 %></span>
+                  <span class="gv-leader-avatar"></span>
+                  <span class="gv-leader-name"><%= rev.username %></span>
+                  <span class="gv-leader-count"><%= rev.reviewCount %> <%= rev.reviewCount === 1 ? 'recenzja' : 'recenzji' %></span>
+                </a>
+              <% }) %>
+            </div>
+          <% } %>
+
+          <!-- KATEGORIE -->
+          <h2 class="gv-section-title">🗂 Recenzje według kategorii</h2>
+          <p class="gv-section-subtitle">Które gatunki gier gracze recenzują najczęściej.</p>
+          <div class="gv-category-bars">
+            <% var maxCount = Math.max(1, ...categoryBreakdown.map(function(c){ return c.reviewsCount; })); %>
+            <% categoryBreakdown.forEach(function(cat) { %>
+              <a href="/category/<%= cat.category %>" class="gv-category-bar-row text-decoration-none">
+                <span class="gv-category-bar-label"><%= cat.category %></span>
+                <span class="gv-category-bar-track"><span class="gv-category-bar-fill" style="width:<%= Math.round((cat.reviewsCount / maxCount) * 100) %>%;"></span></span>
+                <span class="gv-category-bar-count"><%= cat.reviewsCount %> recenzji · <%= cat.gamesCount %> gier</span>
+              </a>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <!-- WSZYSTKIE RECENZJE -->
+      <div class="gv-sort-row">
+        <div>
+          <h2 class="gv-section-title" style="margin-bottom:0;">Wszystkie recenzje</h2>
+          <p class="gv-section-subtitle" style="margin-bottom:0;"><%= allReviews.length %> recenzji w bazie GameVerse.</p>
+        </div>
+        <form method="GET">
+          <select name="sort" class="gv-select" onchange="this.form.submit()">
+            <option value="newest" <%= activeSort === 'newest' ? 'selected' : '' %>>Najnowsze</option>
+            <option value="oldest" <%= activeSort === 'oldest' ? 'selected' : '' %>>Najstarsze</option>
+            <option value="rating" <%= activeSort === 'rating' ? 'selected' : '' %>>Najwyżej oceniane</option>
+          </select>
+        </form>
+      </div>
+
+      <% if (allReviews.length === 0) { %>
+        <p class="gv-empty-state">Nie ma jeszcze żadnych recenzji. <a href="/games" class="gv-inline-link">Przeglądaj gry</a> i napisz pierwszą!</p>
+      <% } else { %>
+        <div class="gv-review-list">
+          <% allReviews.forEach(function(r) { %>
+            <div class="gv-review-item">
+              <div class="gv-review-top">
+                <span class="gv-review-author">
+                  <a href="/profile/<%= r.username %>" class="text-decoration-none gv-review-author"><%= r.username %></a>
+                  <% if (r.game) { %> o grze <a href="/games/<%= r.game.id %>" class="text-decoration-none gv-review-author"><%= r.game.title %></a><% } %>
+                </span>
+                <span class="gv-review-rating">★ <%= r.rating %>/5</span>
+              </div>
+              <p class="gv-review-text"><%= r.text %></p>
+              <span class="gv-review-date"><%= new Date(r.createdAt).toLocaleDateString('pl-PL') %></span>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+    </div>
+  </section>
+
+  <%- include('partials/footer') %>
+</body>
+</html>
