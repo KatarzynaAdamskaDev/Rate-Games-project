@@ -15,6 +15,9 @@ const gamesRouter = require('./routes/games');
 const categoryRouter = require('./routes/category');
 const blogRouter = require('./routes/blog');
 const searchRouter = require('./routes/search');
+const profileRouter = require('./routes/profile');
+const chatRouter = require('./routes/chat');
+const reviewsRouter = require('./routes/reviews');
 
 const app = express();
 
@@ -49,6 +52,9 @@ app.use('/games', gamesRouter);
 app.use('/category', categoryRouter);
 app.use('/blog', blogRouter);
 app.use('/search', searchRouter);
+app.use('/profile', profileRouter);
+app.use('/chat', chatRouter);
+app.use('/reviews', reviewsRouter);
 
 /* --------------------------- Obsługa błędów --------------------------- */
 app.use(notFoundHandler);
