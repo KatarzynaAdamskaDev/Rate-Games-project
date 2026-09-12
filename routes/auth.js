@@ -82,10 +82,10 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
     if (password && password.length < 8) {
       errors.push('Hasło musi mieć co najmniej 8 znaków.');
     }
-    if (email && findByEmail(email)) {
+    if (email && (await findByEmail(email))) {
       errors.push('Ten adres e-mail jest już zarejestrowany.');
     }
-    if (username && findByUsername(username)) {
+    if (username && (await findByUsername(username))) {
       errors.push('Ta nazwa użytkownika jest już zajęta.');
     }
 
@@ -107,7 +107,7 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    createUser({ email, username, passwordHash });
+    await createUser({ email, username, passwordHash });
 
     if (wantsJson) {
       return res.json({
@@ -137,7 +137,7 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
 
   try {
     const { identifier, password, remember } = req.body;
-    const user = identifier ? findByUsernameOrEmail(identifier) : null;
+    const user = identifier ? await findByUsernameOrEmail(identifier) : null;
 
     const passwordMatches = user
       ? await bcrypt.compare(password || '', user.passwordHash)
@@ -208,15 +208,13 @@ router.post('/reset-password', ensureGuest, async (req, res) => {
     return res.redirect('/auth/reset-password');
   }
 
-  const user = findByEmail(email);
+  const user = await findByEmail(email);
 
   if (user) {
     try {
       const token = crypto.randomBytes(32).toString('hex');
 
-      // Zapisujemy zahaszowany token przy użytkowniku, ważny przez 15 minut.
-      setResetToken(user.id, token, RESET_TOKEN_TTL_MS);
-
+      await setResetToken(user.id, token, RESET_TOKEN_TTL_MS);
       await sendPasswordResetEmail(user.email, token);
       console.log(`Link resetujący wysłany na: ${user.email}`);
     } catch (err) {
@@ -237,9 +235,9 @@ router.post('/reset-password', ensureGuest, async (req, res) => {
 
 /* ------------------- USTAWIANIE NOWEGO HASŁA (Z LINKU W MAILU) ------------------- */
 
-router.get('/reset-password/:token', ensureGuest, (req, res) => {
+router.get('/reset-password/:token', ensureGuest, async (req, res) => {
   const { token } = req.params;
-  const user = findByResetToken(token);
+  const user = await findByResetToken(token);
 
   res.render('auth/new-password', {
     title: 'Ustaw nowe hasło',
@@ -253,7 +251,7 @@ router.post('/reset-password/:token', ensureGuest, async (req, res) => {
   const { token } = req.params;
   const { password, password2 } = req.body;
 
-  const user = findByResetToken(token);
+  const user = await findByResetToken(token);
 
   if (!user) {
     const message = 'Link jest nieprawidłowy lub wygasł. Poproś o nowy.';
@@ -282,8 +280,8 @@ router.post('/reset-password/:token', ensureGuest, async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  updatePassword(user.id, passwordHash);
-  clearResetToken(user.id); // token jednorazowy - unieważniamy po użyciu
+  await updatePassword(user.id, passwordHash);
+  await clearResetToken(user.id); // token jednorazowy - unieważniamy po użyciu
 
   const message = 'Hasło zostało zmienione. Możesz się teraz zalogować.';
 
