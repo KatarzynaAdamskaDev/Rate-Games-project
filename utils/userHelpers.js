@@ -1,98 +1,132 @@
-const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
-const { readCollection, writeCollection } = require('./dataStore');
+const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
+const User = require('../models/User');
 
-function getAllUsers() {
-  return readCollection('users');
+/** Zamienia instancję Sequelize na zwykły obiekt, parsując pole friends z JSON. */
+function serializeUser(userInstance) {
+  if (!userInstance) return null;
+  const plain = userInstance.get({ plain: true });
+  plain.friends = JSON.parse(plain.friends || '[]');
+  return plain;
 }
 
-function findByEmail(email) {
-  return getAllUsers().find(
-    (u) => u.email.toLowerCase() === String(email).toLowerCase()
-  );
+async function getAllUsers() {
+  const users = await User.findAll();
+  return users.map(serializeUser);
 }
 
-function findByUsername(username) {
-  return getAllUsers().find(
-    (u) => u.username.toLowerCase() === String(username).toLowerCase()
-  );
+async function findByEmail(email) {
+  const user = await User.findOne({
+    where: sequelize.where(
+      sequelize.fn('lower', sequelize.col('email')),
+      String(email).toLowerCase()
+    ),
+  });
+  return serializeUser(user);
 }
 
-function findByUsernameOrEmail(value) {
-  return findByUsername(value) || findByEmail(value);
+async function findByUsername(username) {
+  const user = await User.findOne({
+    where: sequelize.where(
+      sequelize.fn('lower', sequelize.col('username')),
+      String(username).toLowerCase()
+    ),
+  });
+  return serializeUser(user);
 }
 
-function findById(id) {
-  return getAllUsers().find((u) => u.id === id);
+async function findByUsernameOrEmail(value) {
+  const byUsername = await findByUsername(value);
+  if (byUsername) return byUsername;
+  return findByEmail(value);
 }
 
-function createUser({ email, username, passwordHash }) {
-  const users = getAllUsers();
-  const newUser = {
-    id: uuidv4(),
+async function findById(id) {
+  const user = await User.findByPk(id);
+  return serializeUser(user);
+}
+
+async function createUser({ email, username, passwordHash }) {
+  const user = await User.create({
     email,
     username,
     passwordHash,
     role: 'user',
-    createdAt: new Date().toISOString(),
-  };
-  users.push(newUser);
-  writeCollection('users', users);
-  return newUser;
+    friends: '[]',
+  });
+  return serializeUser(user);
 }
 
-function updatePassword(userId, passwordHash) {
-  const users = getAllUsers();
-  const idx = users.findIndex((u) => u.id === userId);
-  if (idx === -1) return false;
-  users[idx].passwordHash = passwordHash;
-  writeCollection('users', users);
-  return true;
+async function updatePassword(userId, passwordHash) {
+  const [count] = await User.update({ passwordHash }, { where: { id: userId } });
+  return count > 0;
 }
 
-/** Haszuje surowy token, żeby w pliku users.json nigdy nie leżał w formie jawnej. */
+/** Haszuje surowy token, żeby w bazie nigdy nie leżał w formie jawnej. */
 function hashToken(rawToken) {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
 }
 
-/**
- * Zapisuje przy użytkowniku zahaszowany token resetu hasła oraz czas wygaśnięcia.
- * @param {string} userId
- * @param {string} rawToken - token w formie jawnej (ten, który trafia do maila)
- * @param {number} expiresInMs - za ile milisekund token wygasa
- */
-function setResetToken(userId, rawToken, expiresInMs) {
-  const users = getAllUsers();
-  const idx = users.findIndex((u) => u.id === userId);
-  if (idx === -1) return false;
-  users[idx].resetPasswordToken = hashToken(rawToken);
-  users[idx].resetPasswordExpires = Date.now() + expiresInMs;
-  writeCollection('users', users);
-  return true;
+async function setResetToken(userId, rawToken, expiresInMs) {
+  const [count] = await User.update(
+    {
+      resetPasswordToken: hashToken(rawToken),
+      resetPasswordExpires: Date.now() + expiresInMs,
+    },
+    { where: { id: userId } }
+  );
+  return count > 0;
 }
 
-/** Zwraca użytkownika powiązanego z podanym (jawnym) tokenem, jeśli token jest wciąż ważny. */
-function findByResetToken(rawToken) {
+async function findByResetToken(rawToken) {
   if (!rawToken) return null;
   const tokenHash = hashToken(rawToken);
-  const user = getAllUsers().find(
-    (u) =>
-      u.resetPasswordToken === tokenHash &&
-      u.resetPasswordExpires &&
-      u.resetPasswordExpires > Date.now()
-  );
-  return user || null;
+  const user = await User.findOne({
+    where: {
+      resetPasswordToken: tokenHash,
+      resetPasswordExpires: { [Op.gt]: Date.now() },
+    },
+  });
+  return serializeUser(user);
 }
 
-/** Unieważnia token po jego wykorzystaniu (żeby link zadziałał tylko raz). */
-function clearResetToken(userId) {
-  const users = getAllUsers();
-  const idx = users.findIndex((u) => u.id === userId);
-  if (idx === -1) return false;
-  delete users[idx].resetPasswordToken;
-  delete users[idx].resetPasswordExpires;
-  writeCollection('users', users);
-  return true;
+async function clearResetToken(userId) {
+  const [count] = await User.update(
+    { resetPasswordToken: null, resetPasswordExpires: null },
+    { where: { id: userId } }
+  );
+  return count > 0;
+}
+
+/* ---------------------------- ZNAJOMI ---------------------------- */
+
+async function areFriends(userIdA, userIdB) {
+  const user = await findById(userIdA);
+  return !!(user && user.friends.includes(userIdB));
+}
+
+async function addFriend(userIdA, userIdB) {
+  await Promise.all(
+    [userIdA, userIdB].map(async (id) => {
+      const otherId = id === userIdA ? userIdB : userIdA;
+      const userInstance = await User.findByPk(id);
+      if (!userInstance) return;
+      const friends = JSON.parse(userInstance.friends || '[]');
+      if (!friends.includes(otherId)) {
+        friends.push(otherId);
+        userInstance.friends = JSON.stringify(friends);
+        await userInstance.save();
+      }
+    })
+  );
+}
+
+async function getFriendsOfUser(userId) {
+  const user = await findById(userId);
+  if (!user) return [];
+  const friends = await Promise.all(user.friends.map((id) => findById(id)));
+  return friends.filter(Boolean);
 }
 
 module.exports = {
@@ -106,4 +140,7 @@ module.exports = {
   setResetToken,
   findByResetToken,
   clearResetToken,
+  areFriends,
+  addFriend,
+  getFriendsOfUser,
 };
