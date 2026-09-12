@@ -17,18 +17,18 @@
         <ul class="footer-list">
           <li><a href="/games">Games</a></li>
           <li><a href="/category">Categories</a></li>
+          <li><a href="/reviews">Reviews</a></li>
           <li><a href="/blog">Blog</a></li>
-          <li><a href="/">Reviews</a></li>
         </ul>
       </div>
 
       <!-- Linki: Informacje -->
       <div class="footer-col">
         <ul class="footer-list">
-          <li><a href="/">Terms</a></li>
-          <li><a href="/">About Us</a></li>
-          <li><a href="/">Contact</a></li>
-          <li><a href="/">Help</a></li>
+          <li><a href="/legal">Terms</a></li>
+          <li><a href="/aboutus">About Us</a></li>
+          <li><a href="/contact">Contact</a></li>
+          <li><a href="/help">Help</a></li>
         </ul>
       </div>
     </div>
@@ -38,9 +38,13 @@
       <span>&copy; <%= new Date().getFullYear() %> GameVerse. Made by: Katarzyna Adamska & Wojciech Popadowski</span>
     </div>
   </div>
+  <div id="gvToastContainer" class="gv-toast-container"></div>
 </footer>
 
 <%- include('signin-modal') %>
+<% if (recaptchaSiteKey) { %>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<% } %>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/main.js"></script>

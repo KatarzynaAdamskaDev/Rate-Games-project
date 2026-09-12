@@ -15,7 +15,12 @@
     <h1 class="gv-hero-title">Pisz recenzje gier, <span>obserwuj graczy</span> i rozmawiaj o tym, w co właśnie grasz</h1>
     <p class="gv-hero-text">GameVerse to portal z recenzjami gier PC, PS5, Xbox i Nintendo Switch — dodawaj tytuły do ulubionych, komentuj opinie innych graczy i czatuj ze znajomymi w czasie rzeczywistym.</p>
     <div class="hero-ctas">
-      <a href="/reviews/new" class="btn-primary hero-cta">Napisz swoją pierwszą recenzję</a>
+      <button
+            type="button"
+            class="btn-primary hero-cta"
+            data-bs-toggle="modal"
+            data-bs-target="#signInModal"
+          >Napisz swoją pierwszą recenzję</button>
     </div>
     <div class="hero-stats">
       <div><b>48 200+</b><span>recenzji gier</span></div>
@@ -40,13 +45,31 @@
       </div>
     </div>
     <div class="platform-grid">
-      <a class="platform-card" href="/category/pc"><div class="pf-icon">🖥️</div><b>Gry PC</b><span>recenzje i wymagania</span></a>
-      <a class="platform-card" href="/category/ps5"><div class="pf-icon">🎮</div><b>Gry na PS5</b><span>opinie graczy</span></a>
-      <a class="platform-card" href="/category/xbox"><div class="pf-icon">🟩</div><b>Gry na Xbox</b><span>Series X/S</span></a>
-      <a class="platform-card" href="/category/switch"><div class="pf-icon">🔴</div><b>Nintendo Switch</b><span>gry przygodowe</span></a>
-      <a class="platform-card" href="/category/mobile"><div class="pf-icon">📱</div><b>Gry mobilne</b><span>Android i iOS</span></a>
-      <a class="platform-card" href="/category/vr"><div class="pf-icon">🕶️</div><b>Gry VR</b><span>nowa kategoria</span></a>
-    </div>
+  <a class="platform-card" href="/category/?platform=pc">
+    <div class="pf-icon"><i class="bi bi-pc-display"></i></div>
+    <b>Gry PC</b><span>recenzje i wymagania</span>
+  </a>
+  <a class="platform-card" href="/category/?platform=ps5">
+    <div class="pf-icon"><i class="bi bi-playstation"></i></div>
+    <b>Gry na PS5</b><span>opinie graczy</span>
+  </a>
+  <a class="platform-card" href="/category/?platform=xbox">
+    <div class="pf-icon"><i class="bi bi-xbox"></i></div>
+    <b>Gry na Xbox</b><span>Series X/S</span>
+  </a>
+  <a class="platform-card" href="/category/?platform=switch">
+    <div class="pf-icon"><i class="bi bi-controller"></i></div>
+    <b>Nintendo Switch</b><span>gry przygodowe</span>
+  </a>
+  <a class="platform-card" href="/category/?platform=mobile">
+    <div class="pf-icon"><i class="bi bi-phone"></i></div>
+    <b>Gry mobilne</b><span>Android i iOS</span>
+  </a>
+  <a class="platform-card" href="/category/?platform=vr">
+    <div class="pf-icon"><i class="bi bi-badge-vr"></i></div>
+    <b>Gry VR</b><span>nowa kategoria</span>
+  </a>
+</div>
   </div>
 </section>
 
@@ -153,8 +176,7 @@
             <div class="comment-preview"><b>Tomek89:</b> Zgadzam się co do wątku pobocznego, sekcja w bagnach urwała mi łeb.</div>
           </article>
         <% } %>
-
-        <button class="btn-ghost" style="width:100%; padding:14px;">Wczytaj więcej recenzji</button>
+         <a href="/reviews" class="btn-ghost" style="display:block; width:100%; padding:14px; text-align:center; box-sizing:border-box; text-decoration:none;">Wczytaj więcej recenzji</a>
       </div>
     </div>
   </div>
@@ -168,31 +190,37 @@
         <p>Znajdź recenzje i rankingi dopasowane do gatunku, który lubisz najbardziej.</p>
       </div>
     </div>
+
     <div class="cat-grid">
       <div class="cat-card">
         <h4>Gry akcji i przygodowe</h4>
         <ul>
-          <li><a href="#">Najlepsze gry akcji na PC 2026</a></li>
-          <li><a href="#">Recenzje gier przygodowych na PS5</a></li>
-          <li><a href="#">Gry akcji z otwartym światem</a></li>
+          <li><a href="/category/Akcja?platform=PC&year=2026">Najlepsze gry akcji na PC 2026</a></li>
+          <li><a href="/category/Przygodowe?platform=PS5">Recenzje gier przygodowych na PS5</a></li>
+          <li><a href="/category/Akcja?tag=open-world">Gry akcji z otwartym światem</a></li>
         </ul>
       </div>
+
       <div class="cat-card">
         <h4>RPG i strategie</h4>
         <ul>
-          <li><a href="#">Ranking najlepszych RPG na konsole</a></li>
-          <li><a href="#">Gry strategiczne na PC dla początkujących</a></li>
-          <li><a href="#">Recenzje gier fabularnych 2026</a></li>
+          <li><a href="/category/RPG?platform=Konsole">Ranking najlepszych RPG na konsole</a></li>
+          <li><a href="/category/Strategia?platform=PC&level=poczatkujacy">Gry strategiczne na PC dla początkujących</a></li>
+          <li><a href="/category/RPG?tag=fabularne&year=2026">Recenzje gier fabularnych 2026</a></li>
         </ul>
       </div>
+
       <div class="cat-card">
         <h4>Gry indie i mobilne</h4>
         <ul>
-          <li><a href="#">Najlepsze gry indie na Nintendo Switch</a></li>
-          <li><a href="#">Recenzje gier mobilnych na Androida</a></li>
-          <li><a href="#">Gry indie bez mikropłatności</a></li>
+          <li><a href="/category/Indie?platform=Switch">Najlepsze gry indie na Nintendo Switch</a></li>
+          <li><a href="/category/Mobilne?platform=Android">Recenzje gier mobilnych na Androida</a></li>
+          <li><a href="/category/Indie?tag=bez-mikroplatnosci">Gry indie bez mikropłatności</a></li>
         </ul>
       </div>
+    </div>
+  </div>
+</section>
     </div>
   </div>
 </section>
@@ -204,7 +232,12 @@
         <h3>Dołącz do społeczności graczy GameVerse</h3>
         <p>Zakładaj profil, obserwuj recenzentów, których cenisz, i rozmawiaj o grach na czacie — za darmo i bez reklam między recenzjami.</p>
       </div>
-      <a href="/auth/register" class="btn-primary hero-cta">Załóż darmowe konto</a>
+      <button
+            type="button"
+            class="btn-primary hero-cta"
+            data-bs-toggle="modal"
+            data-bs-target="#signInModal"
+            >Załóż darmowe konto</button>
     </div>
   </div>
 </section>
@@ -212,6 +245,25 @@
 <%- include('partials/footer') %>
 
 <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('signInModal');
+    if (!modal) return;
+
+    const views = modal.querySelectorAll('.gv-auth-view');
+
+    function showView(name) {
+      views.forEach(v => {
+        v.classList.toggle('d-none', v.dataset.view !== name);
+      });
+    }
+
+    modal.querySelectorAll('[data-switch]').forEach(btn => {
+      btn.addEventListener('click', () => showView(btn.dataset.switch));
+    });
+
+    // reset do widoku logowania za każdym razem, gdy modal się otwiera
+    modal.addEventListener('show.bs.modal', () => showView('signin'));
+  });
   document.querySelectorAll('.action-btn').forEach(btn=>{
     if(btn.textContent.trim().startsWith('❤')){
       btn.addEventListener('click',()=>{

@@ -1,52 +1,125 @@
 <div class="modal fade" id="signInModal" tabindex="-1" aria-labelledby="signInModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content gv-modal-content">
-      <div class="modal-header gv-modal-header">
-        <h2 class="gv-auth-title mb-0" id="signInModalLabel">Sign in</h2>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
-      </div>
-      <div class="modal-body">
-        <div class="gv-modal-error d-none" id="signInModalError"></div>
 
-        <form id="signInForm" novalidate>
-          <div class="mb-3">
-            <label for="modalIdentifier" class="gv-label">Username/e-mail</label>
-            <input
-              type="text"
-              id="modalIdentifier"
-              name="identifier"
-              class="form-control gv-input"
-              required
-            />
-          </div>
-
-          <div class="mb-3">
-            <label for="modalPassword" class="gv-label">Password</label>
-            <div class="gv-password-wrap">
-              <input
-                type="password"
-                id="modalPassword"
-                name="password"
-                class="form-control gv-input"
-                required
-              />
-              <button type="button" class="gv-password-toggle" data-target="modalPassword" aria-label="Pokaż/ukryj hasło">👁️</button>
+      <!-- WIDOK: SIGN IN -->
+      <div class="gv-auth-view" data-view="signin">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="signInModalLabel">Sign in</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <form id="signInForm" novalidate>
+            <div class="mb-3">
+              <label for="modalIdentifier" class="gv-label">Username/e-mail</label>
+              <input type="text" id="modalIdentifier" name="identifier" class="form-control gv-input" required />
             </div>
-          </div>
 
-          <div class="form-check gv-check mb-4">
-            <input class="form-check-input" type="checkbox" id="modalRemember" name="remember" />
-            <label class="form-check-label" for="modalRemember">remember me</label>
-          </div>
+            <div class="mb-3">
+              <label for="modalPassword" class="gv-label">Password</label>
+              <input type="password" id="modalPassword" name="password" class="form-control gv-input" required />
+            </div>
 
-          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">sign in</button>
-        </form>
+            <div class="form-check gv-check mb-4">
+              <input class="form-check-input" type="checkbox" id="modalRemember" name="remember" />
+              <label class="form-check-label" for="modalRemember">remember me</label>
+            </div>
 
-        <p class="gv-auth-alt-link mb-0">
-          <a href="/auth/reset-password">Forgot password?</a><br />
-          <a href="/auth/signup">create account</a>
-        </p>
+            <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">sign in</button>
+          </form>
+
+          <p class="gv-auth-alt-link mb-0">
+            <button type="button" class="gv-auth-switch" data-switch="forgot">Forgot password?</button><br />
+            <button type="button" class="gv-auth-switch" data-switch="signup">create account</button>
+          </p>
+        </div>
       </div>
+
+      <!-- WIDOK: FORGOT PASSWORD -->
+      <div class="gv-auth-view d-none" data-view="forgot">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0">Reset password</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext">Podaj adres e-mail, na który wyślemy link do zresetowania hasła.</p>
+
+          <form id="forgotForm" novalidate>
+            <div class="mb-4">
+              <label for="forgotEmail" class="gv-label">E-mail</label>
+              <input type="email" id="forgotEmail" name="email" class="form-control gv-input" required />
+            </div>
+
+            <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Wyślij link resetujący</button>
+          </form>
+
+          <p class="gv-auth-alt-link mb-0">
+            <button type="button" class="gv-auth-switch" data-switch="signin">← Wróć do logowania</button>
+          </p>
+        </div>
+      </div>
+
+      <!-- WIDOK: CREATE ACCOUNT -->
+      <div class="gv-auth-view d-none" data-view="signup">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0">Create account</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <form id="signupForm" novalidate>
+            <div class="mb-3">
+              <label for="signupUsername" class="gv-label">Username</label>
+              <input type="text" id="signupUsername" name="username" class="form-control gv-input" required />
+            </div>
+
+            <div class="mb-3">
+              <label for="signupEmail" class="gv-label">E-mail</label>
+              <input type="email" id="signupEmail" name="email" class="form-control gv-input" required />
+            </div>
+
+            <div class="mb-3">
+              <label for="signupPassword" class="gv-label">Password</label>
+              <input type="password" id="signupPassword" name="password" class="form-control gv-input" minlength="8" required />
+            </div>
+
+            <div class="mb-3">
+              <label for="signupPassword2" class="gv-label">Confirm password</label>
+              <input type="password" id="signupPassword2" name="password2" class="form-control gv-input" minlength="8" required />
+            </div>
+
+            <div class="form-check gv-check mb-2">
+              <input class="form-check-input" type="checkbox" id="modalAcceptTerms" name="acceptTerms" required />
+              <label class="form-check-label" for="modalAcceptTerms">
+                Mam co najmniej 16 lat i akceptuję <a href="/legal/terms-of-use">Regulamin</a>
+              </label>
+            </div>
+
+            <div class="form-check gv-check mb-3">
+              <input class="form-check-input" type="checkbox" id="modalAcceptPrivacy" name="acceptPrivacy" required />
+              <label class="form-check-label" for="modalAcceptPrivacy">
+                Akceptuję <a href="/legal/privacy-policy">Politykę Prywatności</a>
+              </label>
+            </div>
+
+            <div class="gv-captcha-wrap mb-3">
+              <% if (recaptchaSiteKey) { %>
+                <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>" data-theme="dark"></div>
+              <% } else { %>
+                <div class="gv-captcha-fallback">
+                  ⚠️ reCAPTCHA nie jest skonfigurowana (brak RECAPTCHA_SITE_KEY w .env)
+                </div>
+              <% } %>
+            </div>
+
+            <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">create account</button>
+          </form>
+
+          <p class="gv-auth-alt-link mb-0">
+            <button type="button" class="gv-auth-switch" data-switch="signin">← Masz już konto? Zaloguj się</button>
+          </p>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

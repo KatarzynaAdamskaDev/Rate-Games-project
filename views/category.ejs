@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<%
+  const selectedPlatform = typeof locals.selectedPlatform !== 'undefined' ? locals.selectedPlatform : null;
+  const selectedYear = typeof locals.selectedYear !== 'undefined' ? locals.selectedYear : null;
+%>
 <html lang="pl">
 <head>
   <%- include('partials/head') %>
@@ -20,24 +24,44 @@
         <% }) %>
       </div>
 
-      <% if (selectedCategory) { %>
-        <h2 class="gv-section-title mb-3">Gry w kategorii: <%= selectedCategory %></h2>
-        <% if (games.length === 0) { %>
-          <p class="gv-empty-state">Brak gier w tej kategorii.</p>
-        <% } else { %>
-          <div class="row g-4">
-            <% games.forEach(function(game) { %>
-              <div class="col-12 col-sm-6 col-lg-4">
-                <%- include('partials/game-card', { game }) %>
-              </div>
-            <% }) %>
-          </div>
-        <% } %>
-      <% } else { %>
-        <p class="gv-empty-state">Wybierz kategorię powyżej, aby zobaczyć przypisane do niej gry.</p>
-      <% } %>
+<h2 class="gv-section-title mb-3">
+  <%= selectedCategory ? `Gry w kategorii: ${selectedCategory}` : 'Wszystkie gry' %>
+</h2>
+
+<form method="GET" action="<%= selectedCategory ? `/category/${selectedCategory}` : '/category' %>" class="gv-filters mb-4">
+  <select name="platform" class="gv-filter-select" onchange="this.form.submit()">
+    <option value="">Wszystkie platformy</option>
+    <option value="PC" <%= selectedPlatform === 'PC' ? 'selected' : '' %>>PC</option>
+    <option value="PS5" <%= selectedPlatform === 'PS5' ? 'selected' : '' %>>PS5</option>
+    <option value="Xbox" <%= selectedPlatform === 'Xbox' ? 'selected' : '' %>>Xbox</option>
+    <option value="Switch" <%= selectedPlatform === 'Switch' ? 'selected' : '' %>>Switch</option>
+    <option value="Konsole" <%= selectedPlatform === 'Konsole' ? 'selected' : '' %>>Konsole</option>
+    <option value="Android" <%= selectedPlatform === 'Android' ? 'selected' : '' %>>Android</option>
+  </select>
+
+  <select name="year" class="gv-filter-select" onchange="this.form.submit()">
+  <option value="">Wszystkie lata</option>
+  <% availableYears.forEach(function(y) { %>
+    <option value="<%= y %>" <%= String(selectedYear) === String(y) ? 'selected' : '' %>><%= y %></option>
+  <% }) %>
+</select>
+
+  <noscript><button type="submit" class="btn gv-btn-success">Filtruj</button></noscript>
+</form>
+
+<% if (games.length === 0) { %>
+  <p class="gv-empty-state">Brak gier dla wybranych filtrów.</p>
+<% } else { %>
+  <div class="row g-4">
+    <% games.forEach(function(game) { %>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <%- include('partials/game-card', { game }) %>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
     </div>
-  </section>
 
   <%- include('partials/footer') %>
 </body>
