@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="wrap">
+
+      <div class="gv-profile-hero">
+        <div class="gv-profile-avatar-wrap">
+          <div class="gv-profile-avatar"></div>
+          <div class="gv-lvl-chip">POZ. <%= progress.level %></div>
+        </div>
+        <div class="gv-profile-meta">
+          <h1><%= profileUser.username %></h1>
+          <div class="gv-profile-handle">
+            Dołączył(a) <%= new Date(profileUser.createdAt).toLocaleDateString('pl-PL') %>
+            · <%= stats.reviewCount %> recenzji · <%= stats.followersCount %> obserwujących
+          </div>
+          <div class="gv-xp-track"><div class="gv-xp-fill" style="width:<%= progress.percent %>%;"></div></div>
+          <div class="gv-xp-label"><%= progress.pointsInLevel %> / <%= progress.pointsInLevel + progress.pointsToNext %> PD do poziomu <%= progress.level + 1 %></div>
+        </div>
+
+        <div class="gv-profile-stats-inline">
+          <div><b><%= stats.reviewCount %></b><span>Recenzje</span></div>
+          <div><b><%= stats.followersCount %></b><span>Obserwujący</span></div>
+          <div><b><%= stats.followingCount %></b><span>Obserwowani</span></div>
+        </div>
+      </div>
+
+      <div class="gv-profile-actions mb-4">
+        <% if (isOwnProfile) { %>
+          <a href="/profile/settings" class="gv-btn-outline">⚙️ Ustawienia konta</a>
+          <a href="/chat" class="gv-btn-outline">💬 Czat i grupy</a>
+        <% } else if (currentUser) { %>
+          <form action="/profile/<%= alreadyFollowing ? 'unfollow' : 'follow' %>/<%= profileUser.username %>" method="POST">
+            <button type="submit" class="gv-follow-btn <%= alreadyFollowing ? 'following' : '' %>">
+              <%= alreadyFollowing ? '✓ Obserwujesz' : '+ Obserwuj' %>
+            </button>
+          </form>
+          <form action="/chat/start/<%= profileUser.username %>" method="POST">
+            <button type="submit" class="gv-btn-outline">💬 Napisz wiadomość</button>
+          </form>
+        <% } else { %>
+          <p class="gv-empty-state" style="margin:0;">
+            <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>,
+            aby obserwować tego gracza i napisać do niego wiadomość.
+          </p>
+        <% } %>
+      </div>
+
+      <div class="gv-tabs">
+        <a href="?tab=badges" class="gv-tab <%= tab === 'badges' ? 'active' : '' %>">🏅 Poziomy i odznaki</a>
+        <a href="?tab=backlog" class="gv-tab <%= tab === 'backlog' ? 'active' : '' %>">📚 Backlog gier</a>
+        <a href="?tab=reviews" class="gv-tab <%= tab === 'reviews' ? 'active' : '' %>">📝 Recenzje</a>
+      </div>
+
+      <% if (tab === 'badges') { %>
+        <div class="gv-points-note">
+          <b>Jak działają punkty doświadczenia?</b>
+          Każda napisana recenzja to +10 PD. Punkty odblokowują kolejne poziomy, a te - nowe ramki
+          awatara, tła profilu i odznaki. Im więcej grasz i recenzujesz, tym więcej odblokowujesz.
+        </div>
+
+        <h3 class="gv-unlock-group-title">Ramki awatara</h3>
+        <div class="gv-unlock-grid">
+          <% allFrames.forEach(function(f) { %>
+            <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
+              <div class="gv-unlock-swatch">🖼️</div>
+              <b><%= f.label %></b>
+              <% if (f.locked) { %><span class="gv-lock-tag">🔒 Poziom <%= f.levelRequired %></span><% } else { %><span>Odblokowana</span><% } %>
+            </div>
+          <% }) %>
+        </div>
+
+        <h3 class="gv-unlock-group-title">Tła profilu</h3>
+        <div class="gv-unlock-grid">
+          <% allBackgrounds.forEach(function(b) { %>
+            <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
+              <div class="gv-unlock-swatch">🎨</div>
+              <b><%= b.label %></b>
+              <% if (b.locked) { %><span class="gv-lock-tag">🔒 Poziom <%= b.levelRequired %></span><% } else { %><span>Odblokowane</span><% } %>
+            </div>
+          <% }) %>
+        </div>
+
+        <h3 class="gv-unlock-group-title">Odznaki</h3>
+        <div class="gv-unlock-grid">
+          <% allBadges.forEach(function(b) { %>
+            <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
+              <div class="gv-unlock-swatch">🏆</div>
+              <b><%= b.label %></b>
+              <% if (b.locked) { %><span class="gv-lock-tag">🔒 <%= b.description %></span><% } else { %><span>Zdobyta</span><% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <% if (tab === 'backlog') { %>
+        <% if (isOwnProfile) { %>
+          <form action="/profile/backlog" method="POST" class="gv-backlog-add-form">
+            <div>
+              <label class="gv-label">Dodaj grę do backlogu</label>
+              <select name="gameId" class="form-select gv-select w-100" required>
+                <option value="">— wybierz grę —</option>
+                <% allGames.forEach(function(g) { %><option value="<%= g.id %>"><%= g.title %></option><% }) %>
+              </select>
+            </div>
+            <div>
+              <label class="gv-label">Status</label>
+              <select name="status" class="form-select gv-select w-100" required>
+                <% Object.keys(statusLabels).forEach(function(s) { %>
+                  <option value="<%= s %>"><%= statusLabels[s] %></option>
+                <% }) %>
+              </select>
+            </div>
+            <button type="submit" class="gv-btn-success">Dodaj</button>
+          </form>
+        <% } %>
+
+        <% if (backlogEntries.length === 0) { %>
+          <p class="gv-empty-state">Backlog jest pusty.</p>
+        <% } else { %>
+          <div class="gv-backlog-grid">
+            <% backlogEntries.forEach(function(entry) { %>
+              <% if (entry.game) { %>
+                <div class="gv-backlog-card">
+                  <div class="gv-backlog-cover" style="background-image:url('<%= entry.game.coverImage %>');">
+                    <span class="gv-status-pill gv-status-<%= entry.status %>"><%= statusLabels[entry.status] %></span>
+                  </div>
+                  <div class="gv-backlog-body">
+                    <b><a href="/games/<%= entry.game.id %>" class="text-decoration-none" style="color:inherit;"><%= entry.game.title %></a></b>
+                    <span>Aktualizacja: <%= new Date(entry.updatedAt).toLocaleDateString('pl-PL') %></span>
+                    <% if (isOwnProfile) { %>
+                      <form action="/profile/backlog" method="POST" class="gv-backlog-status-form">
+                        <input type="hidden" name="gameId" value="<%= entry.game.id %>">
+                        <select name="status" class="form-select gv-select" onchange="this.form.submit()">
+                          <% Object.keys(statusLabels).forEach(function(s) { %>
+                            <option value="<%= s %>" <%= entry.status === s ? 'selected' : '' %>><%= statusLabels[s] %></option>
+                          <% }) %>
+                        </select>
+                      </form>
+                    <% } %>
+                  </div>
+                </div>
+              <% } %>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } %>
+
+      <% if (tab === 'reviews') { %>
+        <% if (reviews.length === 0) { %>
+          <p class="gv-empty-state">Brak recenzji.</p>
+        <% } else { %>
+          <div class="gv-review-list">
+            <% reviews.forEach(function(review) { %>
+              <div class="gv-review-item">
+                <div class="gv-review-top">
+                  <a href="/games/<%= review.gameId %>" class="gv-review-author text-decoration-none"><%= review.text.slice(0, 70) %><%= review.text.length > 70 ? '…' : '' %></a>
+                  <span class="gv-review-rating">★ <%= review.rating %>/5</span>
+                </div>
+                <span class="gv-review-date"><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } %>
+
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>
