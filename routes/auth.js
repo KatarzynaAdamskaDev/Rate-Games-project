@@ -15,6 +15,7 @@ const {
   clearResetToken,
 } = require('../utils/userHelpers');
 const { sendPasswordResetEmail } = require('../utils/mailer');
+const { isReservedUsername } = require('../utils/reservedUsernames');
 
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minut
@@ -84,6 +85,9 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
     }
     if (email && (await findByEmail(email))) {
       errors.push('Ten adres e-mail jest już zarejestrowany.');
+    }
+    if (username && isReservedUsername(username)) {
+      errors.push('Ta nazwa użytkownika jest zarezerwowana i niedostępna.');
     }
     if (username && (await findByUsername(username))) {
       errors.push('Ta nazwa użytkownika jest już zajęta.');

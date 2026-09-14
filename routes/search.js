@@ -3,11 +3,13 @@ const router = express.Router();
 
 const { getAllGames, withRatings } = require('../utils/gameHelpers');
 const { readCollection } = require('../utils/dataStore');
+const { searchUsersByUsername } = require('../utils/userHelpers');
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const q = (req.query.q || '').trim();
   let games = [];
   let posts = [];
+  let users = [];
 
   if (q) {
     const needle = q.toLowerCase();
@@ -24,6 +26,7 @@ router.get('/', (req, res) => {
         p.title.toLowerCase().includes(needle) ||
         p.content.toLowerCase().includes(needle)
     );
+    users = await searchUsersByUsername(q);
   }
 
   res.render('search', {
@@ -31,6 +34,7 @@ router.get('/', (req, res) => {
     query: q,
     games,
     posts,
+    users,
   });
 });
 

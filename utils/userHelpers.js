@@ -42,6 +42,18 @@ async function findByUsernameOrEmail(value) {
   return findByEmail(value);
 }
 
+/** Wyszukuje użytkowników po fragmencie nazwy (do wyszukiwarki na stronie). */
+async function searchUsersByUsername(query, limit = 10) {
+  if (!query || !query.trim()) return [];
+  const users = await User.findAll({
+    where: {
+      username: { [Op.like]: `%${query.trim()}%` },
+    },
+    limit,
+  });
+  return users.map(serializeUser);
+}
+
 async function findById(id) {
   const user = await User.findByPk(id);
   return serializeUser(user);
@@ -143,4 +155,5 @@ module.exports = {
   areFriends,
   addFriend,
   getFriendsOfUser,
+  searchUsersByUsername,
 };
