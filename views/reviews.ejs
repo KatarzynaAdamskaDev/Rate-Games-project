@@ -110,7 +110,7 @@
                     </div>
                     <p class="gv-feed-text"><%= r.text.length > 140 ? r.text.slice(0, 140) + '…' : r.text %></p>
                     <div class="gv-feed-meta">
-                      <a href="/profile/<%= r.username %>"><%= r.username %></a> ·
+                      <a href="/<%= r.username %>"><%= r.username %></a> ·
                       <%= new Date(r.createdAt).toLocaleDateString('pl-PL') %>
                       <% if (r.game) { %> · <a href="/games/<%= r.game.id %>">Zobacz grę</a><% } %>
                     </div>
@@ -130,7 +130,7 @@
           <% } else { %>
             <div class="gv-leaderboard">
               <% topReviewers.forEach(function(rev, i) { %>
-                <a href="/profile/<%= rev.username %>" class="gv-leader-row text-decoration-none">
+                <a href="/<%= rev.username %>" class="gv-leader-row text-decoration-none">
                   <span class="gv-leader-rank">#<%= i + 1 %></span>
                   <span class="gv-leader-avatar"></span>
                   <span class="gv-leader-name"><%= rev.username %></span>
@@ -179,7 +179,7 @@
             <div class="gv-review-item">
               <div class="gv-review-top">
                 <span class="gv-review-author">
-                  <a href="/profile/<%= r.username %>" class="text-decoration-none gv-review-author"><%= r.username %></a>
+                  <a href="/<%= r.username %>" class="text-decoration-none gv-review-author"><%= r.username %></a>
                   <% if (r.game) { %> o grze <a href="/games/<%= r.game.id %>" class="text-decoration-none gv-review-author"><%= r.game.title %></a><% } %>
                 </span>
                 <span class="gv-review-rating">★ <%= r.rating %>/5</span>

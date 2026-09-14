@@ -1505,3 +1505,30 @@ section {
   from { opacity: 1; transform: translateX(0); }
   to { opacity: 0; transform: translateX(40px); }
 }
+
+
+.gv-search-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-m);
+  padding: 12px 16px;
+  color: var(--text-hi);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.gv-search-user-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  color: var(--text-hi);
+}
+
+.gv-search-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--cyan), var(--accent));
+  flex-shrink: 0;
+}

@@ -9,21 +9,7 @@ const {
   updatePassword,
 } = require('../utils/userHelpers');
 const { getUserPublic, updateUsername, deleteUser } = require('../utils/profileHelpers');
-const { readCollection } = require('../utils/dataStore');
-const {
-  levelProgress,
-  pointsFromStats,
-  allFramesWithLockState,
-  allBackgroundsWithLockState,
-  allBadgesWithLockState,
-} = require('../utils/pointsHelpers');
-const {
-  follow,
-  unfollow,
-  isFollowing,
-  getFollowers,
-  getFollowing,
-} = require('../utils/socialHelpers');
+const { isReservedUsername } = require('../utils/reservedUsernames');
 const {
   getUserBacklog,
   setStatus,
@@ -31,46 +17,8 @@ const {
   STATUS_LABELS,
 } = require('../utils/backlogHelpers');
 const { getAllGames } = require('../utils/gameHelpers');
-
-/** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
-async function buildProfileViewModel(user) {
-  const reviews = readCollection('reviews')
-    .filter((r) => r.username === user.username)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  const [followers, following] = await Promise.all([
-    getFollowers(user.id),
-    getFollowing(user.id),
-  ]);
-
-  const stats = {
-    reviewCount: reviews.length,
-    commentCount: 0,
-    likesReceived: 0,
-    followersCount: followers.length,
-    followingCount: following.length,
-  };
-
-  const progress = levelProgress(pointsFromStats(stats));
-
-  return {
-    profileUser: getUserPublic(user),
-    stats,
-    progress,
-    allFrames: allFramesWithLockState(progress.level),
-    allBackgrounds: allBackgroundsWithLockState(progress.level),
-    allBadges: allBadgesWithLockState(stats),
-    reviews,
-  };
-}
-
-function buildBacklog(userId) {
-  const games = getAllGames();
-  return getUserBacklog(userId).map((entry) => ({
-    ...entry,
-    game: games.find((g) => g.id === entry.gameId) || null,
-  }));
-}
+const { follow, unfollow } = require('../utils/socialHelpers');
+const { buildProfileViewModel, buildBacklog } = require('../utils/profileViewModel');
 
 /* -------------------------- WŁASNY PROFIL -------------------------- */
 
@@ -103,6 +51,11 @@ router.post('/settings/username', ensureAuthenticated, async (req, res) => {
 
   if (!username || username.trim().length < 3) {
     req.flash('error', 'Nazwa użytkownika musi mieć co najmniej 3 znaki.');
+    return res.redirect('/profile/settings');
+  }
+
+  if (isReservedUsername(username)) {
+    req.flash('error', 'Ta nazwa użytkownika jest zarezerwowana i niedostępna.');
     return res.redirect('/profile/settings');
   }
 
@@ -171,7 +124,7 @@ router.post('/follow/:username', ensureAuthenticated, async (req, res) => {
     return res.redirect('/');
   }
   await follow(req.session.user.id, target.id);
-  res.redirect(req.get('Referer') || `/profile/${target.username}`);
+  res.redirect(req.get('Referer') || `/${target.username}`);
 });
 
 router.post('/unfollow/:username', ensureAuthenticated, async (req, res) => {
@@ -181,33 +134,13 @@ router.post('/unfollow/:username', ensureAuthenticated, async (req, res) => {
     return res.redirect('/');
   }
   await unfollow(req.session.user.id, target.id);
-  res.redirect(req.get('Referer') || `/profile/${target.username}`);
+  res.redirect(req.get('Referer') || `/${target.username}`);
 });
 
-/* --------------------------- PUBLICZNY PROFIL --------------------------- */
-
-router.get('/:username', async (req, res, next) => {
-  const user = await findByUsername(req.params.username);
-  if (!user) return next();
-
-  const vm = await buildProfileViewModel(user);
-  const alreadyFollowing = req.session.user
-    ? await isFollowing(req.session.user.id, user.id)
-    : false;
-  const isOwnProfile = !!(
-    req.session.user && req.session.user.id === user.id
-  );
-
-  res.render('profile/show', {
-    title: `Profil: ${user.username}`,
-    ...vm,
-    isOwnProfile,
-    alreadyFollowing,
-    backlogEntries: buildBacklog(user.id),
-    statusLabels: STATUS_LABELS,
-    allGames: getAllGames(),
-    tab: req.query.tab || 'badges',
-  });
+/* ---------------- Kompatybilność wsteczna ze starym adresem ---------------- */
+// Stare linki postaci /profile/nazwa przekierowują na nowy /nazwa.
+router.get('/:username', (req, res) => {
+  res.redirect(301, `/${req.params.username}`);
 });
 
 module.exports = router;
