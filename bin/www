@@ -2,15 +2,33 @@
 
 const app = require('../app');
 const http = require('http');
+const { sequelize } = require('../config/database');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
 
 const server = http.createServer(app);
 
-server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
+
+// Najpierw upewniamy się, że baza danych jest gotowa (tworzy tabele, jeśli
+// jeszcze nie istnieją), dopiero potem zaczynamy przyjmować żądania.
+sequelize
+  .authenticate()
+  .then(() => {
+    console.log(
+      `Połączono z bazą danych (${process.env.NODE_ENV === 'production' ? 'Azure SQL' : 'SQLite (dev)'}).`
+    );
+    return sequelize.sync();
+  })
+  .then(() => {
+    server.listen(port);
+  })
+  .catch((err) => {
+    console.error('Nie udało się połączyć z bazą danych:', err);
+    process.exit(1);
+  });
 
 function normalizePort(val) {
   const parsedPort = parseInt(val, 10);

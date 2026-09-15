@@ -18,6 +18,7 @@ const searchRouter = require('./routes/search');
 const profileRouter = require('./routes/profile');
 const chatRouter = require('./routes/chat');
 const reviewsRouter = require('./routes/reviews');
+const userProfileRouter = require('./routes/userProfile');
 
 const app = express();
 
@@ -55,6 +56,11 @@ app.use('/search', searchRouter);
 app.use('/profile', profileRouter);
 app.use('/chat', chatRouter);
 app.use('/reviews', reviewsRouter);
+
+// UWAGA: musi być zamontowany na samym końcu (po wszystkich innych trasach),
+// bo obsługuje /:username jako "łapacz wszystkiego" - inaczej połknąłby
+// żądania do /games, /category, /blog itd.
+app.use('/', userProfileRouter);
 
 /* --------------------------- Obsługa błędów --------------------------- */
 app.use(notFoundHandler);

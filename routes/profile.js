@@ -9,91 +9,44 @@ const {
   updatePassword,
 } = require('../utils/userHelpers');
 const { getUserPublic, updateUsername, deleteUser } = require('../utils/profileHelpers');
-const { readCollection } = require('../utils/dataStore');
+const { isReservedUsername } = require('../utils/reservedUsernames');
 const {
-  levelProgress,
-  pointsFromStats,
-  allFramesWithLockState,
-  allBackgroundsWithLockState,
-  allBadgesWithLockState,
-} = require('../utils/pointsHelpers');
-const {
-  follow,
-  unfollow,
-  isFollowing,
-  getFollowers,
-  getFollowing,
-} = require('../utils/socialHelpers');
-const {
-  getUserBacklog,
   setStatus,
   STATUSES,
   STATUS_LABELS,
 } = require('../utils/backlogHelpers');
 const { getAllGames } = require('../utils/gameHelpers');
-
-/** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
-function buildProfileViewModel(user) {
-  const reviews = readCollection('reviews')
-    .filter((r) => r.username === user.username)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  const stats = {
-    reviewCount: reviews.length,
-    commentCount: 0,
-    likesReceived: 0,
-    followersCount: getFollowers(user.id).length,
-    followingCount: getFollowing(user.id).length,
-  };
-
-  const progress = levelProgress(pointsFromStats(stats));
-
-  return {
-    profileUser: getUserPublic(user),
-    stats,
-    progress,
-    allFrames: allFramesWithLockState(progress.level),
-    allBackgrounds: allBackgroundsWithLockState(progress.level),
-    allBadges: allBadgesWithLockState(stats),
-    reviews,
-  };
-}
-
-function buildBacklog(userId) {
-  const games = getAllGames();
-  return getUserBacklog(userId).map((entry) => ({
-    ...entry,
-    game: games.find((g) => g.id === entry.gameId) || null,
-  }));
-}
+const { follow, unfollow } = require('../utils/socialHelpers');
+const { buildProfileViewModel, buildBacklog } = require('../utils/profileViewModel');
 
 /* -------------------------- WŁASNY PROFIL -------------------------- */
 
-router.get('/', ensureAuthenticated, (req, res) => {
-  const user = findById(req.session.user.id);
-  const vm = buildProfileViewModel(user);
+router.get('/', ensureAuthenticated, async (req, res) => {
+  const user = await findById(req.session.user.id);
+  const vm = await buildProfileViewModel(user);
+  const backlogEntries = await buildBacklog(user.id);
 
   res.render('profile/show', {
     title: 'Twój profil',
     ...vm,
     isOwnProfile: true,
     alreadyFollowing: false,
-    backlogEntries: buildBacklog(user.id),
+    backlogEntries,
     statusLabels: STATUS_LABELS,
     allGames: getAllGames(),
     tab: req.query.tab || 'badges',
   });
 });
 
-router.get('/settings', ensureAuthenticated, (req, res) => {
-  const user = findById(req.session.user.id);
+router.get('/settings', ensureAuthenticated, async (req, res) => {
+  const user = await findById(req.session.user.id);
   res.render('profile/settings', {
     title: 'Ustawienia konta',
     profileUser: getUserPublic(user),
   });
 });
 
-router.post('/settings/username', ensureAuthenticated, (req, res) => {
+router.post('/settings/username', ensureAuthenticated, async (req, res) => {
   const { username } = req.body;
 
   if (!username || username.trim().length < 3) {
@@ -101,7 +54,12 @@ router.post('/settings/username', ensureAuthenticated, (req, res) => {
     return res.redirect('/profile/settings');
   }
 
-  const result = updateUsername(req.session.user.id, username.trim());
+  if (isReservedUsername(username)) {
+    req.flash('error', 'Ta nazwa użytkownika jest zarezerwowana i niedostępna.');
+    return res.redirect('/profile/settings');
+  }
+
+  const result = await updateUsername(req.session.user.id, username.trim());
   if (!result.ok) {
     req.flash(
       'error',
@@ -130,13 +88,13 @@ router.post('/settings/password', ensureAuthenticated, async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  updatePassword(req.session.user.id, passwordHash);
+  await updatePassword(req.session.user.id, passwordHash);
   req.flash('success', 'Hasło zostało zmienione.');
   res.redirect('/profile/settings');
 });
 
-router.post('/settings/delete', ensureAuthenticated, (req, res) => {
-  deleteUser(req.session.user.id);
+router.post('/settings/delete', ensureAuthenticated, async (req, res) => {
+  await deleteUser(req.session.user.id);
   req.session.destroy(() => {
     res.redirect('/');
   });
@@ -144,7 +102,7 @@ router.post('/settings/delete', ensureAuthenticated, (req, res) => {
 
 /* ----------------------------- BACKLOG ----------------------------- */
 
-router.post('/backlog', ensureAuthenticated, (req, res) => {
+router.post('/backlog', ensureAuthenticated, async (req, res) => {
   const { gameId, status } = req.body;
 
   if (!gameId || !STATUSES.includes(status)) {
@@ -152,57 +110,37 @@ router.post('/backlog', ensureAuthenticated, (req, res) => {
     return res.redirect('/profile?tab=backlog');
   }
 
-  setStatus(req.session.user.id, gameId, status);
+  await setStatus(req.session.user.id, gameId, status);
   req.flash('success', 'Zaktualizowano status gry w Twoim backlogu.');
   res.redirect('/profile?tab=backlog');
 });
 
 /* ----------------------------- OBSERWOWANIE ----------------------------- */
 
-router.post('/follow/:username', ensureAuthenticated, (req, res) => {
-  const target = findByUsername(req.params.username);
+router.post('/follow/:username', ensureAuthenticated, async (req, res) => {
+  const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika.');
     return res.redirect('/');
   }
-  follow(req.session.user.id, target.id);
-  res.redirect(req.get('Referer') || `/profile/${target.username}`);
+  await follow(req.session.user.id, target.id);
+  res.redirect(req.get('Referer') || `/${target.username}`);
 });
 
-router.post('/unfollow/:username', ensureAuthenticated, (req, res) => {
-  const target = findByUsername(req.params.username);
+router.post('/unfollow/:username', ensureAuthenticated, async (req, res) => {
+  const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika.');
     return res.redirect('/');
   }
-  unfollow(req.session.user.id, target.id);
-  res.redirect(req.get('Referer') || `/profile/${target.username}`);
+  await unfollow(req.session.user.id, target.id);
+  res.redirect(req.get('Referer') || `/${target.username}`);
 });
 
-/* --------------------------- PUBLICZNY PROFIL --------------------------- */
-
-router.get('/:username', (req, res, next) => {
-  const user = findByUsername(req.params.username);
-  if (!user) return next();
-
-  const vm = buildProfileViewModel(user);
-  const alreadyFollowing = req.session.user
-    ? isFollowing(req.session.user.id, user.id)
-    : false;
-  const isOwnProfile = !!(
-    req.session.user && req.session.user.id === user.id
-  );
-
-  res.render('profile/show', {
-    title: `Profil: ${user.username}`,
-    ...vm,
-    isOwnProfile,
-    alreadyFollowing,
-    backlogEntries: buildBacklog(user.id),
-    statusLabels: STATUS_LABELS,
-    allGames: getAllGames(),
-    tab: req.query.tab || 'badges',
-  });
+/* ---------------- Kompatybilność wsteczna ze starym adresem ---------------- */
+// Stare linki postaci /profile/nazwa przekierowują na nowy /nazwa.
+router.get('/:username', (req, res) => {
+  res.redirect(301, `/${req.params.username}`);
 });
 
 module.exports = router;

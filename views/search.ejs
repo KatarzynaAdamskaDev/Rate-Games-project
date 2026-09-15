@@ -21,6 +21,22 @@
           </div>
         </form>
       <% } else { %>
+        <h2 class="gv-section-title mb-3">Użytkownicy (<%= users.length %>)</h2>
+        <% if (users.length === 0) { %>
+          <p class="gv-empty-state">Brak użytkowników pasujących do zapytania.</p>
+        <% } else { %>
+          <div class="row g-3 mb-5">
+            <% users.forEach(function(u) { %>
+              <div class="col-12 col-sm-6 col-lg-4">
+                <a href="/<%= u.username %>" class="gv-search-user-card d-flex align-items-center text-decoration-none">
+                  <div class="gv-search-user-avatar"></div>
+                  <b><%= u.username %></b>
+                </a>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+
         <h2 class="gv-section-title mb-3">Gry (<%= games.length %>)</h2>
         <% if (games.length === 0) { %>
           <p class="gv-empty-state">Brak gier pasujących do zapytania.</p>

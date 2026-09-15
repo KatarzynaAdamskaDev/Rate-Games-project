@@ -10,13 +10,14 @@ const {
   withRatings,
 } = require('../utils/gameHelpers');
 const { readCollection, writeCollection } = require('../utils/dataStore');
+const Review = require('../models/Review');
 
 /* --------------------------- LISTA GIER --------------------------- */
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { category, sort } = req.query;
 
-  let games = withRatings(getAllGames());
+  let games = await withRatings(getAllGames());
 
   if (category) {
     games = games.filter(
@@ -59,6 +60,8 @@ router.post('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
     });
   }
 
+  // Katalog gier zostaje w JSON (treść zarządzana przez Ciebie, nie przez
+  // użytkowników w czasie działania aplikacji).
   const games = getAllGames();
   const newGame = {
     id: uuidv4(),
@@ -78,11 +81,11 @@ router.post('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
 
 /* --------------------------- SZCZEGÓŁY GRY --------------------------- */
 
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   const game = getGameById(req.params.id);
   if (!game) return next();
 
-  const reviews = getReviewsForGame(game.id);
+  const reviews = await getReviewsForGame(game.id);
   const averageRating =
     reviews.length > 0
       ? Math.round(
@@ -102,7 +105,7 @@ router.get('/:id', (req, res, next) => {
 
 /* --------------------------- DODAJ OPINIĘ --------------------------- */
 
-router.post('/:id/reviews', ensureAuthenticated, (req, res, next) => {
+router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
   const game = getGameById(req.params.id);
   if (!game) return next();
 
@@ -114,17 +117,13 @@ router.post('/:id/reviews', ensureAuthenticated, (req, res, next) => {
     return res.redirect(`/games/${game.id}`);
   }
 
-  const reviews = readCollection('reviews');
-  reviews.push({
-    id: uuidv4(),
+  await Review.create({
     gameId: game.id,
     userId: req.session.user.id,
     username: req.session.user.username,
     rating: numericRating,
     text,
-    createdAt: new Date().toISOString(),
   });
-  writeCollection('reviews', reviews);
 
   req.flash('success', 'Dziękujemy za dodanie opinii!');
   res.redirect(`/games/${game.id}`);

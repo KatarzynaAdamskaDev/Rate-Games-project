@@ -1,15 +1,20 @@
 /**
  * Statystyki i rankingi używane na stronie /reviews - inspirowane sekcjami
  * typu "Popular reviews" / "Most watched" znanymi z Letterboxd, ale
- * zbudowane wyłącznie na istniejących danych (games.json + reviews.json),
- * bez żadnej zmiany w dotychczasowym schemacie recenzji.
+ * zbudowane wyłącznie na istniejących danych (games.json + tabela reviews).
  */
-const { readCollection } = require('./dataStore');
+const Review = require('../models/Review');
 const { getAllGames, withRatings } = require('./gameHelpers');
 
+async function getAllReviews() {
+  const rows = await Review.findAll();
+  return rows.map((r) => r.get({ plain: true }));
+}
+
 /** Top N gier z największą liczbą recenzji ("najczęściej recenzowane"). */
-function getMostReviewedGames(limit = 10) {
-  return withRatings(getAllGames())
+async function getMostReviewedGames(limit = 10) {
+  const rated = await withRatings(getAllGames());
+  return rated
     .filter((g) => g.reviewCount > 0)
     .sort(
       (a, b) =>
@@ -20,8 +25,9 @@ function getMostReviewedGames(limit = 10) {
 }
 
 /** Top N gier z najwyższą średnią oceną (wymaga co najmniej minReviews recenzji). */
-function getTopRatedGames(limit = 10, minReviews = 1) {
-  return withRatings(getAllGames())
+async function getTopRatedGames(limit = 10, minReviews = 1) {
+  const rated = await withRatings(getAllGames());
+  return rated
     .filter((g) => g.reviewCount >= minReviews)
     .sort(
       (a, b) =>
@@ -32,9 +38,10 @@ function getTopRatedGames(limit = 10, minReviews = 1) {
 }
 
 /** Najnowsze recenzje ze wszystkich gier (jak "recent activity"). */
-function getLatestReviews(limit = 8) {
+async function getLatestReviews(limit = 8) {
   const games = getAllGames();
-  return readCollection('reviews')
+  const reviews = await getAllReviews();
+  return reviews
     .slice()
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, limit)
@@ -42,8 +49,8 @@ function getLatestReviews(limit = 8) {
 }
 
 /** Ranking najaktywniejszych recenzentów po liczbie napisanych recenzji. */
-function getTopReviewers(limit = 6) {
-  const reviews = readCollection('reviews');
+async function getTopReviewers(limit = 6) {
+  const reviews = await getAllReviews();
   const counts = {};
   reviews.forEach((r) => {
     counts[r.username] = (counts[r.username] || 0) + 1;
@@ -56,9 +63,9 @@ function getTopReviewers(limit = 6) {
 }
 
 /** Zbiorcze statystyki dla nagłówka strony (liczby pod SEO/UX). */
-function getOverallStats() {
+async function getOverallStats() {
   const games = getAllGames();
-  const reviews = readCollection('reviews');
+  const reviews = await getAllReviews();
   const gamesWithReviews = new Set(reviews.map((r) => r.gameId)).size;
   const averageRating = reviews.length
     ? Math.round(
@@ -79,8 +86,8 @@ function getOverallStats() {
 }
 
 /** Rozkład liczby recenzji na kategorie (do linkowania wewnętrznego pod SEO). */
-function getCategoryBreakdown() {
-  const games = withRatings(getAllGames());
+async function getCategoryBreakdown() {
+  const games = await withRatings(getAllGames());
   const map = {};
 
   games.forEach((g) => {
@@ -95,9 +102,9 @@ function getCategoryBreakdown() {
 }
 
 /** "Recenzja tygodnia" - wybieramy najbardziej rozbudowaną (najdłuższą) opinię. */
-function getFeaturedReview() {
+async function getFeaturedReview() {
   const games = getAllGames();
-  const reviews = readCollection('reviews');
+  const reviews = await getAllReviews();
   if (!reviews.length) return null;
 
   const featured = reviews

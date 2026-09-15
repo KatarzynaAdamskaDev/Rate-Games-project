@@ -4,8 +4,8 @@ const router = express.Router();
 const { getAllGames, withRatings } = require('../utils/gameHelpers');
 const { readCollection } = require('../utils/dataStore');
 
-router.get('/', (req, res) => {
-  const games = withRatings(getAllGames())
+router.get('/', async (req, res) => {
+  const games = (await withRatings(getAllGames()))
     .sort((a, b) => new Date(b.releaseYear) - new Date(a.releaseYear))
     .slice(0, 6);
 

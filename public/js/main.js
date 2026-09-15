@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       const query = searchForm.querySelector('input[name="q"]').value.trim();
       if (query) {
-        window.location.href = '/szukaj?q=' + encodeURIComponent(query);
+        window.location.href = '/search?q=' + encodeURIComponent(query);
       }
     });
   }

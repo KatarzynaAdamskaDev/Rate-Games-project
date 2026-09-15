@@ -21,10 +21,11 @@ router.use(ensureAuthenticated);
 
 /* ------------------------------- WIDOK ------------------------------- */
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const me = req.session.user;
 
-  const conversations = getConversationsForUser(me.id).map((c) => {
+  const rawConversations = await getConversationsForUser(me.id);
+  const conversations = rawConversations.map((c) => {
     let displayName = c.name;
     if (c.type === 'dm') {
       const otherId = c.memberIds.find((id) => id !== me.id);
@@ -34,16 +35,18 @@ router.get('/', (req, res) => {
   });
 
   const activeId = req.query.c || (conversations[0] && conversations[0].id) || null;
-  const active = activeId ? getConversationById(activeId) : null;
+  const active = activeId ? await getConversationById(activeId) : null;
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
-  const messages = canSeeActive ? getMessages(active.id) : [];
+  const messages = canSeeActive ? await getMessages(active.id) : [];
+
+  const allUsers = await getAllUsers();
 
   res.render('chat/chat', {
     title: 'Czat i grupy',
     conversations,
     active: canSeeActive ? active : null,
     messages,
-    otherUsers: getAllUsers()
+    otherUsers: allUsers
       .filter((u) => u.id !== me.id)
       .map((u) => u.username),
     popularGames: getAllGames().slice(0, 6),
@@ -52,8 +55,8 @@ router.get('/', (req, res) => {
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
 
-router.post('/start/:username', (req, res) => {
-  const target = findByUsername(req.params.username);
+router.post('/start/:username', async (req, res) => {
+  const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika o takiej nazwie.');
     return res.redirect('/chat');
@@ -63,13 +66,13 @@ router.post('/start/:username', (req, res) => {
     return res.redirect('/chat');
   }
 
-  const conv = getOrCreateDM(req.session.user, target);
+  const conv = await getOrCreateDM(req.session.user, target);
   res.redirect(`/chat?c=${conv.id}`);
 });
 
 /* ------------------------------ GRUPY ------------------------------ */
 
-router.post('/groups/new', (req, res) => {
+router.post('/groups/new', async (req, res) => {
   const { name, usernames } = req.body;
 
   if (!name || !name.trim()) {
@@ -82,12 +85,15 @@ router.post('/groups/new', (req, res) => {
     .map((u) => u.trim())
     .filter(Boolean);
 
-  const members = usernameList
-    .map((u) => findByUsername(u))
+  const foundUsers = await Promise.all(
+    usernameList.map((u) => findByUsername(u))
+  );
+
+  const members = foundUsers
     .filter(Boolean)
     .filter((u) => u.id !== req.session.user.id);
 
-  const group = createGroup({
+  const group = await createGroup({
     name: name.trim(),
     ownerId: req.session.user.id,
     ownerUsername: req.session.user.username,
@@ -100,8 +106,8 @@ router.post('/groups/new', (req, res) => {
 
 /* ---------------------------- POKOJE GIER ---------------------------- */
 
-router.get('/rooms/:gameId', (req, res, next) => {
-  const room = getOrCreateGameRoom(
+router.get('/rooms/:gameId', async (req, res, next) => {
+  const room = await getOrCreateGameRoom(
     req.params.gameId,
     req.session.user.id,
     req.session.user.username
@@ -112,24 +118,24 @@ router.get('/rooms/:gameId', (req, res, next) => {
 
 /* --------------------------- WIADOMOŚCI (AJAX) --------------------------- */
 
-router.get('/:conversationId/messages', (req, res) => {
+router.get('/:conversationId/messages', async (req, res) => {
   const { conversationId } = req.params;
 
-  if (!canAccessConversation(req.session.user.id, conversationId)) {
+  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
     return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
   }
 
   const messages = req.query.after
-    ? getMessagesAfter(conversationId, req.query.after)
-    : getMessages(conversationId);
+    ? await getMessagesAfter(conversationId, req.query.after)
+    : await getMessages(conversationId);
 
   res.json({ messages });
 });
 
-router.post('/:conversationId/messages', (req, res) => {
+router.post('/:conversationId/messages', async (req, res) => {
   const { conversationId } = req.params;
 
-  if (!canAccessConversation(req.session.user.id, conversationId)) {
+  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
     return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
   }
 
@@ -138,7 +144,7 @@ router.post('/:conversationId/messages', (req, res) => {
     return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
   }
 
-  const message = addMessage({
+  const message = await addMessage({
     conversationId,
     senderId: req.session.user.id,
     senderUsername: req.session.user.username,
