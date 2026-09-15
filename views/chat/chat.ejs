@@ -179,7 +179,7 @@
                 <b>
                   <% if (active.type === 'dm') { %>
                     <% var otherId = active.memberIds.find(function(id){ return id !== currentUser.id; }); %>
-                    <%= active.memberNames[otherId] %>
+                    <a href="/<%= active.memberNames[otherId] %>" class="gv-chat-name-link"><%= active.memberNames[otherId] %></a>
                   <% } else { %>
                     <%= active.name %>
                   <% } %>
@@ -201,7 +201,7 @@
             <div class="gv-chat-body" id="chatBody" data-conversation="<%= active.id %>">
               <% messages.forEach(function(m) { %>
                 <div class="gv-msg <%= m.senderId === currentUser.id ? 'me' : '' %>" data-id="<%= m.id %>">
-                  <% if (m.senderId !== currentUser.id) { %><b><%= m.senderUsername %></b><% } %>
+                  <% if (m.senderId !== currentUser.id) { %><a href="/<%= m.senderUsername %>" class="gv-chat-name-link"><b><%= m.senderUsername %></b></a><% } %>
                   <%= m.text %>
                   <small><%= new Date(m.createdAt).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}) %></small>
                 </div>
@@ -248,7 +248,7 @@
         div.className = 'gv-msg' + (m.senderId === meId ? ' me' : '');
         div.dataset.id = m.id;
         var time = new Date(m.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-        div.innerHTML = (m.senderId === meId ? '' : '<b>' + m.senderUsername + '</b>') + m.text + '<small>' + time + '</small>';
+        div.innerHTML = (m.senderId === meId ? '' : '<a href="/' + m.senderUsername + '" class="gv-chat-name-link"><b>' + m.senderUsername + '</b></a>') + m.text + '<small>' + time + '</small>';
         chatBody.appendChild(div);
         chatBody.scrollTop = chatBody.scrollHeight;
       }

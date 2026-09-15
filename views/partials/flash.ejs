@@ -1,14 +1,25 @@
-<% if (success && success.length) { %>
-  <div class="container mt-3">
-    <% success.forEach(function(msg) { %>
-      <div class="alert alert-success gv-alert" role="alert"><%= msg %></div>
-    <% }) %>
-  </div>
-<% } %>
-<% if (error && error.length) { %>
-  <div class="container mt-3">
-    <% error.forEach(function(msg) { %>
-      <div class="alert alert-danger gv-alert" role="alert"><%= msg %></div>
-    <% }) %>
-  </div>
+<% if ((success && success.length) || (error && error.length)) { %>
+<script>
+  (function () {
+    function fire() {
+      <% if (success && success.length) { %>
+        <% success.forEach(function(msg) { %>
+          showToast(<%- JSON.stringify(msg) %>, true);
+        <% }) %>
+      <% } %>
+      <% if (error && error.length) { %>
+        <% error.forEach(function(msg) { %>
+          showToast(<%- JSON.stringify(msg) %>, false);
+        <% }) %>
+      <% } %>
+    }
+
+    if (typeof showToast === 'function') {
+      fire();
+    } else {
+      // main.js mógł się jeszcze nie wykonać - spróbuj po załadowaniu DOM.
+      document.addEventListener('DOMContentLoaded', fire);
+    }
+  })();
+</script>
 <% } %>

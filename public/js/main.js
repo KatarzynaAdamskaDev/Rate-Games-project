@@ -1,3 +1,36 @@
+/* -------------------- Toasty (komunikaty w rogu ekranu) --------------------
+   UWAGA: te dwie funkcje muszą być w zasięgu GLOBALNYM (poza
+   DOMContentLoaded), bo wywołują je też inline <script> na innych stronach
+   (np. partials/flash.ejs, profile/show.ejs) zanim main.js zdąży się w pełni
+   zainicjować. */
+function showToast(message, isSuccess) {
+  var container = document.getElementById('gvToastContainer');
+  if (!container || !message) return;
+
+  var toast = document.createElement('div');
+  toast.className = 'gv-toast' + (isSuccess ? ' gv-toast-success' : '');
+  toast.textContent = message;
+
+  var closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'gv-toast-close';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.addEventListener('click', function () { removeToast(toast); });
+  toast.appendChild(closeBtn);
+
+  container.appendChild(toast);
+
+  setTimeout(function () { removeToast(toast); }, 5000);
+}
+
+function removeToast(toast) {
+  if (!toast || !toast.parentNode) return;
+  toast.classList.add('gv-toast-out');
+  setTimeout(function () {
+    if (toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 200);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   /* -------------------- Pokaż/ukryj hasło -------------------- */
   // document.querySelectorAll('.gv-password-toggle').forEach(function (btn) {
@@ -87,36 +120,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-    /* -------------------- Toasty (komunikaty w rogu ekranu) -------------------- */
-  function showToast(message, isSuccess) {
-    var container = document.getElementById('gvToastContainer');
-    if (!container || !message) return;
-
-    var toast = document.createElement('div');
-    toast.className = 'gv-toast' + (isSuccess ? ' gv-toast-success' : '');
-    toast.textContent = message;
-
-    var closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'gv-toast-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.addEventListener('click', function () { removeToast(toast); });
-    toast.appendChild(closeBtn);
-
-    container.appendChild(toast);
-
-    setTimeout(function () { removeToast(toast); }, 5000);
-  }
-
-  function removeToast(toast) {
-    if (!toast || !toast.parentNode) return;
-    toast.classList.add('gv-toast-out');
-    setTimeout(function () {
-      if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 200);
-  }
-
-  /* -------------------- Wspólna funkcja wysyłki JSON -------------------- */
   function postJson(url, formEl) {
     var formData = new URLSearchParams(new FormData(formEl));
     return fetch(url, {
