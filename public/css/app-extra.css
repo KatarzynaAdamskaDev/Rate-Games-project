@@ -1029,3 +1029,126 @@
     width: 100px;
   }
 }
+
+/* Awatar w nagłówku aktywnej rozmowy - wcześniej brakowało tego stylu,
+   przez co div renderował się jako niewidoczny 0x0 px */
+.gv-chat-topbar .gv-c-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-chat-topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-actions form {
+  display: inline-block;
+}
+
+.gv-chat-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.gv-chat-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+/* Wybór znajomych do nowej grupy (autouzupełnianie) */
+.gv-group-member-picker {
+  position: relative;
+}
+
+.gv-group-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  z-index: 30;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+}
+
+.gv-group-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  font-size: 12.5px;
+}
+
+.gv-group-suggestion-item:hover {
+  background: var(--bg-2);
+}
+
+.gv-group-suggestion-empty {
+  padding: 10px 12px;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+.gv-group-hint {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+
+.gv-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+
+.gv-chip button {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.gv-chip button:hover {
+  color: var(--pink);
+}
