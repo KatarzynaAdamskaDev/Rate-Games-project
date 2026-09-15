@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { readCollection } = require('../utils/dataStore');
+const Review = require('../models/Review');
 const { getAllGames } = require('../utils/gameHelpers');
 const {
   getMostReviewedGames,
@@ -13,14 +13,15 @@ const {
   getFeaturedReview,
 } = require('../utils/reviewStatsHelpers');
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { sort } = req.query;
   const games = getAllGames();
 
-  let allReviews = readCollection('reviews').map((r) => ({
-    ...r,
-    game: games.find((g) => g.id === r.gameId) || null,
-  }));
+  const rawReviews = await Review.findAll();
+  let allReviews = rawReviews.map((r) => {
+    const plain = r.get({ plain: true });
+    return { ...plain, game: games.find((g) => g.id === plain.gameId) || null };
+  });
 
   if (sort === 'rating') {
     allReviews.sort((a, b) => b.rating - a.rating);
@@ -30,15 +31,33 @@ router.get('/', (req, res) => {
     allReviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
+  const [
+    stats,
+    mostReviewedGames,
+    topRatedGames,
+    latestReviews,
+    topReviewers,
+    categoryBreakdown,
+    featuredReview,
+  ] = await Promise.all([
+    getOverallStats(),
+    getMostReviewedGames(10),
+    getTopRatedGames(10, 1),
+    getLatestReviews(8),
+    getTopReviewers(6),
+    getCategoryBreakdown(),
+    getFeaturedReview(),
+  ]);
+
   res.render('reviews', {
     title: 'Recenzje graczy - najlepsze i najczęściej oceniane gry',
-    stats: getOverallStats(),
-    mostReviewedGames: getMostReviewedGames(10),
-    topRatedGames: getTopRatedGames(10, 1),
-    latestReviews: getLatestReviews(8),
-    topReviewers: getTopReviewers(6),
-    categoryBreakdown: getCategoryBreakdown(),
-    featuredReview: getFeaturedReview(),
+    stats,
+    mostReviewedGames,
+    topRatedGames,
+    latestReviews,
+    topReviewers,
+    categoryBreakdown,
+    featuredReview,
     allReviews,
     activeSort: sort || 'newest',
   });

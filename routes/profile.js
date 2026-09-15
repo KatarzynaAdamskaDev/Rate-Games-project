@@ -11,7 +11,6 @@ const {
 const { getUserPublic, updateUsername, deleteUser } = require('../utils/profileHelpers');
 const { isReservedUsername } = require('../utils/reservedUsernames');
 const {
-  getUserBacklog,
   setStatus,
   STATUSES,
   STATUS_LABELS,
@@ -25,13 +24,14 @@ const { buildProfileViewModel, buildBacklog } = require('../utils/profileViewMod
 router.get('/', ensureAuthenticated, async (req, res) => {
   const user = await findById(req.session.user.id);
   const vm = await buildProfileViewModel(user);
+  const backlogEntries = await buildBacklog(user.id);
 
   res.render('profile/show', {
     title: 'Twój profil',
     ...vm,
     isOwnProfile: true,
     alreadyFollowing: false,
-    backlogEntries: buildBacklog(user.id),
+    backlogEntries,
     statusLabels: STATUS_LABELS,
     allGames: getAllGames(),
     tab: req.query.tab || 'badges',
@@ -102,7 +102,7 @@ router.post('/settings/delete', ensureAuthenticated, async (req, res) => {
 
 /* ----------------------------- BACKLOG ----------------------------- */
 
-router.post('/backlog', ensureAuthenticated, (req, res) => {
+router.post('/backlog', ensureAuthenticated, async (req, res) => {
   const { gameId, status } = req.body;
 
   if (!gameId || !STATUSES.includes(status)) {
@@ -110,7 +110,7 @@ router.post('/backlog', ensureAuthenticated, (req, res) => {
     return res.redirect('/profile?tab=backlog');
   }
 
-  setStatus(req.session.user.id, gameId, status);
+  await setStatus(req.session.user.id, gameId, status);
   req.flash('success', 'Zaktualizowano status gry w Twoim backlogu.');
   res.redirect('/profile?tab=backlog');
 });

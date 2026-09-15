@@ -19,6 +19,7 @@ router.get('/:username', async (req, res, next) => {
   }
 
   const vm = await buildProfileViewModel(user);
+  const backlogEntries = await buildBacklog(user.id);
   const alreadyFollowing = req.session.user
     ? await isFollowing(req.session.user.id, user.id)
     : false;
@@ -28,7 +29,7 @@ router.get('/:username', async (req, res, next) => {
     ...vm,
     isOwnProfile: false,
     alreadyFollowing,
-    backlogEntries: buildBacklog(user.id),
+    backlogEntries,
     statusLabels: STATUS_LABELS,
     allGames: getAllGames(),
     tab: req.query.tab || 'badges',

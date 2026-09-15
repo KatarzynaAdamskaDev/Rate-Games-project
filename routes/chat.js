@@ -24,7 +24,8 @@ router.use(ensureAuthenticated);
 router.get('/', async (req, res) => {
   const me = req.session.user;
 
-  const conversations = getConversationsForUser(me.id).map((c) => {
+  const rawConversations = await getConversationsForUser(me.id);
+  const conversations = rawConversations.map((c) => {
     let displayName = c.name;
     if (c.type === 'dm') {
       const otherId = c.memberIds.find((id) => id !== me.id);
@@ -34,9 +35,9 @@ router.get('/', async (req, res) => {
   });
 
   const activeId = req.query.c || (conversations[0] && conversations[0].id) || null;
-  const active = activeId ? getConversationById(activeId) : null;
+  const active = activeId ? await getConversationById(activeId) : null;
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
-  const messages = canSeeActive ? getMessages(active.id) : [];
+  const messages = canSeeActive ? await getMessages(active.id) : [];
 
   const allUsers = await getAllUsers();
 
@@ -65,7 +66,7 @@ router.post('/start/:username', async (req, res) => {
     return res.redirect('/chat');
   }
 
-  const conv = getOrCreateDM(req.session.user, target);
+  const conv = await getOrCreateDM(req.session.user, target);
   res.redirect(`/chat?c=${conv.id}`);
 });
 
@@ -92,7 +93,7 @@ router.post('/groups/new', async (req, res) => {
     .filter(Boolean)
     .filter((u) => u.id !== req.session.user.id);
 
-  const group = createGroup({
+  const group = await createGroup({
     name: name.trim(),
     ownerId: req.session.user.id,
     ownerUsername: req.session.user.username,
@@ -105,8 +106,8 @@ router.post('/groups/new', async (req, res) => {
 
 /* ---------------------------- POKOJE GIER ---------------------------- */
 
-router.get('/rooms/:gameId', (req, res, next) => {
-  const room = getOrCreateGameRoom(
+router.get('/rooms/:gameId', async (req, res, next) => {
+  const room = await getOrCreateGameRoom(
     req.params.gameId,
     req.session.user.id,
     req.session.user.username
@@ -117,24 +118,24 @@ router.get('/rooms/:gameId', (req, res, next) => {
 
 /* --------------------------- WIADOMOŚCI (AJAX) --------------------------- */
 
-router.get('/:conversationId/messages', (req, res) => {
+router.get('/:conversationId/messages', async (req, res) => {
   const { conversationId } = req.params;
 
-  if (!canAccessConversation(req.session.user.id, conversationId)) {
+  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
     return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
   }
 
   const messages = req.query.after
-    ? getMessagesAfter(conversationId, req.query.after)
-    : getMessages(conversationId);
+    ? await getMessagesAfter(conversationId, req.query.after)
+    : await getMessages(conversationId);
 
   res.json({ messages });
 });
 
-router.post('/:conversationId/messages', (req, res) => {
+router.post('/:conversationId/messages', async (req, res) => {
   const { conversationId } = req.params;
 
-  if (!canAccessConversation(req.session.user.id, conversationId)) {
+  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
     return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
   }
 
@@ -143,7 +144,7 @@ router.post('/:conversationId/messages', (req, res) => {
     return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
   }
 
-  const message = addMessage({
+  const message = await addMessage({
     conversationId,
     senderId: req.session.user.id,
     senderUsername: req.session.user.username,
