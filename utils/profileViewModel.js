@@ -1,4 +1,4 @@
-const { readCollection } = require('./dataStore');
+const Review = require('../models/Review');
 const {
   levelProgress,
   pointsFromStats,
@@ -13,14 +13,15 @@ const { getUserPublic } = require('./profileHelpers');
 
 /** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
 async function buildProfileViewModel(user) {
-  const reviews = readCollection('reviews')
-    .filter((r) => r.username === user.username)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-  const [followers, following] = await Promise.all([
+  const [reviewRows, followers, following] = await Promise.all([
+    Review.findAll({ where: { userId: user.id } }),
     getFollowers(user.id),
     getFollowing(user.id),
   ]);
+
+  const reviews = reviewRows
+    .map((r) => r.get({ plain: true }))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const stats = {
     reviewCount: reviews.length,
@@ -43,9 +44,10 @@ async function buildProfileViewModel(user) {
   };
 }
 
-function buildBacklog(userId) {
+async function buildBacklog(userId) {
   const games = getAllGames();
-  return getUserBacklog(userId).map((entry) => ({
+  const entries = await getUserBacklog(userId);
+  return entries.map((entry) => ({
     ...entry,
     game: games.find((g) => g.id === entry.gameId) || null,
   }));

@@ -1,5 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
-const { readCollection, writeCollection } = require('./dataStore');
+const BacklogEntry = require('../models/BacklogEntry');
 
 const STATUSES = ['gram', 'ukonczone', 'porzucone', 'lista'];
 
@@ -10,44 +9,30 @@ const STATUS_LABELS = {
   lista: 'Na liście',
 };
 
-function getUserBacklog(userId) {
-  return readCollection('backlog').filter((b) => b.userId === userId);
+async function getUserBacklog(userId) {
+  const rows = await BacklogEntry.findAll({ where: { userId } });
+  return rows.map((r) => r.get({ plain: true }));
 }
 
-function setStatus(userId, gameId, status) {
+async function setStatus(userId, gameId, status) {
   if (!STATUSES.includes(status)) return null;
 
-  const backlog = readCollection('backlog');
-  const idx = backlog.findIndex(
-    (b) => b.userId === userId && b.gameId === gameId
-  );
+  const [entry, created] = await BacklogEntry.findOrCreate({
+    where: { userId, gameId },
+    defaults: { status },
+  });
 
-  if (idx === -1) {
-    const entry = {
-      id: uuidv4(),
-      userId,
-      gameId,
-      status,
-      updatedAt: new Date().toISOString(),
-    };
-    backlog.push(entry);
-    writeCollection('backlog', backlog);
-    return entry;
+  if (!created) {
+    entry.status = status;
+    await entry.save();
   }
 
-  backlog[idx].status = status;
-  backlog[idx].updatedAt = new Date().toISOString();
-  writeCollection('backlog', backlog);
-  return backlog[idx];
+  return entry.get({ plain: true });
 }
 
-function removeEntry(userId, gameId) {
-  const backlog = readCollection('backlog');
-  const next = backlog.filter(
-    (b) => !(b.userId === userId && b.gameId === gameId)
-  );
-  writeCollection('backlog', next);
-  return next.length !== backlog.length;
+async function removeEntry(userId, gameId) {
+  const count = await BacklogEntry.destroy({ where: { userId, gameId } });
+  return count > 0;
 }
 
 module.exports = {

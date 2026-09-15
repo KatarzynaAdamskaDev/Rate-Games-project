@@ -40,7 +40,7 @@ function getAvailableYears() {
 }
 
 /* Lista wszystkich kategorii */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { platform, year } = req.query;
 
   const categories = getCategories().map((name) => {
@@ -49,7 +49,7 @@ router.get('/', (req, res) => {
   });
 
   let games = filterByPlatformAndYear(getAllGames(), platform, year);
-  games = withRatings(games);
+  games = await withRatings(games);
 
   res.render('category', {
     title: 'Kategorie',
@@ -63,7 +63,7 @@ router.get('/', (req, res) => {
 });
 
 /* Gry w danej kategorii */
-router.get('/:name', (req, res) => {
+router.get('/:name', async (req, res) => {
   const { name } = req.params;
   const { platform, year } = req.query;
 
@@ -76,7 +76,7 @@ router.get('/:name', (req, res) => {
     (g) => g.category.toLowerCase() === name.toLowerCase()
   );
   games = filterByPlatformAndYear(games, platform, year);
-  games = withRatings(games);
+  games = await withRatings(games);
 
   res.render('category', {
     title: `Kategoria: ${name}`,

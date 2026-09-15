@@ -1,11 +1,22 @@
-const { v4: uuidv4 } = require('uuid');
-const { readCollection, writeCollection } = require('./dataStore');
+const Conversation = require('../models/Conversation');
+const Message = require('../models/Message');
 const { getGameById } = require('./gameHelpers');
+
+/** Zamienia instancję Sequelize na zwykły obiekt, parsując pola JSON. */
+function serializeConversation(instance) {
+  if (!instance) return null;
+  const plain = instance.get({ plain: true });
+  plain.memberIds = JSON.parse(plain.memberIds || '[]');
+  plain.memberNames = JSON.parse(plain.memberNames || '{}');
+  return plain;
+}
 
 /* ------------------------------ ROZMOWY ------------------------------ */
 
-function getConversationsForUser(userId) {
-  return readCollection('conversations')
+async function getConversationsForUser(userId) {
+  const rows = await Conversation.findAll();
+  return rows
+    .map(serializeConversation)
     .filter((c) => c.memberIds.includes(userId))
     .sort(
       (a, b) =>
@@ -14,131 +25,120 @@ function getConversationsForUser(userId) {
     );
 }
 
-function getConversationById(id) {
-  return readCollection('conversations').find((c) => c.id === id) || null;
+async function getConversationById(id) {
+  const instance = await Conversation.findByPk(id);
+  return serializeConversation(instance);
 }
 
-function canAccessConversation(userId, conversationId) {
-  const conv = getConversationById(conversationId);
+async function canAccessConversation(userId, conversationId) {
+  const conv = await getConversationById(conversationId);
   return !!conv && conv.memberIds.includes(userId);
 }
 
-function getOrCreateDM(userA, userB) {
-  const conversations = readCollection('conversations');
-  const existing = conversations.find(
-    (c) =>
-      c.type === 'dm' &&
-      c.memberIds.length === 2 &&
-      c.memberIds.includes(userA.id) &&
-      c.memberIds.includes(userB.id)
-  );
+async function getOrCreateDM(userA, userB) {
+  const rows = await Conversation.findAll({ where: { type: 'dm' } });
+  const existing = rows
+    .map(serializeConversation)
+    .find(
+      (c) =>
+        c.memberIds.length === 2 &&
+        c.memberIds.includes(userA.id) &&
+        c.memberIds.includes(userB.id)
+    );
   if (existing) return existing;
 
-  const conv = {
-    id: uuidv4(),
+  const instance = await Conversation.create({
     type: 'dm',
     name: null,
-    memberIds: [userA.id, userB.id],
-    memberNames: { [userA.id]: userA.username, [userB.id]: userB.username },
-    createdAt: new Date().toISOString(),
-    lastMessageAt: null,
-  };
-  conversations.push(conv);
-  writeCollection('conversations', conversations);
-  return conv;
+    memberIds: JSON.stringify([userA.id, userB.id]),
+    memberNames: JSON.stringify({
+      [userA.id]: userA.username,
+      [userB.id]: userB.username,
+    }),
+  });
+  return serializeConversation(instance);
 }
 
-function createGroup({ name, ownerId, ownerUsername, members }) {
-  const conversations = readCollection('conversations');
+async function createGroup({ name, ownerId, ownerUsername, members }) {
   const memberIds = [ownerId, ...members.map((m) => m.id)];
   const memberNames = { [ownerId]: ownerUsername };
   members.forEach((m) => {
     memberNames[m.id] = m.username;
   });
 
-  const conv = {
-    id: uuidv4(),
+  const instance = await Conversation.create({
     type: 'group',
     name,
     ownerId,
-    memberIds: [...new Set(memberIds)],
-    memberNames,
-    createdAt: new Date().toISOString(),
-    lastMessageAt: null,
-  };
-  conversations.push(conv);
-  writeCollection('conversations', conversations);
-  return conv;
+    memberIds: JSON.stringify([...new Set(memberIds)]),
+    memberNames: JSON.stringify(memberNames),
+  });
+  return serializeConversation(instance);
 }
 
 /** Zwraca (lub tworzy) pokój dyskusyjny przypisany do konkretnej gry. */
-function getOrCreateGameRoom(gameId, userId, username) {
+async function getOrCreateGameRoom(gameId, userId, username) {
   const game = getGameById(gameId);
   if (!game) return null;
 
-  const conversations = readCollection('conversations');
-  let conv = conversations.find(
-    (c) => c.type === 'game-room' && c.gameId === gameId
-  );
+  let instance = await Conversation.findOne({
+    where: { type: 'game-room', gameId },
+  });
 
-  if (!conv) {
-    conv = {
-      id: uuidv4(),
+  if (!instance) {
+    instance = await Conversation.create({
       type: 'game-room',
       name: `#${game.title.toLowerCase().replace(/\s+/g, '-')}`,
       gameId,
-      memberIds: [],
-      memberNames: {},
-      createdAt: new Date().toISOString(),
-      lastMessageAt: null,
-    };
-    conversations.push(conv);
+      memberIds: '[]',
+      memberNames: '{}',
+    });
   }
+
+  const conv = serializeConversation(instance);
 
   if (userId && !conv.memberIds.includes(userId)) {
     conv.memberIds.push(userId);
     conv.memberNames[userId] = username;
+    instance.memberIds = JSON.stringify(conv.memberIds);
+    instance.memberNames = JSON.stringify(conv.memberNames);
+    await instance.save();
   }
 
-  writeCollection('conversations', conversations);
-  return conv;
+  return serializeConversation(instance);
 }
 
-function touchConversation(conversationId, when) {
-  const conversations = readCollection('conversations');
-  const idx = conversations.findIndex((c) => c.id === conversationId);
-  if (idx === -1) return;
-  conversations[idx].lastMessageAt = when;
-  writeCollection('conversations', conversations);
+async function touchConversation(conversationId, when) {
+  await Conversation.update(
+    { lastMessageAt: when },
+    { where: { id: conversationId } }
+  );
 }
 
 /* ----------------------------- WIADOMOŚCI ----------------------------- */
 
-function getMessages(conversationId) {
-  return readCollection('messages')
-    .filter((m) => m.conversationId === conversationId)
+async function getMessages(conversationId) {
+  const rows = await Message.findAll({ where: { conversationId } });
+  return rows
+    .map((m) => m.get({ plain: true }))
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
-function getMessagesAfter(conversationId, afterIso) {
-  const all = getMessages(conversationId);
+async function getMessagesAfter(conversationId, afterIso) {
+  const all = await getMessages(conversationId);
   if (!afterIso) return all;
   return all.filter((m) => new Date(m.createdAt) > new Date(afterIso));
 }
 
-function addMessage({ conversationId, senderId, senderUsername, text }) {
-  const messages = readCollection('messages');
-  const message = {
-    id: uuidv4(),
+async function addMessage({ conversationId, senderId, senderUsername, text }) {
+  const instance = await Message.create({
     conversationId,
     senderId,
     senderUsername,
     text,
-    createdAt: new Date().toISOString(),
-  };
-  messages.push(message);
-  writeCollection('messages', messages);
-  touchConversation(conversationId, message.createdAt);
+  });
+  const message = instance.get({ plain: true });
+  await touchConversation(conversationId, message.createdAt);
   return message;
 }
 
