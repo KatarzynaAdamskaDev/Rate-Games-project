@@ -12,9 +12,12 @@ const {
   getMessages,
   getMessagesAfter,
   addMessage,
+  clearMessages,
+  deleteConversation,
 } = require('../utils/chatHelpers');
-const { findByUsername, getAllUsers } = require('../utils/userHelpers');
+const { findByUsername, findById, getAllUsers } = require('../utils/userHelpers');
 const { getAllGames } = require('../utils/gameHelpers');
+const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
 
 // Cały czat wymaga zalogowania.
 router.use(ensureAuthenticated);
@@ -40,6 +43,7 @@ router.get('/', async (req, res) => {
   const messages = canSeeActive ? await getMessages(active.id) : [];
 
   const allUsers = await getAllUsers();
+  const mutualIds = new Set(await getMutualFriends(me.id));
 
   res.render('chat/chat', {
     title: 'Czat i grupy',
@@ -47,10 +51,27 @@ router.get('/', async (req, res) => {
     active: canSeeActive ? active : null,
     messages,
     otherUsers: allUsers
-      .filter((u) => u.id !== me.id)
+      .filter((u) => u.id !== me.id && mutualIds.has(u.id))
       .map((u) => u.username),
     popularGames: getAllGames().slice(0, 6),
   });
+});
+
+/* ------------------- WYSZUKIWANIE ZNAJOMYCH (do grupy) ------------------- */
+
+// Zwraca tylko WZAJEMNYCH obserwujących (znajomych) pasujących do zapytania -
+// tylko ich można dodać do nowej grupy.
+router.get('/friends-search', async (req, res) => {
+  const q = (req.query.q || '').trim().toLowerCase();
+  const mutualIds = await getMutualFriends(req.session.user.id);
+
+  const mutualUsers = (await Promise.all(mutualIds.map((id) => findById(id))))
+    .filter(Boolean)
+    .filter((u) => !q || u.username.toLowerCase().includes(q))
+    .slice(0, 8)
+    .map((u) => ({ id: u.id, username: u.username }));
+
+  res.json({ users: mutualUsers });
 });
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
@@ -66,6 +87,19 @@ router.post('/start/:username', async (req, res) => {
     return res.redirect('/chat');
   }
 
+  const [iFollowThem, theyFollowMe] = await Promise.all([
+    isFollowing(req.session.user.id, target.id),
+    isFollowing(target.id, req.session.user.id),
+  ]);
+
+  if (!iFollowThem || !theyFollowMe) {
+    req.flash(
+      'error',
+      'Możesz pisać prywatnie tylko do wzajemnych znajomych (obserwujecie się nawzajem).'
+    );
+    return res.redirect('/chat');
+  }
+
   const conv = await getOrCreateDM(req.session.user, target);
   res.redirect(`/chat?c=${conv.id}`);
 });
@@ -73,25 +107,34 @@ router.post('/start/:username', async (req, res) => {
 /* ------------------------------ GRUPY ------------------------------ */
 
 router.post('/groups/new', async (req, res) => {
-  const { name, usernames } = req.body;
+  const { name } = req.body;
+  let memberIds = req.body.memberIds || [];
+  if (!Array.isArray(memberIds)) memberIds = [memberIds];
+  memberIds = memberIds.filter(Boolean);
 
   if (!name || !name.trim()) {
     req.flash('error', 'Podaj nazwę grupy.');
     return res.redirect('/chat');
   }
+  if (memberIds.length === 0) {
+    req.flash('error', 'Dodaj co najmniej jednego znajomego do grupy.');
+    return res.redirect('/chat');
+  }
 
-  const usernameList = (usernames || '')
-    .split(',')
-    .map((u) => u.trim())
-    .filter(Boolean);
+  // Bezpieczeństwo: nawet gdyby ktoś ominął JS i wysłał dowolne ID,
+  // serwer i tak dopuszcza tylko wzajemnych obserwujących.
+  const mutualIds = await getMutualFriends(req.session.user.id);
+  const mutualSet = new Set(mutualIds);
+  const validIds = memberIds.filter((id) => mutualSet.has(id));
 
-  const foundUsers = await Promise.all(
-    usernameList.map((u) => findByUsername(u))
+  if (validIds.length === 0) {
+    req.flash('error', 'Do grupy możesz dodać tylko wzajemnych znajomych.');
+    return res.redirect('/chat');
+  }
+
+  const members = (await Promise.all(validIds.map((id) => findById(id)))).filter(
+    Boolean
   );
-
-  const members = foundUsers
-    .filter(Boolean)
-    .filter((u) => u.id !== req.session.user.id);
 
   const group = await createGroup({
     name: name.trim(),
@@ -114,6 +157,34 @@ router.get('/rooms/:gameId', async (req, res, next) => {
   );
   if (!room) return next();
   res.redirect(`/chat?c=${room.id}`);
+});
+
+/* ------------------------- USUŃ / WYCZYŚĆ ROZMOWĘ ------------------------- */
+
+router.post('/:conversationId/clear', async (req, res) => {
+  const { conversationId } = req.params;
+
+  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
+    req.flash('error', 'Brak dostępu do tej rozmowy.');
+    return res.redirect('/chat');
+  }
+
+  await clearMessages(conversationId);
+  req.flash('success', 'Wiadomości zostały wyczyszczone.');
+  res.redirect(`/chat?c=${conversationId}`);
+});
+
+router.post('/:conversationId/delete', async (req, res) => {
+  const { conversationId } = req.params;
+
+  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
+    req.flash('error', 'Brak dostępu do tej rozmowy.');
+    return res.redirect('/chat');
+  }
+
+  await deleteConversation(conversationId);
+  req.flash('success', 'Rozmowa została usunięta.');
+  res.redirect('/chat');
 });
 
 /* --------------------------- WIADOMOŚCI (AJAX) --------------------------- */

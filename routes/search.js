@@ -13,14 +13,14 @@ router.get('/', async (req, res) => {
 
   if (q) {
     const needle = q.toLowerCase();
-    games = withRatings(
-      getAllGames().filter(
-        (g) =>
-          g.title.toLowerCase().includes(needle) ||
-          g.category.toLowerCase().includes(needle) ||
-          g.description.toLowerCase().includes(needle)
-      )
+    const matchingGames = getAllGames().filter(
+      (g) =>
+        g.title.toLowerCase().includes(needle) ||
+        g.category.toLowerCase().includes(needle) ||
+        g.description.toLowerCase().includes(needle)
     );
+    games = await withRatings(matchingGames);
+
     posts = readCollection('blog').filter(
       (p) =>
         p.title.toLowerCase().includes(needle) ||

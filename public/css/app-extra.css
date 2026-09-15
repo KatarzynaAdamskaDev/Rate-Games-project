@@ -853,6 +853,35 @@
   border-radius: var(--radius-l);
   overflow: hidden;
 }
+/* Scrollbary chatu takie jak w sekcji trendów */
+.gv-chat-list-col,
+.gv-chat-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-1);
+}
+
+.gv-chat-list-col::-webkit-scrollbar,
+.gv-chat-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gv-chat-list-col::-webkit-scrollbar-track,
+.gv-chat-body::-webkit-scrollbar-track {
+  background: var(--bg-1);
+  border-radius: 999px;
+}
+
+.gv-chat-list-col::-webkit-scrollbar-thumb,
+.gv-chat-body::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.gv-chat-list-col::-webkit-scrollbar-thumb:hover,
+.gv-chat-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-soft);
+}
 .gv-chat-list-col {
   background: var(--bg-2);
   border-right: 1px solid var(--panel-border);
@@ -1009,7 +1038,7 @@
   .gv-chat-shell {
     grid-template-columns: 1fr;
   }
-  .gv-chat-list-col {
+.gv-chat-list-col {
     display: none;
   }
   .gv-form-grid,
@@ -1028,4 +1057,269 @@
   .gv-category-bar-label {
     width: 100px;
   }
+}
+
+/* Awatar w nagłówku aktywnej rozmowy - wcześniej brakowało tego stylu,
+   przez co div renderował się jako niewidoczny 0x0 px */
+.gv-chat-topbar .gv-c-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-chat-topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-actions form {
+  display: inline-block;
+}
+
+.gv-chat-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.gv-chat-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+/* Wybór znajomych do nowej grupy (autouzupełnianie) */
+.gv-group-member-picker {
+  position: relative;
+}
+
+.gv-group-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  z-index: 30;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+}
+
+.gv-group-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  font-size: 12.5px;
+}
+
+.gv-group-suggestion-item:hover {
+  background: var(--bg-2);
+}
+
+.gv-group-suggestion-empty {
+  padding: 10px 12px;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+.gv-group-hint {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+
+.gv-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+
+.gv-chip button {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.gv-chip button:hover {
+  color: var(--pink);
+}
+
+/* Awatar w nagłówku aktywnej rozmowy - wcześniej brakowało tego stylu,
+   przez co div renderował się jako niewidoczny 0x0 px */
+.gv-chat-topbar .gv-c-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-chat-topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-actions form {
+  display: inline-block;
+}
+
+.gv-chat-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.gv-chat-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+/* Wybór znajomych do nowej grupy (autouzupełnianie) */
+.gv-group-member-picker {
+  position: relative;
+}
+
+.gv-group-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  z-index: 30;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+}
+
+.gv-group-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  font-size: 12.5px;
+}
+
+.gv-group-suggestion-item:hover {
+  background: var(--bg-2);
+}
+
+.gv-group-suggestion-empty {
+  padding: 10px 12px;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+.gv-group-hint {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+
+.gv-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+
+.gv-chip button {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.gv-chip button:hover {
+  color: var(--pink);
+}
+
+/* Klikalna nazwa użytkownika w czacie (link do profilu) */
+.gv-chat-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.gv-chat-name-link:hover b,
+.gv-chat-name-link:hover {
+  color: var(--accent-soft);
+}
+
+.gv-chat-topbar .gv-chat-name-link {
+  color: var(--text-hi);
+}
+
+.gv-chat-topbar .gv-chat-name-link:hover {
+  color: var(--accent-soft);
 }

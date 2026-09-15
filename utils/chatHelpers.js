@@ -115,6 +115,18 @@ async function touchConversation(conversationId, when) {
   );
 }
 
+/** Usuwa wszystkie wiadomości z rozmowy, ale zostawia samą rozmowę. */
+async function clearMessages(conversationId) {
+  return Message.destroy({ where: { conversationId } });
+}
+
+/** Usuwa całą rozmowę razem z jej wiadomościami. */
+async function deleteConversation(conversationId) {
+  await Message.destroy({ where: { conversationId } });
+  const count = await Conversation.destroy({ where: { id: conversationId } });
+  return count > 0;
+}
+
 /* ----------------------------- WIADOMOŚCI ----------------------------- */
 
 async function getMessages(conversationId) {
@@ -152,4 +164,6 @@ module.exports = {
   getMessages,
   getMessagesAfter,
   addMessage,
+  clearMessages,
+  deleteConversation,
 };
