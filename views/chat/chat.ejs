@@ -181,7 +181,12 @@
                     <% var otherId = active.memberIds.find(function(id){ return id !== currentUser.id; }); %>
                     <a href="/<%= active.memberNames[otherId] %>" class="gv-chat-name-link"><%= active.memberNames[otherId] %></a>
                   <% } else { %>
-                    <%= active.name %>
+                    <button type="button" class="gv-chat-name-link gv-group-name-toggle" id="groupMembersToggle"><%= active.name %> ▾</button>
+                    <div class="gv-group-members-dropdown d-none" id="groupMembersDropdown">
+                      <% active.memberIds.forEach(function(id) { %>
+                        <a href="/<%= active.memberNames[id] %>" class="gv-group-member-item"><%= active.memberNames[id] %></a>
+                      <% }) %>
+                    </div>
                   <% } %>
                 </b>
                 <div style="color:var(--text-lo); font-size:11.5px;">
@@ -301,6 +306,21 @@
 
       setInterval(poll, 4000);
       chatBody.scrollTop = chatBody.scrollHeight;
+
+      // Rozwijana lista członków grupy (jeśli aktywna rozmowa to grupa)
+      var groupToggle = document.getElementById('groupMembersToggle');
+      var groupDropdown = document.getElementById('groupMembersDropdown');
+      if (groupToggle && groupDropdown) {
+        groupToggle.addEventListener('click', function (e) {
+          e.stopPropagation();
+          groupDropdown.classList.toggle('d-none');
+        });
+        document.addEventListener('click', function (e) {
+          if (!groupDropdown.contains(e.target) && e.target !== groupToggle) {
+            groupDropdown.classList.add('d-none');
+          }
+        });
+      }
     })();
   </script>
   <% } %>
