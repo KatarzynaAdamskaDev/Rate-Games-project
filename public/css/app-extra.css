@@ -1496,7 +1496,6 @@
 .gv-chat-name-link:hover b,
 .gv-chat-name-link:hover {
   color: var(--accent-soft);
-  text-decoration: underline;
 }
 
 .gv-chat-topbar .gv-chat-name-link {
@@ -1505,4 +1504,92 @@
 
 .gv-chat-topbar .gv-chat-name-link:hover {
   color: var(--accent-soft);
+}
+
+.gv-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.gv-review-like-btn {
+  background: none;
+  border: none;
+  color: var(--text-mid);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.gv-review-like-btn:hover:not(:disabled) {
+  background: var(--bg-2);
+}
+
+.gv-review-like-btn.liked {
+  color: var(--pink);
+}
+
+.gv-review-like-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gv-inline-link {
+  background: none;
+  border: none;
+  color: var(--text-mid);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.gv-inline-link:hover {
+  background: var(--bg-2);
+  color: var(--text-hi);
+}
+
+.gv-report-btn:hover {
+  color: var(--amber);
+}
+
+.gv-delete-btn:hover {
+  color: var(--pink);
+}
+
+.gv-comments-body {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 12px;
+}
+
+.gv-comment-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+
+.gv-comment-item small {
+  color: var(--text-lo);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.gv-comment-form {
+  display: flex;
+  gap: 8px;
+}
+
+.gv-comment-form input {
+  flex: 1;
+}
+
+.gv-edit-review-form textarea {
+  resize: vertical;
 }

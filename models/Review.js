@@ -29,6 +29,10 @@ const Review = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    editedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     tableName: 'reviews',
