@@ -86,7 +86,7 @@
       <% if (locals.games && games.length > 0) { %>
         <% games.forEach((game, idx) => { %>
           <article class="trend-card">
-            <div class="trend-cover" style="background-image: url('<%= game.imageUrl || '' %>');">
+            <div class="trend-cover" style="background-image: url('<%= game.coverImage || '' %>');">
               <span class="rank-badge">#<%= idx + 1 %></span>
             </div>
             <div class="trend-body">
