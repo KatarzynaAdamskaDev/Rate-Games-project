@@ -1509,35 +1509,55 @@
 .gv-review-actions {
   display: flex;
   align-items: center;
+  gap: 2px;
+}
+
+.gv-icon-btn {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  background: transparent;
+  border: none;
+  color: var(--text-mid);
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1;
 }
 
-/* Dodatkowe kolory hover dla konkretnych akcji, na bazie .action-btn */
-.action-btn.gv-report-btn:hover {
-  color: var(--amber);
+.gv-icon-btn:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--text-hi);
 }
 
-.action-btn.gv-delete-btn:hover {
+.gv-icon-btn.liked {
   color: var(--pink);
 }
 
-.action-btn.gv-edit-toggle:hover {
-  color: var(--accent-soft);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
+.gv-icon-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.action-btn:disabled:hover {
-  background: transparent;
-  color: var(--text-mid);
+.gv-icon-btn .gv-count {
+  font-size: 11.5px;
 }
 
-/* Komentarze pod opinią - rozszerzenie istniejącego .comment-preview
-   o awatar i układ w rzędzie (zamiast pojedynczej linii tekstu) */
+.gv-report-btn:hover {
+  color: var(--amber);
+}
+
+.gv-delete-btn:hover {
+  color: var(--pink);
+}
+
+.gv-edit-toggle:hover {
+  color: var(--accent-soft);
+}
+
+/* Komentarze - rozszerzenie istniejącego .comment-preview */
 .gv-comments-body {
   border-top: 1px solid var(--panel-border);
   padding-top: 4px;
@@ -1563,11 +1583,22 @@
   margin-left: 6px;
 }
 
-.gv-comment-item small {
-  color: var(--text-lo);
-  font-size: 11px;
+.gv-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
   flex-shrink: 0;
+}
+
+.gv-comment-actions .gv-icon-btn {
+  padding: 3px 6px;
+}
+
+.gv-comment-actions small {
+  color: var(--text-lo);
+  font-size: 10.5px;
   white-space: nowrap;
+  margin-left: 6px;
 }
 
 .gv-comment-form {

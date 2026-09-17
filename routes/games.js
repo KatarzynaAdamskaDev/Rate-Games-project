@@ -17,6 +17,9 @@ const {
   hasLiked,
   getCommentsForReview,
   addComment,
+  deleteComment,
+  toggleCommentLike,
+  getCommentLikeCount,
   reportReview,
   deleteReviewData,
 } = require('../utils/reviewSocialHelpers');
@@ -104,7 +107,7 @@ router.get('/:id', async (req, res, next) => {
       ...r,
       likeCount: await getLikeCount(r.id),
       liked: await hasLiked(r.id, meId),
-      comments: await getCommentsForReview(r.id),
+      comments: await getCommentsForReview(r.id, meId),
     }))
   );
 
@@ -206,7 +209,7 @@ router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, re
   res.redirect(`/games/${game.id}`);
 });
 
-/* ------------------------------ POLUBIENIE ------------------------------ */
+/* ------------------------------ POLUBIENIE OPINII ------------------------------ */
 
 router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
@@ -242,6 +245,36 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, 
   });
 
   res.redirect(`/games/${game.id}#review-${req.params.reviewId}`);
+});
+
+/* ------------------------------ USUNIĘCIE KOMENTARZA ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/comments/:commentId/delete', ensureAuthenticated, async (req, res, next) => {
+  const game = getGameById(req.params.id);
+  if (!game) return next();
+
+  const ok = await deleteComment(req.params.commentId, req.session.user.id);
+  if (!ok) {
+    req.flash('error', 'Możesz usuwać tylko swoje komentarze.');
+  }
+
+  res.redirect(`/games/${game.id}#review-${req.params.reviewId}`);
+});
+
+/* ------------------------------ POLUBIENIE KOMENTARZA ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticated, async (req, res) => {
+  const wantsJson = wantsJsonResponse(req);
+  const { commentId } = req.params;
+
+  const result = await toggleCommentLike(commentId, req.session.user.id);
+  const likeCount = await getCommentLikeCount(commentId);
+
+  if (wantsJson) {
+    return res.json({ success: true, liked: result.liked, likeCount });
+  }
+
+  res.redirect(`/games/${req.params.id}`);
 });
 
 /* ------------------------------ ZGŁOSZENIE ------------------------------ */
