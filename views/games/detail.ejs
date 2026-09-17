@@ -54,7 +54,7 @@
         </form>
       <% } else { %>
         <p class="gv-empty-state">
-          <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>,
+          <button type="button" class="gv-icon-btn" data-bs-toggle="modal" data-bs-target="#signInModal" style="display:inline;padding:0;">Zaloguj się</button>,
           aby dodać własną opinię o tej grze.
         </p>
       <% } %>
@@ -80,30 +80,35 @@
               <div class="gv-review-actions mt-2">
                 <button
                   type="button"
-                  class="gv-review-like-btn <%= review.liked ? 'liked' : '' %>"
+                  class="gv-icon-btn gv-review-like-btn <%= review.liked ? 'liked' : '' %>"
                   data-review-id="<%= review.id %>"
                   data-game-id="<%= game.id %>"
-                  <%= !currentUser ? 'disabled title="Zaloguj się, aby polubić"' : '' %>
+                  title="Polub"
+                  <%= !currentUser ? 'disabled' : '' %>
                 >
-                  ❤ <span class="gv-like-count"><%= review.likeCount %></span>
+                  <i class="bi <%= review.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                  <span class="gv-count"><%= review.likeCount %></span>
                 </button>
 
-                <button type="button" class="gv-inline-link gv-comments-toggle" data-target="comments-body-<%= review.id %>">
-                  💬 <%= review.comments.length %> komentarzy
+                <button type="button" class="gv-icon-btn gv-comments-toggle" data-target="comments-body-<%= review.id %>" title="Komentarze">
+                  <i class="bi bi-chat-dots"></i>
+                  <span class="gv-count"><%= review.comments.length %></span>
                 </button>
 
                 <% if (currentUser) { %>
                   <form action="/games/<%= game.id %>/reviews/<%= review.id %>/report" method="POST"
                         onsubmit="return confirm('Zgłosić tę opinię do moderacji?');" class="d-inline">
-                    <button type="submit" class="gv-inline-link gv-report-btn">🚩 Zgłoś</button>
+                    <button type="submit" class="gv-icon-btn gv-report-btn" title="Zgłoś"><i class="bi bi-flag"></i></button>
                   </form>
                 <% } %>
 
                 <% if (currentUser && currentUser.id === review.userId) { %>
-                  <button type="button" class="gv-inline-link gv-edit-toggle" data-target="edit-form-<%= review.id %>">✏️ Edytuj</button>
+                  <button type="button" class="gv-icon-btn gv-edit-toggle" data-target="edit-form-<%= review.id %>" title="Edytuj">
+                    <i class="bi bi-pencil"></i>
+                  </button>
                   <form action="/games/<%= game.id %>/reviews/<%= review.id %>/delete" method="POST"
                         onsubmit="return confirm('Usunąć tę opinię na stałe?');" class="d-inline">
-                    <button type="submit" class="gv-inline-link gv-delete-btn">🗑️ Usuń</button>
+                    <button type="submit" class="gv-icon-btn gv-delete-btn" title="Usuń"><i class="bi bi-trash"></i></button>
                   </form>
                 <% } %>
               </div>
@@ -125,16 +130,41 @@
 
               <div class="gv-comments-body d-none mt-3" id="comments-body-<%= review.id %>">
                 <% review.comments.forEach(function(c) { %>
-                  <div class="gv-comment-item">
-                    <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
-                    <span><%= c.text %></span>
-                    <small><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></small>
+                  <div class="comment-preview gv-comment-item">
+                    <div class="r-avatar"></div>
+                    <div class="gv-comment-body">
+                      <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
+                      <span><%= c.text %></span>
+                    </div>
+                    <div class="gv-comment-actions">
+                      <button
+                        type="button"
+                        class="gv-icon-btn gv-comment-like-btn <%= c.liked ? 'liked' : '' %>"
+                        data-comment-id="<%= c.id %>"
+                        data-game-id="<%= game.id %>"
+                        data-review-id="<%= review.id %>"
+                        title="Polub"
+                        <%= !currentUser ? 'disabled' : '' %>
+                      >
+                        <i class="bi <%= c.liked ? 'bi-heart-fill' : 'bi-heart' %>" style="font-size: 11px;"></i>
+                        <span class="gv-count"><%= c.likeCount %></span>
+                      </button>
+                      <% if (currentUser && currentUser.id === c.userId) { %>
+                        <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments/<%= c.id %>/delete" method="POST"
+                              onsubmit="return confirm('Usunąć komentarz?');" class="d-inline">
+                          <button type="submit" class="gv-icon-btn gv-delete-btn" title="Usuń komentarz">
+                            <i class="bi bi-trash" style="font-size: 11px;"></i>
+                          </button>
+                        </form>
+                      <% } %>
+                      <small><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></small>
+                    </div>
                   </div>
                 <% }) %>
                 <% if (currentUser) { %>
                   <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments" method="POST" class="gv-comment-form mt-2">
                     <input type="text" name="text" placeholder="Napisz komentarz..." class="form-control gv-input" required maxlength="500">
-                    <button type="submit" class="gv-btn-success">Dodaj</button>
+                    <button type="submit" class="btn gv-btn-success btn-sm">Dodaj</button>
                   </form>
                 <% } %>
               </div>
@@ -149,23 +179,34 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      // Polubienia (AJAX, bez przeładowania strony)
-      document.querySelectorAll('.gv-review-like-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          if (btn.disabled) return;
-          var reviewId = btn.dataset.reviewId;
-          var gameId = btn.dataset.gameId;
+      function bindLikeButtons(selector, urlBuilder) {
+        document.querySelectorAll(selector).forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (btn.disabled) return;
 
-          fetch('/games/' + gameId + '/reviews/' + reviewId + '/like', {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-          })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              btn.classList.toggle('liked', data.liked);
-              btn.querySelector('.gv-like-count').textContent = data.likeCount;
-            });
+            fetch(urlBuilder(btn), {
+              method: 'POST',
+              headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                btn.classList.toggle('liked', data.liked);
+                var icon = btn.querySelector('i');
+                icon.className = data.liked ? icon.className.replace('bi-heart', 'bi-heart-fill') : icon.className.replace('bi-heart-fill', 'bi-heart');
+                btn.querySelector('.gv-count').textContent = data.likeCount;
+              });
+          });
         });
+      }
+
+      // Polubienia opinii
+      bindLikeButtons('.gv-review-like-btn', function (btn) {
+        return '/games/' + btn.dataset.gameId + '/reviews/' + btn.dataset.reviewId + '/like';
+      });
+
+      // Polubienia komentarzy
+      bindLikeButtons('.gv-comment-like-btn', function (btn) {
+        return '/games/' + btn.dataset.gameId + '/reviews/' + btn.dataset.reviewId + '/comments/' + btn.dataset.commentId + '/like';
       });
 
       // Rozwijanie komentarzy
