@@ -1509,81 +1509,71 @@
 .gv-review-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
-.gv-review-like-btn {
-  background: none;
-  border: none;
-  color: var(--text-mid);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: color 0.15s ease, background 0.15s ease;
+/* Dodatkowe kolory hover dla konkretnych akcji, na bazie .action-btn */
+.action-btn.gv-report-btn:hover {
+  color: var(--amber);
 }
 
-.gv-review-like-btn:hover:not(:disabled) {
-  background: var(--bg-2);
-}
-
-.gv-review-like-btn.liked {
+.action-btn.gv-delete-btn:hover {
   color: var(--pink);
 }
 
-.gv-review-like-btn:disabled {
+.action-btn.gv-edit-toggle:hover {
+  color: var(--accent-soft);
+}
+
+.action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.gv-inline-link {
-  background: none;
-  border: none;
+.action-btn:disabled:hover {
+  background: transparent;
   color: var(--text-mid);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
 }
 
-.gv-inline-link:hover {
-  background: var(--bg-2);
-  color: var(--text-hi);
-}
-
-.gv-report-btn:hover {
-  color: var(--amber);
-}
-
-.gv-delete-btn:hover {
-  color: var(--pink);
-}
-
+/* Komentarze pod opinią - rozszerzenie istniejącego .comment-preview
+   o awatar i układ w rzędzie (zamiast pojedynczej linii tekstu) */
 .gv-comments-body {
   border-top: 1px solid var(--panel-border);
-  padding-top: 12px;
+  padding-top: 4px;
 }
 
-.gv-comment-item {
+.comment-preview.gv-comment-item {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 13px;
-  color: var(--text-mid);
-  margin-bottom: 8px;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.gv-comment-item .r-avatar {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.gv-comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-comment-body span {
+  margin-left: 6px;
 }
 
 .gv-comment-item small {
   color: var(--text-lo);
   font-size: 11px;
-  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .gv-comment-form {
   display: flex;
   gap: 8px;
+  margin-top: 12px;
 }
 
 .gv-comment-form input {

@@ -80,30 +80,33 @@
               <div class="gv-review-actions mt-2">
                 <button
                   type="button"
-                  class="gv-review-like-btn <%= review.liked ? 'liked' : '' %>"
+                  class="action-btn <%= review.liked ? 'liked' : '' %>"
                   data-review-id="<%= review.id %>"
                   data-game-id="<%= game.id %>"
                   <%= !currentUser ? 'disabled title="Zaloguj się, aby polubić"' : '' %>
                 >
-                  ❤ <span class="gv-like-count"><%= review.likeCount %></span>
+                  <i class="bi <%= review.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                  <span class="gv-like-count"><%= review.likeCount %></span>
                 </button>
 
-                <button type="button" class="gv-inline-link gv-comments-toggle" data-target="comments-body-<%= review.id %>">
-                  💬 <%= review.comments.length %> komentarzy
+                <button type="button" class="action-btn gv-comments-toggle" data-target="comments-body-<%= review.id %>">
+                  <i class="bi bi-chat-dots"></i> <%= review.comments.length %> komentarzy
                 </button>
 
                 <% if (currentUser) { %>
                   <form action="/games/<%= game.id %>/reviews/<%= review.id %>/report" method="POST"
                         onsubmit="return confirm('Zgłosić tę opinię do moderacji?');" class="d-inline">
-                    <button type="submit" class="gv-inline-link gv-report-btn">🚩 Zgłoś</button>
+                    <button type="submit" class="action-btn gv-report-btn"><i class="bi bi-flag"></i> Zgłoś</button>
                   </form>
                 <% } %>
 
                 <% if (currentUser && currentUser.id === review.userId) { %>
-                  <button type="button" class="gv-inline-link gv-edit-toggle" data-target="edit-form-<%= review.id %>">✏️ Edytuj</button>
+                  <button type="button" class="action-btn gv-edit-toggle" data-target="edit-form-<%= review.id %>">
+                    <i class="bi bi-pencil"></i> Edytuj
+                  </button>
                   <form action="/games/<%= game.id %>/reviews/<%= review.id %>/delete" method="POST"
                         onsubmit="return confirm('Usunąć tę opinię na stałe?');" class="d-inline">
-                    <button type="submit" class="gv-inline-link gv-delete-btn">🗑️ Usuń</button>
+                    <button type="submit" class="action-btn gv-delete-btn"><i class="bi bi-trash"></i> Usuń</button>
                   </form>
                 <% } %>
               </div>
@@ -125,16 +128,19 @@
 
               <div class="gv-comments-body d-none mt-3" id="comments-body-<%= review.id %>">
                 <% review.comments.forEach(function(c) { %>
-                  <div class="gv-comment-item">
-                    <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
-                    <span><%= c.text %></span>
+                  <div class="comment-preview gv-comment-item">
+                    <div class="r-avatar"></div>
+                    <div class="gv-comment-body">
+                      <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
+                      <span><%= c.text %></span>
+                    </div>
                     <small><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></small>
                   </div>
                 <% }) %>
                 <% if (currentUser) { %>
                   <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments" method="POST" class="gv-comment-form mt-2">
                     <input type="text" name="text" placeholder="Napisz komentarz..." class="form-control gv-input" required maxlength="500">
-                    <button type="submit" class="gv-btn-success">Dodaj</button>
+                    <button type="submit" class="btn gv-btn-success btn-sm">Dodaj</button>
                   </form>
                 <% } %>
               </div>
