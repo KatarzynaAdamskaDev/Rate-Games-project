@@ -10,8 +10,15 @@
         <span>GameVerse</span>
       </a>
 
+      <!-- Hamburger Menu (mobile) -->
+      <button class="hamburger-menu" id="hamburgerMenu" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
       <!-- Główne menu z dynamiczną klasą .active -->
-      <nav class="main-nav">
+      <nav class="main-nav" id="mainNav">
         <a href="/games" class="<%= path.startsWith('/games') ? 'active' : '' %>">GAMES</a>
         <a href="/category" class="<%= path.startsWith('/category') ? 'active' : '' %>">CATEGORIES</a>
         <a href="/reviews" class="<%= path.startsWith('/reviews') ? 'active' : '' %>">REVIEWS</a>
@@ -19,7 +26,7 @@
       </nav>
 
       <!-- Wyszukiwarka -->
-      <div class="nav-search">
+      <div class="nav-search" id="navSearch">
         <form action="/search" method="GET">
           <input
             type="search"
@@ -61,3 +68,23 @@
     </div>
   </div>
 </header>
+
+<script>
+  const hamburger = document.getElementById('hamburgerMenu');
+  const mainNav = document.getElementById('mainNav');
+  
+  if (hamburger) {
+    hamburger.addEventListener('click', function() {
+      hamburger.classList.toggle('active');
+      mainNav.classList.toggle('active');
+    });
+
+    // Zamknij menu po kliknięciu na link
+    mainNav.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', function() {
+        hamburger.classList.remove('active');
+        mainNav.classList.remove('active');
+      });
+    });
+  }
+</script>

@@ -10,10 +10,9 @@ function getGameById(id) {
 }
 
 async function getReviewsForGame(gameId) {
-  const rows = await Review.findAll({ where: { gameId } });
-  return rows
-    .map((r) => r.get({ plain: true }))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return await Review.findAll({
+    where: { gameId: String(gameId) }
+  });
 }
 
 async function getAverageRating(gameId) {

@@ -3,9 +3,12 @@ const router = express.Router();
 
 const { readCollection } = require('../utils/dataStore');
 const { getMostReviewedGames } = require('../utils/reviewStatsHelpers');
+const { getPopularGames } = require('../utils/igdbService');
 
 router.get('/', async (req, res) => {
-  const games = await getMostReviewedGames(6);
+  // Pobierz gry z IGDB API
+  const igdbGames = await getPopularGames(6);
+  const games = igdbGames.length > 0 ? igdbGames : await getMostReviewedGames(6);
 
   const latestPosts = readCollection('blog')
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
