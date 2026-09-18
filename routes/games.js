@@ -11,6 +11,22 @@ const {
 } = require('../utils/gameHelpers');
 const { readCollection, writeCollection } = require('../utils/dataStore');
 const Review = require('../models/Review');
+const {
+  toggleLike,
+  getLikeCount,
+  hasLiked,
+  getCommentsForReview,
+  addComment,
+  deleteComment,
+  toggleCommentLike,
+  getCommentLikeCount,
+  reportReview,
+  deleteReviewData,
+} = require('../utils/reviewSocialHelpers');
+
+function wantsJsonResponse(req) {
+  return req.xhr || (req.headers.accept || '').includes('application/json');
+}
 
 /* --------------------------- LISTA GIER --------------------------- */
 
@@ -60,8 +76,6 @@ router.post('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
     });
   }
 
-  // Katalog gier zostaje w JSON (treść zarządzana przez Ciebie, nie przez
-  // użytkowników w czasie działania aplikacji).
   const games = getAllGames();
   const newGame = {
     id: uuidv4(),
@@ -85,7 +99,18 @@ router.get('/:id', async (req, res, next) => {
   const game = getGameById(req.params.id);
   if (!game) return next();
 
-  const reviews = await getReviewsForGame(game.id);
+  const rawReviews = await getReviewsForGame(game.id);
+  const meId = req.session.user ? req.session.user.id : null;
+
+  const reviews = await Promise.all(
+    rawReviews.map(async (r) => ({
+      ...r,
+      likeCount: await getLikeCount(r.id),
+      liked: await hasLiked(r.id, meId),
+      comments: await getCommentsForReview(r.id, meId),
+    }))
+  );
+
   const averageRating =
     reviews.length > 0
       ? Math.round(
@@ -126,6 +151,148 @@ router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
   });
 
   req.flash('success', 'Dziękujemy za dodanie opinii!');
+  res.redirect(`/games/${game.id}`);
+});
+
+/* --------------------------- EDYCJA OPINII --------------------------- */
+
+router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, async (req, res, next) => {
+  const game = getGameById(req.params.id);
+  if (!game) return next();
+
+  const review = await Review.findByPk(req.params.reviewId);
+  if (!review || review.gameId !== game.id) return next();
+
+  if (review.userId !== req.session.user.id) {
+    req.flash('error', 'Możesz edytować tylko swoje opinie.');
+    return res.redirect(`/games/${game.id}`);
+  }
+
+  const { rating, text } = req.body;
+  const numericRating = Number(rating);
+
+  if (!numericRating || numericRating < 1 || numericRating > 5 || !text) {
+    req.flash('error', 'Podaj ocenę (1-5) oraz treść opinii.');
+    return res.redirect(`/games/${game.id}`);
+  }
+
+  review.rating = numericRating;
+  review.text = text;
+  review.editedAt = new Date();
+  await review.save();
+
+  req.flash('success', 'Opinia została zaktualizowana.');
+  res.redirect(`/games/${game.id}`);
+});
+
+/* --------------------------- USUNIĘCIE OPINII --------------------------- */
+
+router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, res, next) => {
+  const game = getGameById(req.params.id);
+  if (!game) return next();
+
+  const review = await Review.findByPk(req.params.reviewId);
+  if (!review || review.gameId !== game.id) return next();
+
+  const isOwner = review.userId === req.session.user.id;
+  const isAdmin = req.session.user.role === 'admin';
+
+  if (!isOwner && !isAdmin) {
+    req.flash('error', 'Możesz usuwać tylko swoje opinie.');
+    return res.redirect(`/games/${game.id}`);
+  }
+
+  await deleteReviewData(review.id);
+  await review.destroy();
+
+  req.flash('success', 'Opinia została usunięta.');
+  res.redirect(`/games/${game.id}`);
+});
+
+/* ------------------------------ POLUBIENIE OPINII ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, async (req, res) => {
+  const wantsJson = wantsJsonResponse(req);
+  const { reviewId } = req.params;
+
+  const result = await toggleLike(reviewId, req.session.user.id);
+  const likeCount = await getLikeCount(reviewId);
+
+  if (wantsJson) {
+    return res.json({ success: true, liked: result.liked, likeCount });
+  }
+
+  res.redirect(`/games/${req.params.id}`);
+});
+
+/* ------------------------------ KOMENTARZ ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, res, next) => {
+  const game = getGameById(req.params.id);
+  if (!game) return next();
+
+  const text = (req.body.text || '').trim();
+  if (!text) {
+    req.flash('error', 'Komentarz nie może być pusty.');
+    return res.redirect(`/games/${game.id}`);
+  }
+
+  await addComment({
+    reviewId: req.params.reviewId,
+    userId: req.session.user.id,
+    username: req.session.user.username,
+    text: text.slice(0, 500),
+  });
+
+  res.redirect(`/games/${game.id}#review-${req.params.reviewId}`);
+});
+
+/* ------------------------------ USUNIĘCIE KOMENTARZA ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/comments/:commentId/delete', ensureAuthenticated, async (req, res, next) => {
+  const game = getGameById(req.params.id);
+  if (!game) return next();
+
+  const ok = await deleteComment(req.params.commentId, req.session.user.id);
+  if (!ok) {
+    req.flash('error', 'Możesz usuwać tylko swoje komentarze.');
+  }
+
+  res.redirect(`/games/${game.id}#review-${req.params.reviewId}`);
+});
+
+/* ------------------------------ POLUBIENIE KOMENTARZA ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticated, async (req, res) => {
+  const wantsJson = wantsJsonResponse(req);
+  const { commentId } = req.params;
+
+  const result = await toggleCommentLike(commentId, req.session.user.id);
+  const likeCount = await getCommentLikeCount(commentId);
+
+  if (wantsJson) {
+    return res.json({ success: true, liked: result.liked, likeCount });
+  }
+
+  res.redirect(`/games/${req.params.id}`);
+});
+
+/* ------------------------------ ZGŁOSZENIE ------------------------------ */
+
+router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, async (req, res, next) => {
+  const game = getGameById(req.params.id);
+  if (!game) return next();
+
+  await reportReview({
+    reviewId: req.params.reviewId,
+    reporterId: req.session.user.id,
+    reason: req.body.reason || null,
+  });
+
+  req.flash(
+    'success',
+    'Dziękujemy za zgłoszenie. Opinia trafiła do kolejki weryfikacji (panel administratora w budowie).'
+  );
   res.redirect(`/games/${game.id}`);
 });
 

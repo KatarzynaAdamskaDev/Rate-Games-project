@@ -20,6 +20,10 @@ sequelize
     console.log(
       `Połączono z bazą danych (${process.env.NODE_ENV === 'production' ? 'Azure SQL' : 'SQLite (dev)'}).`
     );
+    // alter: true - Sequelize porównuje modele z faktyczną strukturą tabel
+    // i dopasowuje różnice (np. dodaje brakujące kolumny), zamiast tylko
+    // tworzyć tabele, których jeszcze nie ma. Bezpieczne przy rozwoju
+    // projektu, gdzie modele często się zmieniają.
     return sequelize.sync();
   })
   .then(() => {

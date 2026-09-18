@@ -138,7 +138,7 @@ router.post('/unfollow/:username', ensureAuthenticated, async (req, res) => {
 });
 
 /* ---------------- Kompatybilność wsteczna ze starym adresem ---------------- */
-// Stare linki postaci /profile/nazwa przekierowują na nowy /nazwa.
+// Stare linki postaci /profile/nazwa przekierowują na nowy /nazwa
 router.get('/:username', (req, res) => {
   res.redirect(301, `/${req.params.username}`);
 });

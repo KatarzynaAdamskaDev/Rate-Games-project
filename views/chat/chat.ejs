@@ -19,6 +19,7 @@
             <input type="text" id="dmUsername" name="dmUsername" list="userList" placeholder="Napisz do gracza..." autocomplete="off">
             <button type="submit">➤</button>
           </form>
+          <p class="gv-group-hint mb-2">Możesz pisać prywatnie tylko do wzajemnych znajomych.</p>
           <datalist id="userList">
             <% otherUsers.forEach(function(u) { %><option value="<%= u %>"><% }) %>
           </datalist>
@@ -49,11 +50,105 @@
             </a>
           <% }) %>
           <button type="button" class="gv-btn-outline w-100 mt-2 mb-1" data-bs-toggle="collapse" data-bs-target="#newGroupForm">+ Nowa grupa</button>
+
           <form action="/chat/groups/new" method="POST" class="collapse" id="newGroupForm">
             <input type="text" name="name" placeholder="Nazwa grupy" class="form-control gv-input mb-2" required>
-            <input type="text" name="usernames" placeholder="nicki oddzielone przecinkiem" class="form-control gv-input mb-2">
-            <button type="submit" class="gv-btn-success w-100">Utwórz grupę</button>
+
+            <div class="gv-group-member-picker mb-2">
+              <input type="text" id="groupMemberSearch" placeholder="Wpisz nick znajomego..." class="form-control gv-input" autocomplete="off">
+              <div id="groupMemberSuggestions" class="gv-group-suggestions d-none"></div>
+            </div>
+
+            <div id="groupMemberChips" class="gv-group-chips mb-2"></div>
+            <p id="groupMemberHint" class="gv-group-hint" style="display:none;">Do grupy możesz dodać tylko wzajemnych znajomych (obserwujecie się nawzajem).</p>
+
+            <button type="submit" class="gv-btn-success w-100" id="createGroupBtn" disabled>Utwórz grupę</button>
           </form>
+          <script>
+            (function () {
+              var searchInput = document.getElementById('groupMemberSearch');
+              var suggestionsBox = document.getElementById('groupMemberSuggestions');
+              var chipsBox = document.getElementById('groupMemberChips');
+              var createBtn = document.getElementById('createGroupBtn');
+              var hint = document.getElementById('groupMemberHint');
+              var selected = {}; // id -> username
+              var debounceTimer;
+
+              function renderChips() {
+                chipsBox.innerHTML = '';
+                Object.keys(selected).forEach(function (id) {
+                  var chip = document.createElement('span');
+                  chip.className = 'gv-chip';
+                  chip.textContent = selected[id];
+
+                  var remove = document.createElement('button');
+                  remove.type = 'button';
+                  remove.innerHTML = '&times;';
+                  remove.addEventListener('click', function () {
+                    delete selected[id];
+                    renderChips();
+                  });
+                  chip.appendChild(remove);
+
+                  var hidden = document.createElement('input');
+                  hidden.type = 'hidden';
+                  hidden.name = 'memberIds';
+                  hidden.value = id;
+                  chip.appendChild(hidden);
+
+                  chipsBox.appendChild(chip);
+                });
+                createBtn.disabled = Object.keys(selected).length === 0;
+              }
+
+              function renderSuggestions(users) {
+                suggestionsBox.innerHTML = '';
+                var any = false;
+                users.forEach(function (u) {
+                  if (selected[u.id]) return;
+                  any = true;
+                  var item = document.createElement('button');
+                  item.type = 'button';
+                  item.className = 'gv-group-suggestion-item';
+                  item.textContent = u.username;
+                  item.addEventListener('click', function () {
+                    selected[u.id] = u.username;
+                    renderChips();
+                    suggestionsBox.classList.add('d-none');
+                    searchInput.value = '';
+                  });
+                  suggestionsBox.appendChild(item);
+                });
+                if (!any) {
+                  var empty = document.createElement('div');
+                  empty.className = 'gv-group-suggestion-empty';
+                  empty.textContent = 'Brak pasujących znajomych.';
+                  suggestionsBox.appendChild(empty);
+                }
+                suggestionsBox.classList.remove('d-none');
+              }
+
+              searchInput.addEventListener('focus', function () {
+                hint.style.display = 'block';
+              });
+
+              searchInput.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                var q = searchInput.value.trim();
+                debounceTimer = setTimeout(function () {
+                  fetch('/chat/friends-search?q=' + encodeURIComponent(q))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { renderSuggestions(data.users || []); });
+                }, 200);
+              });
+
+              document.addEventListener('click', function (e) {
+                if (!suggestionsBox.contains(e.target) && e.target !== searchInput) {
+                  suggestionsBox.classList.add('d-none');
+                }
+              });
+            })();
+          </script>
 
           <div class="gv-chat-group-label">Pokoje gier</div>
           <% conversations.filter(function(c){return c.type === 'game-room';}).forEach(function(c) { %>
@@ -80,25 +175,38 @@
           <% } else { %>
             <div class="gv-chat-topbar">
               <div class="gv-c-avatar"></div>
-              <div>
+              <div class="gv-chat-topbar-info">
                 <b>
                   <% if (active.type === 'dm') { %>
                     <% var otherId = active.memberIds.find(function(id){ return id !== currentUser.id; }); %>
-                    <%= active.memberNames[otherId] %>
+                    <a href="/<%= active.memberNames[otherId] %>" class="gv-chat-name-link"><%= active.memberNames[otherId] %></a>
                   <% } else { %>
-                    <%= active.name %>
+                    <button type="button" class="gv-chat-name-link gv-group-name-toggle" id="groupMembersToggle"><%= active.name %> ▾</button>
+                    <div class="gv-group-members-dropdown d-none" id="groupMembersDropdown">
+                      <% active.memberIds.forEach(function(id) { %>
+                        <a href="/<%= active.memberNames[id] %>" class="gv-group-member-item"><%= active.memberNames[id] %></a>
+                      <% }) %>
+                    </div>
                   <% } %>
                 </b>
                 <div style="color:var(--text-lo); font-size:11.5px;">
                   <%= active.type === 'dm' ? 'Rozmowa prywatna' : (active.type === 'group' ? active.memberIds.length + ' członków grupy' : 'Pokój dyskusyjny gry') %>
                 </div>
               </div>
+              <div class="gv-chat-topbar-actions">
+                <form action="/chat/<%= active.id %>/clear" method="POST" onsubmit="return confirm('Wyczyścić wszystkie wiadomości w tej rozmowie?');">
+                  <button type="submit" class="gv-chat-action-btn" title="Wyczyść czat">🧹</button>
+                </form>
+                <form action="/chat/<%= active.id %>/delete" method="POST" onsubmit="return confirm('Usunąć tę rozmowę na stałe? Tej operacji nie można cofnąć.');">
+                  <button type="submit" class="gv-chat-action-btn" title="Usuń czat">🗑️</button>
+                </form>
+              </div>
             </div>
 
             <div class="gv-chat-body" id="chatBody" data-conversation="<%= active.id %>">
               <% messages.forEach(function(m) { %>
-                <div class="gv-msg <%= m.senderId === currentUser.id ? 'me' : '' %>">
-                  <% if (m.senderId !== currentUser.id) { %><b><%= m.senderUsername %></b><% } %>
+                <div class="gv-msg <%= m.senderId === currentUser.id ? 'me' : '' %>" data-id="<%= m.id %>">
+                  <% if (m.senderId !== currentUser.id) { %><a href="/<%= m.senderUsername %>" class="gv-chat-name-link"><b><%= m.senderUsername %></b></a><% } %>
                   <%= m.text %>
                   <small><%= new Date(m.createdAt).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}) %></small>
                 </div>
@@ -125,21 +233,42 @@
       var chatBody = document.getElementById('chatBody');
       var form = document.getElementById('chatForm');
       var input = document.getElementById('chatText');
+      var sendBtn = form.querySelector('button[type="submit"]');
       var lastTimestamp = <%- JSON.stringify(messages.length ? messages[messages.length - 1].createdAt : null) %>;
+      var seenIds = {};
+      var isSending = false;
+      var isPolling = false;
+
+      // Zapamiętaj ID wiadomości wyrenderowanych już przez serwer, żeby
+      // polling ich nie zdublował.
+      document.querySelectorAll('#chatBody .gv-msg[data-id]').forEach(function (el) {
+        seenIds[el.dataset.id] = true;
+      });
 
       function appendMessage(m) {
+        if (seenIds[m.id]) return; // zabezpieczenie przed duplikatem
+        seenIds[m.id] = true;
+
         var div = document.createElement('div');
         div.className = 'gv-msg' + (m.senderId === meId ? ' me' : '');
+        div.dataset.id = m.id;
         var time = new Date(m.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-        div.innerHTML = (m.senderId === meId ? '' : '<b>' + m.senderUsername + '</b>') + m.text + '<small>' + time + '</small>';
+        div.innerHTML = (m.senderId === meId ? '' : '<a href="/' + m.senderUsername + '" class="gv-chat-name-link"><b>' + m.senderUsername + '</b></a>') + m.text + '<small>' + time + '</small>';
         chatBody.appendChild(div);
         chatBody.scrollTop = chatBody.scrollHeight;
       }
 
       form.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (isSending) return; // blokada podwójnego Entera/kliknięcia
+
         var text = input.value.trim();
         if (!text) return;
+
+        isSending = true;
+        sendBtn.disabled = true;
+        input.value = ''; // czyścimy od razu, nie czekając na odpowiedź serwera
+
         fetch('/chat/' + conversationId + '/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -150,12 +279,19 @@
             if (data.message) {
               appendMessage(data.message);
               lastTimestamp = data.message.createdAt;
-              input.value = '';
             }
+          })
+          .finally(function () {
+            isSending = false;
+            sendBtn.disabled = false;
+            input.focus();
           });
       });
 
-      setInterval(function () {
+      function poll() {
+        if (isPolling) return; // nie nakładaj zapytań, jeśli poprzednie jeszcze trwa
+        isPolling = true;
+
         var url = '/chat/' + conversationId + '/messages' + (lastTimestamp ? '?after=' + encodeURIComponent(lastTimestamp) : '');
         fetch(url)
           .then(function (r) { return r.json(); })
@@ -164,10 +300,27 @@
               appendMessage(m);
               lastTimestamp = m.createdAt;
             });
-          });
-      }, 4000);
+          })
+          .finally(function () { isPolling = false; });
+      }
 
+      setInterval(poll, 4000);
       chatBody.scrollTop = chatBody.scrollHeight;
+
+      // Rozwijana lista członków grupy (jeśli aktywna rozmowa to grupa)
+      var groupToggle = document.getElementById('groupMembersToggle');
+      var groupDropdown = document.getElementById('groupMembersDropdown');
+      if (groupToggle && groupDropdown) {
+        groupToggle.addEventListener('click', function (e) {
+          e.stopPropagation();
+          groupDropdown.classList.toggle('d-none');
+        });
+        document.addEventListener('click', function (e) {
+          if (!groupDropdown.contains(e.target) && e.target !== groupToggle) {
+            groupDropdown.classList.add('d-none');
+          }
+        });
+      }
     })();
   </script>
   <% } %>

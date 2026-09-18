@@ -86,7 +86,7 @@
       <% if (locals.games && games.length > 0) { %>
         <% games.forEach((game, idx) => { %>
           <article class="trend-card">
-            <div class="trend-cover" style="background-image: url('<%= game.imageUrl || '' %>');">
+            <div class="trend-cover" style="background-image: url('<%= game.coverImage || '' %>');">
               <span class="rank-badge">#<%= idx + 1 %></span>
             </div>
             <div class="trend-body">
@@ -124,54 +124,60 @@
 
         <% if (locals.latestReviews && latestReviews.length > 0) { %>
           <% latestReviews.forEach(review => { %>
-            <article class="review-card">
+            <article class="review-card gv-review-item">
               <div class="review-top">
                 <div class="review-cover" style="background-image: url('<%= review.gameImage || '' %>');"></div>
                 <div class="review-headline">
                   <span class="game-title"><%= review.gameTitle %><span class="platform-tag"><%= review.platform || 'PC / PS5' %></span></span>
-                  <div class="stars">
+                  <span class="gv-review-rating-badge mt-1">
                     <% const rStars = Math.round(review.rating || 5); %>
-                    <%= '★'.repeat(rStars) + '☆'.repeat(5 - rStars) %>
-                  </div>
-                  <div class="reviewer-row">
-                    <div class="r-avatar"></div> <%= review.username || 'Anonim' %> · <%= review.createdAt ? new Date(review.createdAt).toLocaleDateString() : 'niedawno' %>
-                  </div>
+                    <% for (let i = 1; i <= 5; i++) { %>
+                      <i class="bi <%= i <= rStars ? 'bi-star-fill' : 'bi-star' %>"></i>
+                    <% } %>
+                  </span>
                 </div>
                 <button class="follow-pill">Obserwuj</button>
               </div>
-              <p class="review-text"><%= review.comment %></p>
+              <div class="gv-review-meta-row">
+                <a href="/<%= review.username || '' %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= review.username || 'Anonim' %></strong></a>
+                <span class="gv-review-date"><%= review.createdAt ? new Date(review.createdAt).toLocaleDateString('pl-PL') : 'niedawno' %></span>
+              </div>
+              <p class="review-text gv-review-text"><%= review.comment %></p>
               <div class="tag-row">
                 <span class="tag"><%= review.category || 'Gry Akcji' %></span>
                 <span class="tag">Polecane</span>
               </div>
-              <div class="review-actions">
-                <button class="action-btn">❤ <%= review.likesCount || 0 %></button>
-                <button class="action-btn">💬 <%= review.commentsCount || 0 %> komentarzy</button>
-                <button class="action-btn">↗ Udostępnij</button>
-                <button class="action-btn">☆ Do ulubionych</button>
+              <div class="review-actions gv-review-actions">
+                <button class="action-btn gv-icon-btn"><i class="bi bi-heart"></i><span class="gv-count"><%= review.likesCount || 0 %></span></button>
+                <button class="action-btn gv-icon-btn"><i class="bi bi-chat-dots"></i><span class="gv-count"><%= review.commentsCount || 0 %></span> komentarzy</button>
+                <button class="action-btn gv-icon-btn"><i class="bi bi-share"></i> Udostępnij</button>
+                <button class="action-btn gv-icon-btn"><i class="bi bi-star"></i> Do ulubionych</button>
               </div>
             </article>
           <% }); %>
         <% } else { %>
-          <article class="review-card">
+          <article class="review-card gv-review-item">
             <div class="review-top">
               <div class="review-cover"></div>
               <div class="review-headline">
                 <span class="game-title">Cinderfall Requiem<span class="platform-tag">PC / PS5</span></span>
-                <div class="stars">★★★★★</div>
-                <div class="reviewer-row"><div class="r-avatar"></div> Marta_K · 3 godziny temu</div>
+                <span class="gv-review-rating-badge mt-1"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></span>
               </div>
               <button class="follow-pill following">Obserwujesz</button>
             </div>
-            <p class="review-text">Świat gry wciąga od pierwszej minuty, a system walki nagradza eksperymentowanie z buildami postaci. Największym zaskoczeniem jest fabuła poboczna — momentami lepsza niż wątek główny.</p>
+            <div class="gv-review-meta-row">
+              <a href="/Marta_K" class="gv-chat-name-link gv-review-byline">Review by: <strong>Marta_K</strong></a>
+              <span class="gv-review-date">3 godziny temu</span>
+            </div>
+            <p class="review-text gv-review-text">Świat gry wciąga od pierwszej minuty, a system walki nagradza eksperymentowanie z buildami postaci. Największym zaskoczeniem jest fabuła poboczna — momentami lepsza niż wątek główny.</p>
             <div class="tag-row">
               <span class="tag">RPG akcji</span><span class="tag">Open world</span><span class="tag">Bez mikropłatności</span>
             </div>
-            <div class="review-actions">
-              <button class="action-btn liked">❤ 214</button>
-              <button class="action-btn">💬 38 komentarzy</button>
-              <button class="action-btn">↗ Udostępnij</button>
-              <button class="action-btn">☆ Do ulubionych</button>
+            <div class="review-actions gv-review-actions">
+              <button class="action-btn gv-icon-btn liked"><i class="bi bi-heart-fill"></i><span class="gv-count">214</span></button>
+              <button class="action-btn gv-icon-btn"><i class="bi bi-chat-dots"></i><span class="gv-count">38</span> komentarzy</button>
+              <button class="action-btn gv-icon-btn"><i class="bi bi-share"></i> Udostępnij</button>
+              <button class="action-btn gv-icon-btn"><i class="bi bi-star"></i> Do ulubionych</button>
             </div>
             <div class="comment-preview"><b>Tomek89:</b> Zgadzam się co do wątku pobocznego, sekcja w bagnach urwała mi łeb.</div>
           </article>
@@ -265,11 +271,15 @@
     modal.addEventListener('show.bs.modal', () => showView('signin'));
   });
   document.querySelectorAll('.action-btn').forEach(btn=>{
-    if(btn.textContent.trim().startsWith('❤')){
+    const icon = btn.querySelector('.bi-heart, .bi-heart-fill');
+    const countEl = btn.querySelector('.gv-count');
+    if(icon && countEl){
       btn.addEventListener('click',()=>{
         const liked = btn.classList.toggle('liked');
-        const count = parseInt(btn.textContent.replace('❤','').trim(),10);
-        btn.innerHTML = '❤ ' + (liked ? count+1 : count-1);
+        icon.classList.toggle('bi-heart', !liked);
+        icon.classList.toggle('bi-heart-fill', liked);
+        const count = parseInt(countEl.textContent, 10) || 0;
+        countEl.textContent = liked ? count + 1 : count - 1;
       });
     }
   });

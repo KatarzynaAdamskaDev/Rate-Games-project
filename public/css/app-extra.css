@@ -517,14 +517,40 @@
   font-size: 13px;
 }
 .gv-review-text {
-  color: var(--text-mid);
+  color: var(--text-hi);
   font-size: 13.5px;
   line-height: 1.6;
   margin-bottom: 6px;
 }
+.gv-review-byline {
+  color: var(--text-mid) !important;
+  font-weight: 400;
+}
+.gv-review-byline strong {
+  color: var(--text-mid);
+  font-weight: 600;
+}
+.gv-review-byline:hover,
+.gv-review-byline:hover strong {
+  color: var(--accent-soft) !important;
+}
 .gv-review-date {
   color: var(--text-lo);
   font-size: 11px;
+}
+.gv-review-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.gv-review-meta-row .gv-chat-name-link {
+  color: var(--text-lo);
+  font-size: 12px;
+}
+.gv-review-meta-row .gv-chat-name-link:hover {
+  color: var(--accent-soft);
 }
 
 /* ==========================================================================
@@ -853,6 +879,35 @@
   border-radius: var(--radius-l);
   overflow: hidden;
 }
+/* Scrollbary chatu takie jak w sekcji trendów */
+.gv-chat-list-col,
+.gv-chat-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-1);
+}
+
+.gv-chat-list-col::-webkit-scrollbar,
+.gv-chat-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gv-chat-list-col::-webkit-scrollbar-track,
+.gv-chat-body::-webkit-scrollbar-track {
+  background: var(--bg-1);
+  border-radius: 999px;
+}
+
+.gv-chat-list-col::-webkit-scrollbar-thumb,
+.gv-chat-body::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.gv-chat-list-col::-webkit-scrollbar-thumb:hover,
+.gv-chat-body::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-soft);
+}
 .gv-chat-list-col {
   background: var(--bg-2);
   border-right: 1px solid var(--panel-border);
@@ -1009,7 +1064,7 @@
   .gv-chat-shell {
     grid-template-columns: 1fr;
   }
-  .gv-chat-list-col {
+.gv-chat-list-col {
     display: none;
   }
   .gv-form-grid,
@@ -1028,4 +1083,608 @@
   .gv-category-bar-label {
     width: 100px;
   }
+}
+
+/* Awatar w nagłówku aktywnej rozmowy - wcześniej brakowało tego stylu,
+   przez co div renderował się jako niewidoczny 0x0 px */
+.gv-chat-topbar .gv-c-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-chat-topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-actions form {
+  display: inline-block;
+}
+
+.gv-chat-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.gv-chat-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+/* Wybór znajomych do nowej grupy (autouzupełnianie) */
+.gv-group-member-picker {
+  position: relative;
+}
+
+.gv-group-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  z-index: 30;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+}
+
+.gv-group-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  font-size: 12.5px;
+}
+
+.gv-group-suggestion-item:hover {
+  background: var(--bg-2);
+}
+
+.gv-group-suggestion-empty {
+  padding: 10px 12px;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+.gv-group-hint {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+
+.gv-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+
+.gv-chip button {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.gv-chip button:hover {
+  color: var(--pink);
+}
+
+/* Awatar w nagłówku aktywnej rozmowy - wcześniej brakowało tego stylu,
+   przez co div renderował się jako niewidoczny 0x0 px */
+.gv-chat-topbar .gv-c-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-chat-topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-actions form {
+  display: inline-block;
+}
+
+.gv-chat-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.gv-chat-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+/* Wybór znajomych do nowej grupy (autouzupełnianie) */
+.gv-group-member-picker {
+  position: relative;
+}
+
+.gv-group-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  z-index: 30;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+}
+
+.gv-group-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  font-size: 12.5px;
+}
+
+.gv-group-suggestion-item:hover {
+  background: var(--bg-2);
+}
+
+.gv-group-suggestion-empty {
+  padding: 10px 12px;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+.gv-group-hint {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+
+.gv-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+
+.gv-chip button {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.gv-chip button:hover {
+  color: var(--pink);
+}
+
+/* Klikalna nazwa użytkownika w czacie (link do profilu) */
+.gv-chat-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.gv-chat-name-link:hover b,
+.gv-chat-name-link:hover {
+  color: var(--accent-soft);
+}
+
+.gv-chat-topbar .gv-chat-name-link {
+  color: var(--text-hi);
+}
+
+.gv-chat-topbar .gv-chat-name-link:hover {
+  color: var(--accent-soft);
+}
+
+/* Awatar w nagłówku aktywnej rozmowy - wcześniej brakowało tego stylu,
+   przez co div renderował się jako niewidoczny 0x0 px */
+.gv-chat-topbar .gv-c-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.gv-group-name-toggle {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.gv-group-members-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+  z-index: 40;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.gv-group-member-item {
+  display: block;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-hi);
+  text-decoration: none;
+}
+
+.gv-group-member-item:hover {
+  background: var(--bg-2);
+  color: var(--accent-soft);
+}
+
+.gv-chat-topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.gv-chat-topbar-actions form {
+  display: inline-block;
+}
+
+.gv-chat-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-mid);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.gv-chat-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+/* Wybór znajomych do nowej grupy (autouzupełnianie) */
+.gv-group-member-picker {
+  position: relative;
+}
+
+.gv-group-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  z-index: 30;
+  max-height: 180px;
+  overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.4);
+}
+
+.gv-group-suggestion-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  font-size: 12.5px;
+}
+
+.gv-group-suggestion-item:hover {
+  background: var(--bg-2);
+}
+
+.gv-group-suggestion-empty {
+  padding: 10px 12px;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+.gv-group-hint {
+  font-size: 11px;
+  color: var(--text-lo);
+  margin-bottom: 8px;
+}
+
+.gv-group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+
+.gv-chip button {
+  background: none;
+  border: none;
+  color: var(--text-lo);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.gv-chip button:hover {
+  color: var(--pink);
+}
+
+/* Klikalna nazwa użytkownika w czacie (link do profilu) */
+.gv-chat-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.gv-chat-name-link:hover b,
+.gv-chat-name-link:hover {
+  color: var(--accent-soft);
+}
+
+.gv-chat-topbar .gv-chat-name-link {
+  color: var(--text-hi);
+}
+
+.gv-chat-topbar .gv-chat-name-link:hover {
+  color: var(--accent-soft);
+}
+
+.gv-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.gv-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color: var(--text-mid);
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  line-height: 1;
+}
+
+.gv-icon-btn:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--text-hi);
+}
+
+.gv-icon-btn.liked {
+  color: var(--pink);
+}
+
+.gv-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gv-icon-btn .gv-count {
+  font-size: 11.5px;
+}
+
+.gv-report-btn:hover {
+  color: var(--amber);
+}
+
+.gv-delete-btn:hover {
+  color: var(--pink);
+}
+
+.gv-edit-toggle:hover {
+  color: var(--accent-soft);
+}
+
+.gv-star-picker {
+  display: inline-flex;
+  gap: 6px;
+  font-size: 22px;
+  color: var(--panel-border);
+}
+
+.gv-star-picker i {
+  cursor: pointer;
+  transition: color 0.1s ease, transform 0.1s ease;
+}
+
+.gv-star-picker i.bi-star-fill {
+  color: var(--accent-soft);
+}
+
+.gv-star-picker i:hover {
+  transform: scale(1.1);
+}
+
+/* Gwiazdka oceny - rząd 5 ikon Bootstrap zamiast pojedynczego unicode ★ */
+.gv-star-row {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--accent-soft);
+  font-size: 15px;
+  margin-right: 6px;
+}
+
+.gv-star-row .bi-star {
+  color: var(--panel-border);
+}
+
+.gv-review-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(124, 92, 255, 0.4);
+  color: var(--accent-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.gv-review-rating-badge .bi-star {
+  color: rgba(124, 92, 255, 0.3);
+}
+
+/* Komentarze - układ: nazwa+tekst na górze (jak wcześniej), data + akcje
+   (lajk/usuń) w jednym rzędzie na dole, akcje wypchnięte na prawo */
+.gv-comments-body {
+  border-top: 1px solid var(--panel-border);
+  padding-top: 4px;
+}
+
+.comment-preview.gv-comment-item {
+  display: block;
+}
+
+.gv-comment-item .gv-comment-text a {
+  margin-right: 4px;
+}
+
+.gv-comment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.gv-comment-footer small {
+  color: var(--text-lo);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.gv-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.gv-comment-actions .gv-icon-btn {
+  padding: 3px 6px;
+}
+
+.gv-comment-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.gv-comment-form input {
+  flex: 1;
+}
+
+.gv-edit-review-form textarea {
+  resize: vertical;
 }

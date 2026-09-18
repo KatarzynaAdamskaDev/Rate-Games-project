@@ -1,11 +1,14 @@
 /**
  * Wymaga, aby użytkownik był zalogowany. W przeciwnym razie
- * przekierowuje na stronę logowania.
+ * przekierowuje na stronę główną z komunikatem (wyświetlanym jako toast).
  */
 function ensureAuthenticated(req, res, next) {
   if (req.session && req.session.user) return next();
-  req.flash('error', 'Musisz się zalogować, aby zobaczyć tę stronę.');
-  return res.redirect('/auth/signin');
+  req.flash(
+    'error',
+    'Sesja wygasła lub nie jesteś zalogowany. Zaloguj się ponownie, aby kontynuować.'
+  );
+  return res.redirect('/');
 }
 
 /**

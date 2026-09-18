@@ -2,6 +2,7 @@
 <html lang="pl">
 <head>
   <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
 </head>
 <body>
   <%- include('../partials/navbar') %>
@@ -21,7 +22,11 @@
 
           <div class="gv-detail-rating">
             <% if (averageRating) { %>
-              <span class="gv-star">★</span>
+              <span class="gv-star-row">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <i class="bi <%= i <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star' %>"></i>
+                <% } %>
+              </span>
               <span class="gv-detail-rating-value"><%= averageRating %> / 5</span>
               <span class="gv-game-card-count">(<%= reviews.length %> opinii)</span>
             <% } else { %>
@@ -37,14 +42,14 @@
         <form action="/games/<%= game.id %>/reviews" method="POST" class="gv-review-form mb-5">
           <div class="mb-3">
             <label class="gv-label d-block">Twoja ocena</label>
-            <select name="rating" class="form-select gv-select" style="max-width: 160px;" required>
-              <option value="">Wybierz...</option>
-              <option value="5">★★★★★ (5)</option>
-              <option value="4">★★★★ (4)</option>
-              <option value="3">★★★ (3)</option>
-              <option value="2">★★ (2)</option>
-              <option value="1">★ (1)</option>
-            </select>
+            <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena">
+              <i class="bi bi-star" data-value="1"></i>
+              <i class="bi bi-star" data-value="2"></i>
+              <i class="bi bi-star" data-value="3"></i>
+              <i class="bi bi-star" data-value="4"></i>
+              <i class="bi bi-star" data-value="5"></i>
+            </div>
+            <input type="hidden" name="rating" class="gv-star-picker-input">
           </div>
           <div class="mb-3">
             <label class="gv-label d-block">Twoja opinia</label>
@@ -54,7 +59,7 @@
         </form>
       <% } else { %>
         <p class="gv-empty-state">
-          <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>,
+          <button type="button" class="gv-icon-btn" data-bs-toggle="modal" data-bs-target="#signInModal" style="display:inline;padding:0;">Zaloguj się</button>,
           aby dodać własną opinię o tej grze.
         </p>
       <% } %>
@@ -64,15 +69,116 @@
       <% } else { %>
         <div class="gv-review-list">
           <% reviews.forEach(function(review) { %>
-            <div class="gv-review-item">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <strong class="gv-review-author"><%= review.username %></strong>
-                <span class="gv-review-rating">★ <%= review.rating %>/5</span>
+            <div class="gv-review-item" id="review-<%= review.id %>">
+              <div class="gv-review-top">
+                <a href="/<%= review.username %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= review.username %></strong></a>
+                <span class="gv-review-rating-badge">
+                  <% for (let i = 1; i <= 5; i++) { %>
+                    <i class="bi <%= i <= review.rating ? 'bi-star-fill' : 'bi-star' %>"></i>
+                  <% } %>
+                </span>
               </div>
-              <p class="gv-review-text mb-1"><%= review.text %></p>
-              <small class="gv-review-date">
-                <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
-              </small>
+              <div class="gv-review-meta-row">
+                <p class="gv-review-text mb-0"><%= review.text %></p>
+                <span class="gv-review-date">
+                  <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
+                  <% if (review.editedAt) { %> · <em>edytowane</em><% } %>
+                </span>
+              </div>
+
+              <div class="gv-review-actions mt-2">
+                <button
+                  type="button"
+                  class="gv-icon-btn gv-review-like-btn <%= review.liked ? 'liked' : '' %>"
+                  data-review-id="<%= review.id %>"
+                  data-game-id="<%= game.id %>"
+                  title="Polub"
+                  <%= !currentUser ? 'disabled' : '' %>
+                >
+                  <i class="bi <%= review.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                  <span class="gv-count"><%= review.likeCount %></span>
+                </button>
+
+                <button type="button" class="gv-icon-btn gv-comments-toggle" data-target="comments-body-<%= review.id %>" title="Komentarze">
+                  <i class="bi bi-chat-dots"></i>
+                  <span class="gv-count"><%= review.comments.length %></span>
+                </button>
+
+                <% if (currentUser) { %>
+                  <form action="/games/<%= game.id %>/reviews/<%= review.id %>/report" method="POST"
+                        onsubmit="return confirm('Zgłosić tę opinię do moderacji?');" class="d-inline">
+                    <button type="submit" class="gv-icon-btn gv-report-btn" title="Zgłoś"><i class="bi bi-flag"></i></button>
+                  </form>
+                <% } %>
+
+                <% if (currentUser && currentUser.id === review.userId) { %>
+                  <button type="button" class="gv-icon-btn gv-edit-toggle" data-target="edit-form-<%= review.id %>" title="Edytuj">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <form action="/games/<%= game.id %>/reviews/<%= review.id %>/delete" method="POST"
+                        onsubmit="return confirm('Usunąć tę opinię na stałe?');" class="d-inline">
+                    <button type="submit" class="gv-icon-btn gv-delete-btn" title="Usuń"><i class="bi bi-trash"></i></button>
+                  </form>
+                <% } %>
+              </div>
+
+              <% if (currentUser && currentUser.id === review.userId) { %>
+                <form action="/games/<%= game.id %>/reviews/<%= review.id %>/edit" method="POST"
+                      class="gv-edit-review-form d-none mt-3" id="edit-form-<%= review.id %>">
+                  <div class="gv-star-picker mb-2" role="radiogroup" aria-label="Twoja ocena" data-selected="<%= review.rating %>">
+                    <i class="bi <%= review.rating >= 1 ? 'bi-star-fill' : 'bi-star' %>" data-value="1"></i>
+                    <i class="bi <%= review.rating >= 2 ? 'bi-star-fill' : 'bi-star' %>" data-value="2"></i>
+                    <i class="bi <%= review.rating >= 3 ? 'bi-star-fill' : 'bi-star' %>" data-value="3"></i>
+                    <i class="bi <%= review.rating >= 4 ? 'bi-star-fill' : 'bi-star' %>" data-value="4"></i>
+                    <i class="bi <%= review.rating >= 5 ? 'bi-star-fill' : 'bi-star' %>" data-value="5"></i>
+                  </div>
+                  <input type="hidden" name="rating" class="gv-star-picker-input" value="<%= review.rating %>">
+                  <textarea name="text" rows="3" class="form-control gv-input mb-2" required><%= review.text %></textarea>
+                  <button type="submit" class="btn gv-btn-success btn-sm">Zapisz zmiany</button>
+                </form>
+              <% } %>
+
+              <div class="gv-comments-body d-none mt-3" id="comments-body-<%= review.id %>">
+                <% review.comments.forEach(function(c) { %>
+                  <div class="comment-preview gv-comment-item">
+                    <div class="gv-comment-text">
+                      <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
+                      <span><%= c.text %></span>
+                    </div>
+                    <div class="gv-comment-footer">
+                      <small><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></small>
+                      <div class="gv-comment-actions">
+                        <button
+                          type="button"
+                          class="gv-icon-btn gv-comment-like-btn <%= c.liked ? 'liked' : '' %>"
+                          data-comment-id="<%= c.id %>"
+                          data-game-id="<%= game.id %>"
+                          data-review-id="<%= review.id %>"
+                          title="Polub"
+                          <%= !currentUser ? 'disabled' : '' %>
+                        >
+                          <i class="bi <%= c.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                          <span class="gv-count"><%= c.likeCount %></span>
+                        </button>
+                        <% if (currentUser && currentUser.id === c.userId) { %>
+                          <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments/<%= c.id %>/delete" method="POST"
+                                onsubmit="return confirm('Usunąć komentarz?');" class="d-inline">
+                            <button type="submit" class="gv-icon-btn gv-delete-btn" title="Usuń komentarz">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </form>
+                        <% } %>
+                      </div>
+                    </div>
+                  </div>
+                <% }) %>
+                <% if (currentUser) { %>
+                  <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments" method="POST" class="gv-comment-form mt-2">
+                    <input type="text" name="text" placeholder="Napisz komentarz..." class="form-control gv-input" required maxlength="500">
+                    <button type="submit" class="btn gv-btn-success btn-sm">Dodaj</button>
+                  </form>
+                <% } %>
+              </div>
             </div>
           <% }) %>
         </div>
@@ -81,5 +187,95 @@
   </section>
 
   <%- include('../partials/footer') %>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      function bindLikeButtons(selector, urlBuilder) {
+        document.querySelectorAll(selector).forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (btn.disabled) return;
+
+            fetch(urlBuilder(btn), {
+              method: 'POST',
+              headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                btn.classList.toggle('liked', data.liked);
+                var icon = btn.querySelector('i');
+                icon.className = data.liked ? icon.className.replace('bi-heart', 'bi-heart-fill') : icon.className.replace('bi-heart-fill', 'bi-heart');
+                btn.querySelector('.gv-count').textContent = data.likeCount;
+              });
+          });
+        });
+      }
+
+      // Polubienia opinii
+      bindLikeButtons('.gv-review-like-btn', function (btn) {
+        return '/games/' + btn.dataset.gameId + '/reviews/' + btn.dataset.reviewId + '/like';
+      });
+
+      // Polubienia komentarzy
+      bindLikeButtons('.gv-comment-like-btn', function (btn) {
+        return '/games/' + btn.dataset.gameId + '/reviews/' + btn.dataset.reviewId + '/comments/' + btn.dataset.commentId + '/like';
+      });
+
+      // Rozwijanie komentarzy
+      document.querySelectorAll('.gv-comments-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var target = document.getElementById(btn.dataset.target);
+          if (target) target.classList.toggle('d-none');
+        });
+      });
+
+      // Rozwijanie formularza edycji
+      document.querySelectorAll('.gv-edit-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var target = document.getElementById(btn.dataset.target);
+          if (target) target.classList.toggle('d-none');
+        });
+      });
+
+      // Selektor gwiazdek (ocena) - zamiennik natywnego <select>
+      document.querySelectorAll('.gv-star-picker').forEach(function (picker) {
+        var input = picker.nextElementSibling;
+        var stars = Array.from(picker.querySelectorAll('i'));
+
+        function paint(value) {
+          stars.forEach(function (star) {
+            var isFilled = Number(star.dataset.value) <= value;
+            star.classList.toggle('bi-star-fill', isFilled);
+            star.classList.toggle('bi-star', !isFilled);
+          });
+        }
+
+        stars.forEach(function (star) {
+          star.addEventListener('mouseenter', function () {
+            paint(Number(star.dataset.value));
+          });
+          star.addEventListener('click', function () {
+            var value = Number(star.dataset.value);
+            picker.dataset.selected = value;
+            input.value = value;
+          });
+        });
+
+        picker.addEventListener('mouseleave', function () {
+          paint(Number(picker.dataset.selected || 0));
+        });
+      });
+
+      // Walidacja: nie pozwól wysłać opinii bez wybranej oceny gwiazdkowej
+      document.querySelectorAll('.gv-review-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+          var input = form.querySelector('.gv-star-picker-input');
+          if (input && !input.value) {
+            e.preventDefault();
+            alert('Wybierz ocenę przed dodaniem opinii.');
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
