@@ -162,15 +162,18 @@
             <% reviews.forEach(function(review) { %>
               <div class="gv-review-item">
                 <div class="gv-review-top">
-                  <a href="/<%= profileUser.username %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= profileUser.username %></strong></a>
+                  <span class="gv-review-byline">Review by:
+                    <a href="/<%= profileUser.username %>" class="gv-byline-link">
+                      <span class="gv-byline-avatar"></span>
+                      <span class="gv-byline-name"><%= profileUser.username %></span>
+                    </a>
+                  </span>
                   <span class="gv-review-rating-badge">
-                    <% for (let i = 1; i <= 5; i++) { %>
-                      <i class="bi <%= i <= review.rating ? 'bi-star-fill' : 'bi-star' %>"></i>
-                    <% } %>
+                    <%- include('../partials/star-rating-solid', { rating: review.rating }) %>
                   </span>
                 </div>
                 <div class="gv-review-meta-row">
-                  <a href="/games/<%= review.gameId %>" class="gv-review-author text-decoration-none"><%= review.text.slice(0, 70) %><%= review.text.length > 70 ? '…' : '' %></a>
+                  <a href="/games/<%= review.gameId %>" class="gv-review-text text-decoration-none"><%= review.text.slice(0, 70) %><%= review.text.length > 70 ? '…' : '' %></a>
                   <span class="gv-review-date"><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
                 </div>
               </div>

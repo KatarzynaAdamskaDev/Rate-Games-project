@@ -2,6 +2,7 @@
 <html lang="pl">
 <head>
   <%- include('partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
 </head>
 <body>
 
@@ -93,9 +94,12 @@
               <b><a href="/games/<%= game.id %>"><%= game.title %></a></b>
               <div class="meta"><%= game.category %> · <%= game.platform || 'PC, PS5' %></div>
               <div class="rating">
-                <% const starsCount = Math.round(game.averageRating || 5); %>
-                <%= '★'.repeat(starsCount) + '☆'.repeat(5 - starsCount) %> 
-                <%= (game.averageRating || 5.0).toFixed(1) %>
+                <% if (game.averageRating) { %>
+                  <%- include('partials/star-rating', { rating: game.averageRating }) %>
+                  <%= game.averageRating.toFixed(1) %>
+                <% } else { %>
+                  <span class="gv-game-card-count">Brak ocen</span>
+                <% } %>
               </div>
             </div>
           </article>

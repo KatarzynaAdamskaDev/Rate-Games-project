@@ -195,11 +195,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  color: var(--amber);
+  color: var(--accent-soft);
   font-weight: 600;
 }
 .gv-star {
-  color: var(--amber);
+  color: var(--accent-soft);
 }
 .gv-game-card-count {
   color: var(--text-lo);
@@ -291,7 +291,7 @@
 }
 .gv-rank-metric {
   font-size: 11.5px;
-  color: var(--amber);
+  color: var(--accent-soft);
   font-weight: 600;
   margin-top: 6px;
   display: block;
@@ -338,7 +338,7 @@
   color: var(--text-hi);
 }
 .gv-feed-rating {
-  color: var(--amber);
+  color: var(--accent-soft);
   font-weight: 700;
   font-size: 12.5px;
   white-space: nowrap;
@@ -512,7 +512,7 @@
   font-weight: 600;
 }
 .gv-review-rating {
-  color: var(--amber);
+  color: var(--accent-soft);
   font-weight: 700;
   font-size: 13px;
 }
@@ -523,16 +523,38 @@
   margin-bottom: 6px;
 }
 .gv-review-byline {
-  color: var(--text-mid) !important;
+  color: var(--text-mid);
   font-weight: 400;
 }
 .gv-review-byline strong {
-  color: var(--text-mid);
   font-weight: 600;
 }
-.gv-review-byline:hover,
-.gv-review-byline:hover strong {
-  color: var(--accent-soft) !important;
+
+.gv-byline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+  vertical-align: middle;
+}
+
+.gv-byline-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--cyan), var(--accent));
+  flex-shrink: 0;
+}
+
+.gv-byline-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-hi);
+}
+
+.gv-byline-link:hover .gv-byline-name {
+  color: var(--accent-soft);
 }
 .gv-review-date {
   color: var(--text-lo);
@@ -1564,7 +1586,7 @@
 }
 
 .gv-icon-btn.liked {
-  color: var(--pink);
+  color: var(--accent-soft);
 }
 
 .gv-icon-btn:disabled {
@@ -1604,6 +1626,10 @@
   color: var(--accent-soft);
 }
 
+.gv-star-picker i.bi-star-half {
+  color: var(--accent-soft);
+}
+
 .gv-star-picker i:hover {
   transform: scale(1.1);
 }
@@ -1614,7 +1640,6 @@
   gap: 2px;
   color: var(--accent-soft);
   font-size: 15px;
-  margin-right: 6px;
 }
 
 .gv-star-row .bi-star {
