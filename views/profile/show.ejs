@@ -11,9 +11,13 @@
   <section class="gv-section">
     <div class="wrap">
 
-      <div class="gv-profile-hero">
+      <div class="gv-profile-hero gv-bg-<%= profileUser.activeBackground || 'bg-default' %>">
         <div class="gv-profile-avatar-wrap">
-          <div class="gv-profile-avatar"></div>
+          <% if (profileUser.avatarUrl) { %>
+            <img src="<%= profileUser.avatarUrl %>" alt="<%= profileUser.username %>" class="gv-profile-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>">
+          <% } else { %>
+            <div class="gv-profile-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>"></div>
+          <% } %>
           <div class="gv-lvl-chip">POZ. <%= progress.level %></div>
         </div>
         <div class="gv-profile-meta">
@@ -22,6 +26,9 @@
             Dołączył(a) <%= new Date(profileUser.createdAt).toLocaleDateString('pl-PL') %>
             · <%= stats.reviewCount %> recenzji · <%= stats.followersCount %> obserwujących
           </div>
+          <% if (profileUser.bio) { %>
+            <p class="gv-profile-bio"><%= profileUser.bio %></p>
+          <% } %>
           <div class="gv-xp-track"><div class="gv-xp-fill" style="width:<%= progress.percent %>%;"></div></div>
           <div class="gv-xp-label"><%= progress.pointsInLevel %> / <%= progress.pointsInLevel + progress.pointsToNext %> PD do poziomu <%= progress.level + 1 %></div>
         </div>
@@ -71,9 +78,21 @@
         <div class="gv-unlock-grid">
           <% allFrames.forEach(function(f) { %>
             <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
-              <div class="gv-unlock-swatch">🖼️</div>
+              <div class="gv-unlock-swatch gv-swatch-<%= f.id %>"></div>
               <b><%= f.label %></b>
-              <% if (f.locked) { %><span class="gv-lock-tag">🔒 Poziom <%= f.levelRequired %></span><% } else { %><span>Odblokowana</span><% } %>
+              <% if (f.locked) { %>
+                <span class="gv-lock-tag">🔒 Poziom <%= f.levelRequired %></span>
+              <% } else if (isOwnProfile) { %>
+                <% if (profileUser.activeFrame === f.id) { %>
+                  <span class="gv-active-tag">✓ Aktywna</span>
+                <% } else { %>
+                  <form action="/profile/customize/frame/<%= f.id %>" method="POST">
+                    <button type="submit" class="gv-set-active-btn">Ustaw jako aktywną</button>
+                  </form>
+                <% } %>
+              <% } else { %>
+                <span>Odblokowana</span>
+              <% } %>
             </div>
           <% }) %>
         </div>
@@ -82,9 +101,21 @@
         <div class="gv-unlock-grid">
           <% allBackgrounds.forEach(function(b) { %>
             <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
-              <div class="gv-unlock-swatch">🎨</div>
+              <div class="gv-unlock-swatch gv-swatch-<%= b.id %>"></div>
               <b><%= b.label %></b>
-              <% if (b.locked) { %><span class="gv-lock-tag">🔒 Poziom <%= b.levelRequired %></span><% } else { %><span>Odblokowane</span><% } %>
+              <% if (b.locked) { %>
+                <span class="gv-lock-tag">🔒 Poziom <%= b.levelRequired %></span>
+              <% } else if (isOwnProfile) { %>
+                <% if (profileUser.activeBackground === b.id) { %>
+                  <span class="gv-active-tag">✓ Aktywne</span>
+                <% } else { %>
+                  <form action="/profile/customize/background/<%= b.id %>" method="POST">
+                    <button type="submit" class="gv-set-active-btn">Ustaw jako aktywne</button>
+                  </form>
+                <% } %>
+              <% } else { %>
+                <span>Odblokowane</span>
+              <% } %>
             </div>
           <% }) %>
         </div>

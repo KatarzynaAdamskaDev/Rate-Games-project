@@ -151,21 +151,23 @@
           </script>
 
           <div class="gv-chat-group-label">Pokoje gier</div>
-          <% conversations.filter(function(c){return c.type === 'game-room';}).forEach(function(c) { %>
-            <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
-              <div class="gv-c-avatar"></div>
-              <div><b><%= c.displayName %></b><span><%= c.memberIds.length %> graczy</span></div>
-            </a>
-          <% }) %>
-          <% if (popularGames.length) { %>
-            <p class="px-2 mb-1" style="color:var(--text-lo); font-size:11px;">Dołącz do pokoju gry:</p>
-            <% popularGames.forEach(function(g) { %>
-              <a href="/chat/rooms/<%= g.id %>" class="gv-chat-item text-decoration-none">
+          <div class="gv-chat-game-rooms-scroll">
+            <% conversations.filter(function(c){return c.type === 'game-room';}).forEach(function(c) { %>
+              <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
                 <div class="gv-c-avatar"></div>
-                <div><b>#<%= g.title.toLowerCase().replace(/\s+/g, '-') %></b><span><%= g.title %></span></div>
+                <div><b><%= c.displayName %></b><span><%= c.memberIds.length %> graczy</span></div>
               </a>
             <% }) %>
-          <% } %>
+            <% if (popularGames.length) { %>
+              <p class="px-2 mb-1" style="color:var(--text-lo); font-size:11px;">Dołącz do pokoju gry:</p>
+              <% popularGames.forEach(function(g) { %>
+                <a href="/chat/rooms/<%= g.id %>" class="gv-chat-item text-decoration-none">
+                  <div class="gv-c-avatar"></div>
+                  <div><b>#<%= g.title.toLowerCase().replace(/\s+/g, '-') %></b><span><%= g.title %></span></div>
+                </a>
+              <% }) %>
+            <% } %>
+          </div>
 
         </div>
 
@@ -181,7 +183,10 @@
                     <% var otherId = active.memberIds.find(function(id){ return id !== currentUser.id; }); %>
                     <a href="/<%= active.memberNames[otherId] %>" class="gv-chat-name-link"><%= active.memberNames[otherId] %></a>
                   <% } else { %>
-                    <button type="button" class="gv-chat-name-link gv-group-name-toggle" id="groupMembersToggle"><%= active.name %> ▾</button>
+                    <button type="button" class="gv-chat-name-link gv-group-name-toggle" id="groupMembersToggle">
+                      <%= active.name %>
+                      <i class="bi bi-caret-down-fill gv-group-toggle-icon"></i>
+                    </button>
                     <div class="gv-group-members-dropdown d-none" id="groupMembersDropdown">
                       <% active.memberIds.forEach(function(id) { %>
                         <a href="/<%= active.memberNames[id] %>" class="gv-group-member-item"><%= active.memberNames[id] %></a>
@@ -313,11 +318,13 @@
       if (groupToggle && groupDropdown) {
         groupToggle.addEventListener('click', function (e) {
           e.stopPropagation();
-          groupDropdown.classList.toggle('d-none');
+          var isOpen = groupDropdown.classList.toggle('d-none') === false;
+          groupToggle.classList.toggle('open', isOpen);
         });
         document.addEventListener('click', function (e) {
           if (!groupDropdown.contains(e.target) && e.target !== groupToggle) {
             groupDropdown.classList.add('d-none');
+            groupToggle.classList.remove('open');
           }
         });
       }

@@ -13,6 +13,32 @@
       <h1 class="gv-page-title mb-4">Ustawienia konta</h1>
 
       <div class="gv-settings-card">
+        <h2>Zdjęcie profilowe</h2>
+        <div class="gv-avatar-settings-row">
+          <% if (profileUser.avatarUrl) { %>
+            <img src="<%= profileUser.avatarUrl %>" alt="Twój awatar" class="gv-avatar-preview">
+          <% } else { %>
+            <div class="gv-avatar-preview gv-avatar-preview-placeholder"></div>
+          <% } %>
+          <form action="/profile/settings/avatar" method="POST" enctype="multipart/form-data" class="gv-avatar-form">
+            <label class="gv-label">Wybierz nowe zdjęcie (PNG, JPG, WEBP, GIF - max 2 MB)</label>
+            <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control gv-input mb-2" required>
+            <button type="submit" class="gv-btn-success">Wgraj zdjęcie</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="gv-settings-card">
+        <h2>Opis profilu</h2>
+        <form action="/profile/settings/bio" method="POST">
+          <textarea name="bio" rows="3" maxlength="300" class="form-control gv-input mb-2" placeholder="Napisz coś o sobie...">
+<%= profileUser.bio || '' %>
+</textarea>
+          <button type="submit" class="gv-btn-success">Zapisz opis</button>
+        </form>
+      </div>
+
+      <div class="gv-settings-card">
         <h2>Nazwa użytkownika</h2>
         <form action="/profile/settings/username" method="POST" class="gv-form-grid">
           <div class="full">
