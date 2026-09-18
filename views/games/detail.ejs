@@ -22,11 +22,7 @@
 
           <div class="gv-detail-rating">
             <% if (averageRating) { %>
-              <span class="gv-star-row">
-                <% for (let i = 1; i <= 5; i++) { %>
-                  <i class="bi <%= i <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star' %>"></i>
-                <% } %>
-              </span>
+              <%- include('../partials/star-rating', { rating: averageRating }) %>
               <span class="gv-detail-rating-value"><%= averageRating %> / 5</span>
               <span class="gv-game-card-count">(<%= reviews.length %> opinii)</span>
             <% } else { %>
@@ -38,7 +34,7 @@
 
       <h2 class="gv-section-title mb-3">Opinie graczy</h2>
 
-      <% if (currentUser) { %>
+      <% if (currentUser && !myReview) { %>
         <form action="/games/<%= game.id %>/reviews" method="POST" class="gv-review-form mb-5">
           <div class="mb-3">
             <label class="gv-label d-block">Twoja ocena</label>
@@ -57,6 +53,13 @@
           </div>
           <button type="submit" class="btn gv-btn-success">Dodaj opinię</button>
         </form>
+      <% } else if (currentUser && myReview) { %>
+        <p class="gv-empty-state mb-5">
+          Masz już opinię o tej grze.
+          <button type="button" class="gv-icon-btn" onclick="document.getElementById('review-<%= myReview.id %>').scrollIntoView({behavior:'smooth'}); document.getElementById('edit-form-<%= myReview.id %>').classList.remove('d-none');" style="display:inline;padding:0;text-decoration:underline;">
+            Edytuj ją
+          </button>, jeśli chcesz coś zmienić.
+        </p>
       <% } else { %>
         <p class="gv-empty-state">
           <button type="button" class="gv-icon-btn" data-bs-toggle="modal" data-bs-target="#signInModal" style="display:inline;padding:0;">Zaloguj się</button>,
@@ -71,11 +74,9 @@
           <% reviews.forEach(function(review) { %>
             <div class="gv-review-item" id="review-<%= review.id %>">
               <div class="gv-review-top">
-                <a href="/<%= review.username %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= review.username %></strong></a>
+                <span class="gv-review-byline">Review by: <a href="/<%= review.username %>" class="gv-chat-name-link"><strong><%= review.username %></strong></a></span>
                 <span class="gv-review-rating-badge">
-                  <% for (let i = 1; i <= 5; i++) { %>
-                    <i class="bi <%= i <= review.rating ? 'bi-star-fill' : 'bi-star' %>"></i>
-                  <% } %>
+                  <%- include('../partials/star-rating-solid', { rating: review.rating }) %>
                 </span>
               </div>
               <div class="gv-review-meta-row">

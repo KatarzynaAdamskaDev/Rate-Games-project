@@ -8,7 +8,7 @@
     <p class="gv-game-card-meta"><%= game.platform %> · <%= game.releaseYear %></p>
     <div class="gv-game-card-rating">
       <% if (game.averageRating) { %>
-        <span class="gv-star">★</span>
+        <%- include('star-rating', { rating: game.averageRating }) %>
         <span><%= game.averageRating %> / 5</span>
         <span class="gv-game-card-count">(<%= game.reviewCount %> opinii)</span>
       <% } else { %>

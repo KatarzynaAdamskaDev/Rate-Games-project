@@ -1,0 +1,10 @@
+<%
+// Gwiazdki dla POJEDYNCZEJ opinii (zawsze liczba całkowita 1-5) - pokazuje
+// tylko tyle wypełnionych gwiazdek ile wynosi ocena, bez pustych na końcu.
+// (W odróżnieniu od partials/star-rating.ejs, który pokazuje pełny rząd 5
+// gwiazdek z pustymi/połówkowymi - to jest do ŚREDNICH ocen gry).
+const __r = Math.round(Number(rating)) || 0;
+%>
+<span class="gv-star-row">
+  <% for (let i = 0; i < __r; i++) { %><i class="bi bi-star-fill"></i><% } %>
+</span>

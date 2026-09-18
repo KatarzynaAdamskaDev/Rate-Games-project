@@ -34,7 +34,7 @@
             <div class="gv-featured-eyebrow">✨ Recenzja tygodnia</div>
             <div class="gv-review-top" style="margin-bottom:0;">
               <span class="gv-review-author"><%= featuredReview.username %> o grze <%= featuredReview.game.title %></span>
-              <span class="gv-review-rating">★ <%= featuredReview.rating %>/5</span>
+              <%- include('partials/star-rating-solid', { rating: featuredReview.rating }) %>
             </div>
             <p class="gv-featured-text">"<%= featuredReview.text %>"</p>
             <div class="gv-featured-meta">
@@ -84,7 +84,7 @@
               <div class="gv-rank-body">
                 <b><%= game.title %></b>
                 <span><%= game.category %> · <%= game.releaseYear %></span>
-                <span class="gv-rank-metric">★ <%= game.averageRating %> / 5</span>
+                <span class="gv-rank-metric"><%- include('partials/star-rating', { rating: game.averageRating }) %> <%= game.averageRating %> / 5</span>
               </div>
             </a>
           <% }) %>
@@ -106,7 +106,7 @@
                   <div class="gv-feed-body">
                     <div class="gv-feed-top">
                       <span class="gv-feed-game"><%= r.game ? r.game.title : 'Nieznana gra' %></span>
-                      <span class="gv-feed-rating">★ <%= r.rating %>/5</span>
+                      <%- include('partials/star-rating-solid', { rating: r.rating }) %>
                     </div>
                     <p class="gv-feed-text"><%= r.text.length > 140 ? r.text.slice(0, 140) + '…' : r.text %></p>
                     <div class="gv-feed-meta">
@@ -182,7 +182,7 @@
                   <a href="/<%= r.username %>" class="text-decoration-none gv-review-author"><%= r.username %></a>
                   <% if (r.game) { %> o grze <a href="/games/<%= r.game.id %>" class="text-decoration-none gv-review-author"><%= r.game.title %></a><% } %>
                 </span>
-                <span class="gv-review-rating">★ <%= r.rating %>/5</span>
+                <span class="gv-review-rating"><%- include('partials/star-rating-solid', { rating: r.rating }) %></span>
               </div>
               <p class="gv-review-text"><%= r.text %></p>
               <span class="gv-review-date"><%= new Date(r.createdAt).toLocaleDateString('pl-PL') %></span>
