@@ -517,14 +517,40 @@
   font-size: 13px;
 }
 .gv-review-text {
-  color: var(--text-mid);
+  color: var(--text-hi);
   font-size: 13.5px;
   line-height: 1.6;
   margin-bottom: 6px;
 }
+.gv-review-byline {
+  color: var(--text-mid) !important;
+  font-weight: 400;
+}
+.gv-review-byline strong {
+  color: var(--text-mid);
+  font-weight: 600;
+}
+.gv-review-byline:hover,
+.gv-review-byline:hover strong {
+  color: var(--accent-soft) !important;
+}
 .gv-review-date {
   color: var(--text-lo);
   font-size: 11px;
+}
+.gv-review-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.gv-review-meta-row .gv-chat-name-link {
+  color: var(--text-lo);
+  font-size: 12px;
+}
+.gv-review-meta-row .gv-chat-name-link:hover {
+  color: var(--accent-soft);
 }
 
 /* ==========================================================================
@@ -1518,6 +1544,11 @@
   gap: 4px;
   background: transparent;
   border: none;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   color: var(--text-mid);
   font-size: 13px;
   padding: 5px 8px;
@@ -1557,48 +1588,91 @@
   color: var(--accent-soft);
 }
 
-/* Komentarze - rozszerzenie istniejącego .comment-preview */
+.gv-star-picker {
+  display: inline-flex;
+  gap: 6px;
+  font-size: 22px;
+  color: var(--panel-border);
+}
+
+.gv-star-picker i {
+  cursor: pointer;
+  transition: color 0.1s ease, transform 0.1s ease;
+}
+
+.gv-star-picker i.bi-star-fill {
+  color: var(--accent-soft);
+}
+
+.gv-star-picker i:hover {
+  transform: scale(1.1);
+}
+
+/* Gwiazdka oceny - rząd 5 ikon Bootstrap zamiast pojedynczego unicode ★ */
+.gv-star-row {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--accent-soft);
+  font-size: 15px;
+  margin-right: 6px;
+}
+
+.gv-star-row .bi-star {
+  color: var(--panel-border);
+}
+
+.gv-review-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(124, 92, 255, 0.4);
+  color: var(--accent-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.gv-review-rating-badge .bi-star {
+  color: rgba(124, 92, 255, 0.3);
+}
+
+/* Komentarze - układ: nazwa+tekst na górze (jak wcześniej), data + akcje
+   (lajk/usuń) w jednym rzędzie na dole, akcje wypchnięte na prawo */
 .gv-comments-body {
   border-top: 1px solid var(--panel-border);
   padding-top: 4px;
 }
 
 .comment-preview.gv-comment-item {
+  display: block;
+}
+
+.gv-comment-item .gv-comment-text a {
+  margin-right: 4px;
+}
+
+.gv-comment-footer {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
 }
 
-.gv-comment-item .r-avatar {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.gv-comment-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.gv-comment-body span {
-  margin-left: 6px;
+.gv-comment-footer small {
+  color: var(--text-lo);
+  font-size: 10.5px;
+  white-space: nowrap;
 }
 
 .gv-comment-actions {
   display: flex;
   align-items: center;
   gap: 0;
-  flex-shrink: 0;
 }
 
 .gv-comment-actions .gv-icon-btn {
   padding: 3px 6px;
-}
-
-.gv-comment-actions small {
-  color: var(--text-lo);
-  font-size: 10.5px;
-  white-space: nowrap;
-  margin-left: 6px;
 }
 
 .gv-comment-form {

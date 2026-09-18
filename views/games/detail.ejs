@@ -2,6 +2,7 @@
 <html lang="pl">
 <head>
   <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
 </head>
 <body>
   <%- include('../partials/navbar') %>
@@ -21,7 +22,11 @@
 
           <div class="gv-detail-rating">
             <% if (averageRating) { %>
-              <span class="gv-star">★</span>
+              <span class="gv-star-row">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <i class="bi <%= i <= Math.round(averageRating) ? 'bi-star-fill' : 'bi-star' %>"></i>
+                <% } %>
+              </span>
               <span class="gv-detail-rating-value"><%= averageRating %> / 5</span>
               <span class="gv-game-card-count">(<%= reviews.length %> opinii)</span>
             <% } else { %>
@@ -37,14 +42,14 @@
         <form action="/games/<%= game.id %>/reviews" method="POST" class="gv-review-form mb-5">
           <div class="mb-3">
             <label class="gv-label d-block">Twoja ocena</label>
-            <select name="rating" class="form-select gv-select" style="max-width: 160px;" required>
-              <option value="">Wybierz...</option>
-              <option value="5">★★★★★ (5)</option>
-              <option value="4">★★★★ (4)</option>
-              <option value="3">★★★ (3)</option>
-              <option value="2">★★ (2)</option>
-              <option value="1">★ (1)</option>
-            </select>
+            <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena">
+              <i class="bi bi-star" data-value="1"></i>
+              <i class="bi bi-star" data-value="2"></i>
+              <i class="bi bi-star" data-value="3"></i>
+              <i class="bi bi-star" data-value="4"></i>
+              <i class="bi bi-star" data-value="5"></i>
+            </div>
+            <input type="hidden" name="rating" class="gv-star-picker-input">
           </div>
           <div class="mb-3">
             <label class="gv-label d-block">Twoja opinia</label>
@@ -65,17 +70,21 @@
         <div class="gv-review-list">
           <% reviews.forEach(function(review) { %>
             <div class="gv-review-item" id="review-<%= review.id %>">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <a href="/<%= review.username %>" class="gv-chat-name-link">
-                  <strong class="gv-review-author"><%= review.username %></strong>
-                </a>
-                <span class="gv-review-rating">★ <%= review.rating %>/5</span>
+              <div class="gv-review-top">
+                <a href="/<%= review.username %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= review.username %></strong></a>
+                <span class="gv-review-rating-badge">
+                  <% for (let i = 1; i <= 5; i++) { %>
+                    <i class="bi <%= i <= review.rating ? 'bi-star-fill' : 'bi-star' %>"></i>
+                  <% } %>
+                </span>
               </div>
-              <p class="gv-review-text mb-1"><%= review.text %></p>
-              <small class="gv-review-date">
-                <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
-                <% if (review.editedAt) { %> · <em>edytowane</em><% } %>
-              </small>
+              <div class="gv-review-meta-row">
+                <p class="gv-review-text mb-0"><%= review.text %></p>
+                <span class="gv-review-date">
+                  <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
+                  <% if (review.editedAt) { %> · <em>edytowane</em><% } %>
+                </span>
+              </div>
 
               <div class="gv-review-actions mt-2">
                 <button
@@ -116,13 +125,14 @@
               <% if (currentUser && currentUser.id === review.userId) { %>
                 <form action="/games/<%= game.id %>/reviews/<%= review.id %>/edit" method="POST"
                       class="gv-edit-review-form d-none mt-3" id="edit-form-<%= review.id %>">
-                  <select name="rating" class="form-select gv-select mb-2" style="max-width:140px;">
-                    <option value="5" <%= review.rating===5?'selected':'' %>>★★★★★ (5)</option>
-                    <option value="4" <%= review.rating===4?'selected':'' %>>★★★★ (4)</option>
-                    <option value="3" <%= review.rating===3?'selected':'' %>>★★★ (3)</option>
-                    <option value="2" <%= review.rating===2?'selected':'' %>>★★ (2)</option>
-                    <option value="1" <%= review.rating===1?'selected':'' %>>★ (1)</option>
-                  </select>
+                  <div class="gv-star-picker mb-2" role="radiogroup" aria-label="Twoja ocena" data-selected="<%= review.rating %>">
+                    <i class="bi <%= review.rating >= 1 ? 'bi-star-fill' : 'bi-star' %>" data-value="1"></i>
+                    <i class="bi <%= review.rating >= 2 ? 'bi-star-fill' : 'bi-star' %>" data-value="2"></i>
+                    <i class="bi <%= review.rating >= 3 ? 'bi-star-fill' : 'bi-star' %>" data-value="3"></i>
+                    <i class="bi <%= review.rating >= 4 ? 'bi-star-fill' : 'bi-star' %>" data-value="4"></i>
+                    <i class="bi <%= review.rating >= 5 ? 'bi-star-fill' : 'bi-star' %>" data-value="5"></i>
+                  </div>
+                  <input type="hidden" name="rating" class="gv-star-picker-input" value="<%= review.rating %>">
                   <textarea name="text" rows="3" class="form-control gv-input mb-2" required><%= review.text %></textarea>
                   <button type="submit" class="btn gv-btn-success btn-sm">Zapisz zmiany</button>
                 </form>
@@ -131,33 +141,34 @@
               <div class="gv-comments-body d-none mt-3" id="comments-body-<%= review.id %>">
                 <% review.comments.forEach(function(c) { %>
                   <div class="comment-preview gv-comment-item">
-                    <div class="r-avatar"></div>
-                    <div class="gv-comment-body">
+                    <div class="gv-comment-text">
                       <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
                       <span><%= c.text %></span>
                     </div>
-                    <div class="gv-comment-actions">
-                      <button
-                        type="button"
-                        class="gv-icon-btn gv-comment-like-btn <%= c.liked ? 'liked' : '' %>"
-                        data-comment-id="<%= c.id %>"
-                        data-game-id="<%= game.id %>"
-                        data-review-id="<%= review.id %>"
-                        title="Polub"
-                        <%= !currentUser ? 'disabled' : '' %>
-                      >
-                        <i class="bi <%= c.liked ? 'bi-heart-fill' : 'bi-heart' %>" style="font-size: 11px;"></i>
-                        <span class="gv-count"><%= c.likeCount %></span>
-                      </button>
-                      <% if (currentUser && currentUser.id === c.userId) { %>
-                        <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments/<%= c.id %>/delete" method="POST"
-                              onsubmit="return confirm('Usunąć komentarz?');" class="d-inline">
-                          <button type="submit" class="gv-icon-btn gv-delete-btn" title="Usuń komentarz">
-                            <i class="bi bi-trash" style="font-size: 11px;"></i>
-                          </button>
-                        </form>
-                      <% } %>
+                    <div class="gv-comment-footer">
                       <small><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></small>
+                      <div class="gv-comment-actions">
+                        <button
+                          type="button"
+                          class="gv-icon-btn gv-comment-like-btn <%= c.liked ? 'liked' : '' %>"
+                          data-comment-id="<%= c.id %>"
+                          data-game-id="<%= game.id %>"
+                          data-review-id="<%= review.id %>"
+                          title="Polub"
+                          <%= !currentUser ? 'disabled' : '' %>
+                        >
+                          <i class="bi <%= c.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
+                          <span class="gv-count"><%= c.likeCount %></span>
+                        </button>
+                        <% if (currentUser && currentUser.id === c.userId) { %>
+                          <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments/<%= c.id %>/delete" method="POST"
+                                onsubmit="return confirm('Usunąć komentarz?');" class="d-inline">
+                            <button type="submit" class="gv-icon-btn gv-delete-btn" title="Usuń komentarz">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </form>
+                        <% } %>
+                      </div>
                     </div>
                   </div>
                 <% }) %>
@@ -222,6 +233,46 @@
         btn.addEventListener('click', function () {
           var target = document.getElementById(btn.dataset.target);
           if (target) target.classList.toggle('d-none');
+        });
+      });
+
+      // Selektor gwiazdek (ocena) - zamiennik natywnego <select>
+      document.querySelectorAll('.gv-star-picker').forEach(function (picker) {
+        var input = picker.nextElementSibling;
+        var stars = Array.from(picker.querySelectorAll('i'));
+
+        function paint(value) {
+          stars.forEach(function (star) {
+            var isFilled = Number(star.dataset.value) <= value;
+            star.classList.toggle('bi-star-fill', isFilled);
+            star.classList.toggle('bi-star', !isFilled);
+          });
+        }
+
+        stars.forEach(function (star) {
+          star.addEventListener('mouseenter', function () {
+            paint(Number(star.dataset.value));
+          });
+          star.addEventListener('click', function () {
+            var value = Number(star.dataset.value);
+            picker.dataset.selected = value;
+            input.value = value;
+          });
+        });
+
+        picker.addEventListener('mouseleave', function () {
+          paint(Number(picker.dataset.selected || 0));
+        });
+      });
+
+      // Walidacja: nie pozwól wysłać opinii bez wybranej oceny gwiazdkowej
+      document.querySelectorAll('.gv-review-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+          var input = form.querySelector('.gv-star-picker-input');
+          if (input && !input.value) {
+            e.preventDefault();
+            alert('Wybierz ocenę przed dodaniem opinii.');
+          }
         });
       });
     });

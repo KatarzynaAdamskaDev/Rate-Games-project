@@ -162,10 +162,17 @@
             <% reviews.forEach(function(review) { %>
               <div class="gv-review-item">
                 <div class="gv-review-top">
-                  <a href="/games/<%= review.gameId %>" class="gv-review-author text-decoration-none"><%= review.text.slice(0, 70) %><%= review.text.length > 70 ? '…' : '' %></a>
-                  <span class="gv-review-rating">★ <%= review.rating %>/5</span>
+                  <a href="/<%= profileUser.username %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= profileUser.username %></strong></a>
+                  <span class="gv-review-rating-badge">
+                    <% for (let i = 1; i <= 5; i++) { %>
+                      <i class="bi <%= i <= review.rating ? 'bi-star-fill' : 'bi-star' %>"></i>
+                    <% } %>
+                  </span>
                 </div>
-                <span class="gv-review-date"><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
+                <div class="gv-review-meta-row">
+                  <a href="/games/<%= review.gameId %>" class="gv-review-author text-decoration-none"><%= review.text.slice(0, 70) %><%= review.text.length > 70 ? '…' : '' %></a>
+                  <span class="gv-review-date"><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
+                </div>
               </div>
             <% }) %>
           </div>

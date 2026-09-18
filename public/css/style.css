@@ -1,3 +1,15 @@
+/* "Press Start 2P" nie zawiera polskich znaków diakrytycznych (ą, ć, ę, ł, ń, ś, ź, ż),
+   przez co renderowały się jako puste kwadraciki. Ta czcionka podmienia tylko te
+   konkretne znaki na Space Grotesk, zanim przeglądarka spróbuje użyć Press Start 2P. */
+@font-face {
+  font-family: 'Press Start 2P PL Fix';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPb94C-s0.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   --bg-0: #0c0a14;
   --bg-1: #151022;
@@ -15,7 +27,7 @@
   --radius-s: 8px;
   --radius-m: 14px;
   --radius-l: 22px;
-  --font-body:  "Press Start 2P", "Space Grotesk", monospace;
+  --font-body:  "Press Start 2P PL Fix", "Press Start 2P", "Space Grotesk", monospace;
 }
 
 * {
@@ -663,7 +675,6 @@ section {
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-l);
   padding: 22px;
-  width:1200px;
   margin-bottom: 18px;
 }
 
@@ -689,6 +700,7 @@ section {
 }
 
 .review-headline .game-title {
+  display: block;
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 16px;
