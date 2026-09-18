@@ -123,6 +123,7 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
     req.flash('success', 'Konto zostało utworzone. Możesz się teraz zalogować.');
     res.redirect('/auth/signin');
   } catch (err) {
+    console.error('Błąd serwera w routes/auth.js:', err);
     if (wantsJson) {
       return res.status(500).json({ success: false, message: 'Wystąpił błąd serwera.' });
     }
@@ -180,6 +181,7 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
     req.flash('success', `Witaj ponownie, ${user.username}!`);
     res.redirect('/');
   } catch (err) {
+    console.error('Błąd serwera w routes/auth.js:', err);
     if (wantsJson) {
       return res.status(500).json({ success: false, message: 'Wystąpił błąd serwera.' });
     }
@@ -195,11 +197,11 @@ router.post('/logout', (req, res) => {
 
 /* ------------------------- RESET PASSWORD (WYSYŁKA LINKU) ------------------------- */
 
-router.get('/reset-password', ensureGuest, (req, res) => {
+router.get('/reset-password', (req, res) => {
   res.render('auth/reset-password', { title: 'Zresetuj hasło' });
 });
 
-router.post('/reset-password', ensureGuest, async (req, res) => {
+router.post('/reset-password', async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { email } = req.body;
 
@@ -239,7 +241,7 @@ router.post('/reset-password', ensureGuest, async (req, res) => {
 
 /* ------------------- USTAWIANIE NOWEGO HASŁA (Z LINKU W MAILU) ------------------- */
 
-router.get('/reset-password/:token', ensureGuest, async (req, res) => {
+router.get('/reset-password/:token', async (req, res) => {
   const { token } = req.params;
   const user = await findByResetToken(token);
 
@@ -250,7 +252,7 @@ router.get('/reset-password/:token', ensureGuest, async (req, res) => {
   });
 });
 
-router.post('/reset-password/:token', ensureGuest, async (req, res) => {
+router.post('/reset-password/:token', async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { token } = req.params;
   const { password, password2 } = req.body;

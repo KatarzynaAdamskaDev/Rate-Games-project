@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
     otherUsers: allUsers
       .filter((u) => u.id !== me.id && mutualIds.has(u.id))
       .map((u) => u.username),
-    popularGames: getAllGames().slice(0, 6),
+    popularGames: getAllGames().slice(0, 20),
   });
 });
 
