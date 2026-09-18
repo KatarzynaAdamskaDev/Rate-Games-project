@@ -1,5 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 
 const { ensureAuthenticated } = require('../middleware/auth');
@@ -18,6 +21,45 @@ const {
 const { getAllGames } = require('../utils/gameHelpers');
 const { follow, unfollow } = require('../utils/socialHelpers');
 const { buildProfileViewModel, buildBacklog } = require('../utils/profileViewModel');
+const {
+  levelProgress,
+  pointsFromStats,
+  FRAMES,
+  BACKGROUNDS,
+} = require('../utils/pointsHelpers');
+const User = require('../models/User');
+
+/* --------------------------- UPLOAD AWATARA --------------------------- */
+
+const AVATAR_DIR = path.join(__dirname, '..', 'public', 'images', 'avatars');
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, AVATAR_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${req.session.user.id}-${Date.now()}${ext}`);
+  },
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowed.includes(ext)) {
+      return cb(new Error('Dozwolone są tylko pliki PNG, JPG, WEBP lub GIF.'));
+    }
+    cb(null, true);
+  },
+});
+
+/** Pomaga obliczyć aktualny poziom użytkownika (do weryfikacji odblokowań). */
+async function getCurrentLevel(userId) {
+  const user = await findById(userId);
+  const vm = await buildProfileViewModel(user);
+  return levelProgress(pointsFromStats(vm.stats)).level;
+}
 
 /* -------------------------- WŁASNY PROFIL -------------------------- */
 
@@ -91,6 +133,87 @@ router.post('/settings/password', ensureAuthenticated, async (req, res) => {
   await updatePassword(req.session.user.id, passwordHash);
   req.flash('success', 'Hasło zostało zmienione.');
   res.redirect('/profile/settings');
+});
+
+/* --------------------------- AWATAR --------------------------- */
+
+router.post('/settings/avatar', ensureAuthenticated, (req, res) => {
+  avatarUpload.single('avatar')(req, res, async (err) => {
+    if (err) {
+      req.flash('error', err.message || 'Nie udało się wgrać zdjęcia.');
+      return res.redirect('/profile/settings');
+    }
+    if (!req.file) {
+      req.flash('error', 'Wybierz plik ze zdjęciem.');
+      return res.redirect('/profile/settings');
+    }
+
+    const user = await User.findByPk(req.session.user.id);
+    const oldAvatarUrl = user.avatarUrl;
+
+    user.avatarUrl = `/images/avatars/${req.file.filename}`;
+    await user.save();
+
+    // Sprzątamy poprzedni plik awatara, żeby nie zaśmiecać dysku.
+    if (oldAvatarUrl && oldAvatarUrl.startsWith('/images/avatars/')) {
+      const oldPath = path.join(__dirname, '..', 'public', oldAvatarUrl);
+      fs.unlink(oldPath, () => {}); // ignorujemy błąd, jeśli plik już nie istnieje
+    }
+
+    req.flash('success', 'Zdjęcie profilowe zostało zaktualizowane.');
+    res.redirect('/profile/settings');
+  });
+});
+
+/* --------------------------- OPIS PROFILU (BIO) --------------------------- */
+
+router.post('/settings/bio', ensureAuthenticated, async (req, res) => {
+  const bio = (req.body.bio || '').trim().slice(0, 300);
+  await User.update({ bio }, { where: { id: req.session.user.id } });
+  req.flash('success', 'Opis profilu został zaktualizowany.');
+  res.redirect('/profile/settings');
+});
+
+/* --------------------- RAMKI / TŁA (WYBÓR AKTYWNYCH) --------------------- */
+
+router.post('/customize/frame/:frameId', ensureAuthenticated, async (req, res) => {
+  const { frameId } = req.params;
+  const frame = FRAMES.find((f) => f.id === frameId);
+
+  if (!frame) {
+    req.flash('error', 'Nieznana ramka.');
+    return res.redirect('/profile?tab=badges');
+  }
+
+  const level = await getCurrentLevel(req.session.user.id);
+  if (frame.levelRequired > level) {
+    req.flash('error', `Ta ramka odblokowuje się na poziomie ${frame.levelRequired}.`);
+    return res.redirect('/profile?tab=badges');
+  }
+
+  await User.update({ activeFrame: frameId }, { where: { id: req.session.user.id } });
+  req.flash('success', `Ustawiono ramkę: ${frame.label}.`);
+  res.redirect('/profile?tab=badges');
+});
+
+router.post('/customize/background/:bgId', ensureAuthenticated, async (req, res) => {
+  const { bgId } = req.params;
+  const bg = BACKGROUNDS.find((b) => b.id === bgId);
+
+  if (!bg) {
+    req.flash('error', 'Nieznane tło.');
+    return res.redirect('/profile?tab=badges');
+  }
+
+  const level = await getCurrentLevel(req.session.user.id);
+  if (bg.levelRequired > level) {
+    req.flash('error', `To tło odblokowuje się na poziomie ${bg.levelRequired}.`);
+    return res.redirect('/profile?tab=badges');
+  }
+
+  await User.update({ activeBackground: bgId }, { where: { id: req.session.user.id } });
+  req.flash('success', `Ustawiono tło: ${bg.label}.`);
+  res.redirect('/profile?tab=badges');
 });
 
 router.post('/settings/delete', ensureAuthenticated, async (req, res) => {

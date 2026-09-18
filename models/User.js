@@ -41,6 +41,22 @@ const User = sequelize.define(
       type: DataTypes.BIGINT,
       allowNull: true,
     },
+    avatarUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    bio: {
+      type: DataTypes.STRING(300),
+      allowNull: true,
+    },
+    activeFrame: {
+      type: DataTypes.STRING,
+      defaultValue: 'frame-basic',
+    },
+    activeBackground: {
+      type: DataTypes.STRING,
+      defaultValue: 'bg-default',
+    },
   },
   {
     tableName: 'users',
