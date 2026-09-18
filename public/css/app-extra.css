@@ -1874,3 +1874,505 @@
 .gv-edit-review-form textarea {
   resize: vertical;
 }
+
+/* RESPONSIVE SECTIONS */
+@media (max-width: 768px) {
+  .gv-section {
+    padding: 32px 0 48px;
+  }
+
+  .gv-page-title {
+    font-size: 22px;
+  }
+
+  .gv-page-lead {
+    font-size: 13.5px;
+  }
+
+  .gv-section-title {
+    font-size: 16px;
+  }
+
+  .gv-stats-bar {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .gv-stat-card {
+    padding: 12px 14px;
+  }
+
+  .gv-stat-card b {
+    font-size: 18px;
+  }
+
+  .gv-stat-card span {
+    font-size: 10px;
+  }
+
+  .gv-rank-scroll {
+    gap: 10px;
+  }
+
+  .gv-rank-card {
+    flex: 0 0 140px;
+  }
+
+  .gv-rank-cover {
+    height: 90px;
+  }
+
+  .gv-feed-item {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .gv-feed-cover {
+    width: 40px;
+    height: 54px;
+  }
+
+  .gv-feed-game {
+    font-size: 12px;
+  }
+
+  .gv-feed-text {
+    font-size: 12px;
+  }
+
+  .gv-featured-card {
+    padding: 18px 16px;
+    gap: 14px;
+  }
+
+  .gv-featured-cover {
+    width: 70px;
+    height: 95px;
+  }
+
+  .gv-profile-hero {
+    padding: 20px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .gv-profile-avatar {
+    width: 70px;
+    height: 70px;
+  }
+
+  .gv-profile-meta h1 {
+    font-size: 18px;
+  }
+
+  .gv-profile-stats-inline {
+    width: 100%;
+    justify-content: space-around;
+    margin-left: 0;
+  }
+
+  .gv-xp-track {
+    width: 100%;
+  }
+
+  .gv-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gv-form-grid .full {
+    grid-column: 1;
+  }
+
+  .gv-settings-card {
+    padding: 16px;
+  }
+
+  .gv-settings-card h2 {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .gv-backlog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .gv-backlog-cover {
+    height: 75px;
+  }
+
+  .gv-unlock-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .gv-unlock-swatch {
+    height: 48px;
+    font-size: 16px;
+  }
+
+  .gv-unlock-item b {
+    font-size: 10px;
+  }
+
+  .gv-category-bar-label {
+    width: 120px;
+  }
+
+  .gv-review-list {
+    gap: 10px;
+  }
+
+  .gv-review-item {
+    padding: 12px 14px;
+  }
+
+  .gv-sort-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gv-sort-row > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .gv-section {
+    padding: 24px 0 32px;
+  }
+
+  .gv-page-title {
+    font-size: 18px;
+  }
+
+  .gv-page-lead {
+    font-size: 12.5px;
+  }
+
+  .gv-section-title {
+    font-size: 14px;
+  }
+
+  .gv-section-subtitle {
+    font-size: 12px;
+  }
+
+  .gv-stats-bar {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .gv-stat-card {
+    padding: 10px 8px;
+  }
+
+  .gv-stat-card b {
+    font-size: 14px;
+  }
+
+  .gv-stat-card span {
+    font-size: 9px;
+  }
+
+  .gv-rank-scroll {
+    gap: 8px;
+  }
+
+  .gv-rank-card {
+    flex: 0 0 110px;
+  }
+
+  .gv-rank-cover {
+    height: 70px;
+  }
+
+  .gv-rank-number {
+    font-size: 11px;
+  }
+
+  .gv-rank-body b {
+    font-size: 11px;
+  }
+
+  .gv-rank-body span {
+    font-size: 9px;
+  }
+
+  .gv-feed-item {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .gv-feed-cover {
+    width: 36px;
+    height: 48px;
+  }
+
+  .gv-feed-game {
+    font-size: 11px;
+  }
+
+  .gv-feed-text {
+    font-size: 11px;
+  }
+
+  .gv-feed-meta {
+    font-size: 10px;
+  }
+
+  .gv-featured-card {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .gv-featured-cover {
+    width: 60px;
+    height: 80px;
+  }
+
+  .gv-featured-eyebrow {
+    font-size: 9px;
+  }
+
+  .gv-featured-text {
+    font-size: 12px;
+  }
+
+  .gv-profile-hero {
+    padding: 16px;
+  }
+
+  .gv-profile-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .gv-profile-meta h1 {
+    font-size: 16px;
+  }
+
+  .gv-profile-handle {
+    font-size: 11px;
+  }
+
+  .gv-profile-stats-inline b {
+    font-size: 14px;
+  }
+
+  .gv-profile-stats-inline span {
+    font-size: 9px;
+  }
+
+  .gv-profile-actions {
+    gap: 6px;
+  }
+
+  .gv-follow-btn {
+    font-size: 11px;
+    padding: 7px 12px;
+  }
+
+  .gv-tabs {
+    gap: 4px;
+  }
+
+  .gv-tab {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  .gv-settings-card {
+    padding: 12px;
+  }
+
+  .gv-settings-card h2 {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .gv-backlog-add-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .gv-backlog-add-form > div {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .gv-backlog-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+  }
+
+  .gv-backlog-cover {
+    height: 60px;
+  }
+
+  .gv-backlog-body b {
+    font-size: 11px;
+  }
+
+  .gv-backlog-body span {
+    font-size: 9px;
+  }
+
+  .gv-unlock-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+  }
+
+  .gv-unlock-swatch {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .gv-unlock-item {
+    padding: 10px;
+  }
+
+  .gv-unlock-item b {
+    font-size: 9px;
+  }
+
+  .gv-unlock-item span {
+    font-size: 8px;
+  }
+
+  .gv-category-bar-label {
+    width: 80px;
+    font-size: 11px;
+  }
+
+  .gv-category-bar-count {
+    width: 60px;
+    font-size: 10px;
+  }
+
+  .gv-leaderboard {
+    gap: 6px;
+  }
+
+  .gv-leader-row {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .gv-leader-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .gv-leader-name {
+    font-size: 12px;
+  }
+
+  .gv-leader-count {
+    font-size: 10px;
+  }
+
+  .gv-review-list {
+    gap: 8px;
+  }
+
+  .gv-review-item {
+    padding: 10px 12px;
+  }
+
+  .gv-review-top {
+    gap: 6px;
+  }
+
+  .gv-review-author {
+    font-size: 12px;
+  }
+
+  .gv-review-rating {
+    font-size: 12px;
+  }
+
+  .gv-review-text {
+    font-size: 12px;
+  }
+
+  .gv-review-date {
+    font-size: 10px;
+  }
+
+  .gv-sort-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gv-sort-row > * {
+    width: 100%;
+  }
+
+  /* CHAT RESPONSIVE */
+  .gv-chat-shell {
+    grid-template-columns: 1fr;
+    min-height: 420px;
+  }
+
+  .gv-chat-list-col {
+    display: none;
+  }
+
+  .gv-chat-body {
+    max-height: 300px;
+  }
+
+  .gv-msg {
+    max-width: 85%;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 10px 10px 10px 2px;
+  }
+
+  .gv-msg.me {
+    border-radius: 10px 10px 2px 10px;
+  }
+
+  .gv-msg b {
+    font-size: 10px;
+  }
+
+  .gv-msg small {
+    font-size: 8px;
+  }
+
+  .gv-chat-input-row {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .gv-chat-input-row input {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .gv-chat-send {
+    width: 40px;
+  }
+
+  .gv-chat-topbar {
+    padding: 12px 14px;
+  }
+
+  .gv-chat-topbar b {
+    font-size: 12px;
+  }
+
+  .gv-game-card-title {
+    font-size: 13px;
+  }
+
+  .gv-game-card-meta {
+    font-size: 11px;
+  }
+
+  .gv-game-card-rating {
+    font-size: 11px;
+  }
+}
