@@ -120,11 +120,14 @@ router.get('/:id', async (req, res, next) => {
         ) / 10
       : null;
 
+  const myReview = meId ? reviews.find((r) => r.userId === meId) : null;
+
   res.render('games/detail', {
     title: game.title,
     game,
     reviews,
     averageRating,
+    myReview,
   });
 });
 
@@ -133,6 +136,17 @@ router.get('/:id', async (req, res, next) => {
 router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
   const game = getGameById(req.params.id);
   if (!game) return next();
+
+  const existing = await Review.findOne({
+    where: { gameId: game.id, userId: req.session.user.id },
+  });
+  if (existing) {
+    req.flash(
+      'error',
+      'Masz już opinię o tej grze - możesz ją edytować zamiast dodawać nową.'
+    );
+    return res.redirect(`/games/${game.id}#review-${existing.id}`);
+  }
 
   const { rating, text } = req.body;
   const numericRating = Number(rating);

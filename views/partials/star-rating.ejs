@@ -1,0 +1,15 @@
+<%
+// Wspólny komponent gwiazdek. Użycie: include('partials/star-rating', { rating: X })
+// Zaokrągla do najbliższej połówki (np. 4.3 -> 4.5 -> 4 pełne + 1 połówka),
+// więc "3/5" pokazuje realnie 3 pełne gwiazdki i 2 puste, nie zawsze 5.
+const __rating = Number(rating) || 0;
+const __rounded = Math.round(__rating * 2) / 2;
+const __full = Math.floor(__rounded);
+const __hasHalf = __rounded % 1 !== 0;
+const __empty = 5 - __full - (__hasHalf ? 1 : 0);
+%>
+<span class="gv-star-row">
+  <% for (let i = 0; i < __full; i++) { %><i class="bi bi-star-fill"></i><% } %>
+  <% if (__hasHalf) { %><i class="bi bi-star-half"></i><% } %>
+  <% for (let i = 0; i < __empty; i++) { %><i class="bi bi-star"></i><% } %>
+</span>
