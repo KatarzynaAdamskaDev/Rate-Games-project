@@ -20,6 +20,3 @@ yarn-error.log*
 .vscode/
 .DS_Store
 Thumbs.db
-
-# Claude Code (lokalna konfiguracja narzędzia)
-.claude/
