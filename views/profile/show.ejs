@@ -162,7 +162,12 @@
             <% reviews.forEach(function(review) { %>
               <div class="gv-review-item">
                 <div class="gv-review-top">
-                  <span class="gv-review-byline">Review by: <a href="/<%= profileUser.username %>" class="gv-chat-name-link"><strong><%= profileUser.username %></strong></a></span>
+                  <span class="gv-review-byline">Review by:
+                    <a href="/<%= profileUser.username %>" class="gv-byline-link">
+                      <span class="gv-byline-avatar"></span>
+                      <span class="gv-byline-name"><%= profileUser.username %></span>
+                    </a>
+                  </span>
                   <span class="gv-review-rating-badge">
                     <%- include('../partials/star-rating-solid', { rating: review.rating }) %>
                   </span>

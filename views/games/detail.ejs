@@ -74,7 +74,12 @@
           <% reviews.forEach(function(review) { %>
             <div class="gv-review-item" id="review-<%= review.id %>">
               <div class="gv-review-top">
-                <span class="gv-review-byline">Review by: <a href="/<%= review.username %>" class="gv-chat-name-link"><strong><%= review.username %></strong></a></span>
+                <span class="gv-review-byline">Review by:
+                  <a href="/<%= review.username %>" class="gv-byline-link">
+                    <span class="gv-byline-avatar"></span>
+                    <span class="gv-byline-name"><%= review.username %></span>
+                  </a>
+                </span>
                 <span class="gv-review-rating-badge">
                   <%- include('../partials/star-rating-solid', { rating: review.rating }) %>
                 </span>
@@ -127,11 +132,9 @@
                 <form action="/games/<%= game.id %>/reviews/<%= review.id %>/edit" method="POST"
                       class="gv-edit-review-form d-none mt-3" id="edit-form-<%= review.id %>">
                   <div class="gv-star-picker mb-2" role="radiogroup" aria-label="Twoja ocena" data-selected="<%= review.rating %>">
-                    <i class="bi <%= review.rating >= 1 ? 'bi-star-fill' : 'bi-star' %>" data-value="1"></i>
-                    <i class="bi <%= review.rating >= 2 ? 'bi-star-fill' : 'bi-star' %>" data-value="2"></i>
-                    <i class="bi <%= review.rating >= 3 ? 'bi-star-fill' : 'bi-star' %>" data-value="3"></i>
-                    <i class="bi <%= review.rating >= 4 ? 'bi-star-fill' : 'bi-star' %>" data-value="4"></i>
-                    <i class="bi <%= review.rating >= 5 ? 'bi-star-fill' : 'bi-star' %>" data-value="5"></i>
+                    <% for (let i = 1; i <= 5; i++) { %>
+                      <i class="bi <%= review.rating >= i ? 'bi-star-fill' : (review.rating >= i - 0.5 ? 'bi-star-half' : 'bi-star') %>" data-value="<%= i %>"></i>
+                    <% } %>
                   </div>
                   <input type="hidden" name="rating" class="gv-star-picker-input" value="<%= review.rating %>">
                   <textarea name="text" rows="3" class="form-control gv-input mb-2" required><%= review.text %></textarea>
@@ -237,25 +240,38 @@
         });
       });
 
-      // Selektor gwiazdek (ocena) - zamiennik natywnego <select>
+      // Selektor gwiazdek (ocena, z obsługą połówek 0.5) - zamiennik <select>
       document.querySelectorAll('.gv-star-picker').forEach(function (picker) {
         var input = picker.nextElementSibling;
         var stars = Array.from(picker.querySelectorAll('i'));
 
+        function valueFromEvent(star, e) {
+          var rect = star.getBoundingClientRect();
+          var isLeftHalf = (e.clientX - rect.left) < rect.width / 2;
+          var base = Number(star.dataset.value);
+          return isLeftHalf ? base - 0.5 : base;
+        }
+
         function paint(value) {
           stars.forEach(function (star) {
-            var isFilled = Number(star.dataset.value) <= value;
-            star.classList.toggle('bi-star-fill', isFilled);
-            star.classList.toggle('bi-star', !isFilled);
+            var starValue = Number(star.dataset.value);
+            star.classList.remove('bi-star', 'bi-star-fill', 'bi-star-half');
+            if (value >= starValue) {
+              star.classList.add('bi-star-fill');
+            } else if (value >= starValue - 0.5) {
+              star.classList.add('bi-star-half');
+            } else {
+              star.classList.add('bi-star');
+            }
           });
         }
 
         stars.forEach(function (star) {
-          star.addEventListener('mouseenter', function () {
-            paint(Number(star.dataset.value));
+          star.addEventListener('mousemove', function (e) {
+            paint(valueFromEvent(star, e));
           });
-          star.addEventListener('click', function () {
-            var value = Number(star.dataset.value);
+          star.addEventListener('click', function (e) {
+            var value = valueFromEvent(star, e);
             picker.dataset.selected = value;
             input.value = value;
           });

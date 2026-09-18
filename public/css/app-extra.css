@@ -195,7 +195,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  color: var(--amber);
+  color: var(--accent-soft);
   font-weight: 600;
 }
 .gv-star {
@@ -528,6 +528,33 @@
 }
 .gv-review-byline strong {
   font-weight: 600;
+}
+
+.gv-byline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: inherit;
+  vertical-align: middle;
+}
+
+.gv-byline-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--cyan), var(--accent));
+  flex-shrink: 0;
+}
+
+.gv-byline-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-hi);
+}
+
+.gv-byline-link:hover .gv-byline-name {
+  color: var(--accent-soft);
 }
 .gv-review-date {
   color: var(--text-lo);
@@ -1599,6 +1626,10 @@
   color: var(--accent-soft);
 }
 
+.gv-star-picker i.bi-star-half {
+  color: var(--accent-soft);
+}
+
 .gv-star-picker i:hover {
   transform: scale(1.1);
 }
@@ -1609,7 +1640,6 @@
   gap: 2px;
   color: var(--accent-soft);
   font-size: 15px;
-  margin-right: 6px;
 }
 
 .gv-star-row .bi-star {
