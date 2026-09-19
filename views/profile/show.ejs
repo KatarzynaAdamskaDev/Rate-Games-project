@@ -12,31 +12,42 @@
     <div class="wrap">
 
       <div class="gv-profile-hero gv-bg-<%= profileUser.activeBackground || 'bg-default' %>">
-        <div class="gv-profile-avatar-wrap">
-          <% if (profileUser.avatarUrl) { %>
-            <img src="<%= profileUser.avatarUrl %>" alt="<%= profileUser.username %>" class="gv-profile-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>">
-          <% } else { %>
-            <div class="gv-profile-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>"></div>
-          <% } %>
-          <div class="gv-lvl-chip">POZ. <%= progress.level %></div>
+        <div class="gv-hero-identity">
+          <div class="gv-profile-avatar-wrap">
+            <% if (profileUser.avatarUrl) { %>
+              <img src="<%= profileUser.avatarUrl %>" alt="<%= profileUser.username %>" class="gv-profile-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>">
+            <% } else { %>
+              <div class="gv-profile-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>"></div>
+            <% } %>
+          </div>
+          <div class="gv-profile-meta">
+            <h1><%= profileUser.username %></h1>
+            <% if (profileUser.bio) { %>
+              <p class="gv-profile-bio"><%= profileUser.bio %></p>
+            <% } %>
+          </div>
         </div>
-        <div class="gv-profile-meta">
-          <h1><%= profileUser.username %></h1>
+
+        <div class="gv-hero-xp">
+          <a href="?tab=badges" class="gv-level-trophy" title="Poziomy i odznaki" aria-label="Poziomy i odznaki"><i class="bi bi-trophy-fill"></i></a>
+          <div class="gv-level-info">
+            <div class="gv-level-label">POZIOM</div>
+            <div class="gv-level-number"><%= progress.level %></div>
+            <div class="gv-xp-track"><div class="gv-xp-fill" style="width:<%= progress.percent %>%;"></div></div>
+            <div class="gv-xp-label"><%= progress.pointsInLevel %> / <%= progress.pointsInLevel + progress.pointsToNext %> PD do poziomu <%= progress.level + 1 %></div>
+          </div>
+        </div>
+
+        <div class="gv-hero-footer">
           <div class="gv-profile-handle">
             Dołączył(a) <%= new Date(profileUser.createdAt).toLocaleDateString('pl-PL') %>
             · <%= stats.reviewCount %> recenzji · <%= stats.followersCount %> obserwujących
           </div>
-          <% if (profileUser.bio) { %>
-            <p class="gv-profile-bio"><%= profileUser.bio %></p>
-          <% } %>
-          <div class="gv-xp-track"><div class="gv-xp-fill" style="width:<%= progress.percent %>%;"></div></div>
-          <div class="gv-xp-label"><%= progress.pointsInLevel %> / <%= progress.pointsInLevel + progress.pointsToNext %> PD do poziomu <%= progress.level + 1 %></div>
-        </div>
-
-        <div class="gv-profile-stats-inline">
-          <div><b><%= stats.reviewCount %></b><span>Recenzje</span></div>
-          <div><b><%= stats.followersCount %></b><span>Obserwujący</span></div>
-          <div><b><%= stats.followingCount %></b><span>Obserwowani</span></div>
+          <div class="gv-profile-stats-inline">
+            <a href="?tab=reviews"><b><%= stats.reviewCount %></b><span>Recenzje</span></a>
+            <a href="?tab=followers"><b><%= stats.followersCount %></b><span>Obserwujący</span></a>
+            <a href="?tab=following"><b><%= stats.followingCount %></b><span>Obserwowani</span></a>
+          </div>
         </div>
       </div>
 
@@ -65,7 +76,31 @@
         <a href="?tab=badges" class="gv-tab <%= tab === 'badges' ? 'active' : '' %>">🏅 Poziomy i odznaki</a>
         <a href="?tab=backlog" class="gv-tab <%= tab === 'backlog' ? 'active' : '' %>">📚 Backlog gier</a>
         <a href="?tab=reviews" class="gv-tab <%= tab === 'reviews' ? 'active' : '' %>">📝 Recenzje</a>
+        <a href="?tab=followers" class="gv-tab <%= tab === 'followers' ? 'active' : '' %>">👥 Obserwujący</a>
+        <a href="?tab=following" class="gv-tab <%= tab === 'following' ? 'active' : '' %>">➡️ Obserwowani</a>
       </div>
+
+      <% if (tab === 'followers' || tab === 'following') { %>
+        <% if (followList.length === 0) { %>
+          <p class="gv-empty-state"><%= tab === 'followers' ? 'Nikt jeszcze nie obserwuje tego profilu.' : 'Ten profil nikogo jeszcze nie obserwuje.' %></p>
+        <% } else { %>
+          <div class="gv-people-grid">
+            <% followList.forEach(function(person) { %>
+              <a href="/<%= encodeURIComponent(person.username) %>" class="gv-person-card">
+                <% if (person.avatarUrl) { %>
+                  <img src="<%= person.avatarUrl %>" alt="" class="gv-person-avatar">
+                <% } else { %>
+                  <div class="gv-person-avatar"></div>
+                <% } %>
+                <div>
+                  <b><%= person.username %></b>
+                  <span>POZ. <%= person.level %></span>
+                </div>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      <% } %>
 
       <% if (tab === 'badges') { %>
         <div class="gv-points-note">

@@ -10,6 +10,8 @@ const { getFollowers, getFollowing } = require('./socialHelpers');
 const { getUserBacklog } = require('./backlogHelpers');
 const { getAllGames } = require('./gameHelpers');
 const { getUserPublic } = require('./profileHelpers');
+const { saveProgress } = require('./progressHelpers');
+const { findById } = require('./userHelpers');
 
 /** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
 async function buildProfileViewModel(user) {
@@ -29,12 +31,16 @@ async function buildProfileViewModel(user) {
     likesReceived: 0,
     followersCount: followers.length,
     followingCount: following.length,
+    bonusPoints: user.bonusPoints || 0,
   };
 
   const progress = levelProgress(pointsFromStats(stats));
 
+  // Odświeża zapisane w bazie PD i poziom, jeśli się zdezaktualizowały.
+  await saveProgress(user.id, progress.points, progress.level, user);
+
   return {
-    profileUser: getUserPublic(user),
+    profileUser: getUserPublic({ ...user, points: progress.points, level: progress.level }),
     stats,
     progress,
     allFrames: allFramesWithLockState(progress.level),
@@ -42,6 +48,20 @@ async function buildProfileViewModel(user) {
     allBadges: allBadgesWithLockState(stats),
     reviews,
   };
+}
+
+/** Lista osób, które użytkownik obserwuje (kind = 'following') lub które jego obserwują ('followers'). */
+async function buildFollowList(userId, kind) {
+  const rows = kind === 'followers' ? await getFollowers(userId) : await getFollowing(userId);
+  const ids = rows.map((r) => (kind === 'followers' ? r.followerId : r.followingId));
+  const users = (await Promise.all(ids.map((id) => findById(id)))).filter(Boolean);
+
+  return users.map((u) => ({
+    id: u.id,
+    username: u.username,
+    avatarUrl: u.avatarUrl || null,
+    level: u.level || 1,
+  }));
 }
 
 async function buildBacklog(userId) {
@@ -53,4 +73,4 @@ async function buildBacklog(userId) {
   }));
 }
 
-module.exports = { buildProfileViewModel, buildBacklog };
+module.exports = { buildProfileViewModel, buildBacklog, buildFollowList };

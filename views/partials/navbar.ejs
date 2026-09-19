@@ -43,8 +43,10 @@
       <!-- Akcje użytkownika / Logowanie -->
       <div class="nav-actions">
         <% if (user) { %>
-          <!-- Panel zalogowanego użytkownika (przykładowy avatar i menu) -->
-          <a href="/profile" class="avatar" title="<%= user.username %>"></a>
+          <!-- Panel zalogowanego użytkownika: awatar (zdjęcie profilowe lub gradient) -->
+          <a href="/profile" class="avatar" title="<%= user.username %>">
+            <% if (user.avatarUrl) { %><img src="<%= user.avatarUrl %>" alt="<%= user.username %>"><% } %>
+          </a>
           
           <% if (user.role === 'admin') { %>
             <a href="/games/new" class="icon-btn" title="Dodaj grę">+</a>

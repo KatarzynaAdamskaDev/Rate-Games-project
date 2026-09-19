@@ -5,7 +5,11 @@ const { findByUsername } = require('../utils/userHelpers');
 const { isFollowing } = require('../utils/socialHelpers');
 const { STATUS_LABELS } = require('../utils/backlogHelpers');
 const { getAllGames } = require('../utils/gameHelpers');
-const { buildProfileViewModel, buildBacklog } = require('../utils/profileViewModel');
+const {
+  buildProfileViewModel,
+  buildBacklog,
+  buildFollowList,
+} = require('../utils/profileViewModel');
 
 // UWAGA: ten router jest montowany jako ostatni w app.js (app.use('/', ...)),
 // żeby /:username nie "połykał" innych tras typu /games, /category, /blog itd.
@@ -24,15 +28,20 @@ router.get('/:username', async (req, res, next) => {
     ? await isFollowing(req.session.user.id, user.id)
     : false;
 
+  const tab = req.query.tab || 'badges';
+  const followList =
+    tab === 'followers' || tab === 'following' ? await buildFollowList(user.id, tab) : [];
+
   res.render('profile/show', {
     title: `Profil: ${user.username}`,
     ...vm,
     isOwnProfile: false,
     alreadyFollowing,
     backlogEntries,
+    followList,
     statusLabels: STATUS_LABELS,
     allGames: getAllGames(),
-    tab: req.query.tab || 'badges',
+    tab,
   });
 });
 

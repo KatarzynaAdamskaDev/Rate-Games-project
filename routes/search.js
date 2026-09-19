@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 
-const { getAllGames, withRatings } = require('../utils/gameHelpers');
+const { withRatings } = require('../utils/gameHelpers');
 const { readCollection } = require('../utils/dataStore');
+const { listGames } = require('../utils/gameListing');
 const { searchUsersByUsername } = require('../utils/userHelpers');
 
 router.get('/', async (req, res) => {
@@ -13,13 +14,17 @@ router.get('/', async (req, res) => {
 
   if (q) {
     const needle = q.toLowerCase();
-    const matchingGames = getAllGames().filter(
+
+    // Gry z IGDB (wyniki wg trafności) + gry dodane ręcznie przez admina
+    // (te mają id w postaci UUID; stare numeryczne id kolidują z ID z IGDB).
+    const localMatches = (readCollection('games') || []).filter(
       (g) =>
-        g.title.toLowerCase().includes(needle) ||
-        g.category.toLowerCase().includes(needle) ||
-        g.description.toLowerCase().includes(needle)
+        isNaN(g.id) &&
+        (g.title.toLowerCase().includes(needle) ||
+          g.category.toLowerCase().includes(needle))
     );
-    games = await withRatings(matchingGames);
+    const igdb = await listGames({ q, pageSize: 24 });
+    games = [...(await withRatings(localMatches)), ...igdb.games];
 
     posts = readCollection('blog').filter(
       (p) =>
