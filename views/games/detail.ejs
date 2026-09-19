@@ -24,7 +24,7 @@
             <% if (averageRating) { %>
               <%- include('../partials/star-rating', { rating: averageRating }) %>
               <span class="gv-detail-rating-value"><%= averageRating %> / 5</span>
-              <span class="gv-game-card-count">(<%= reviews.length %> opinii)</span>
+              <span class="gv-game-card-count">(<%= reviews.length %> <%= reviews.length === 1 ? 'opinia' : ((reviews.length % 10 >= 2 && reviews.length % 10 <= 4 && !(reviews.length % 100 >= 12 && reviews.length % 100 <= 14)) ? 'opinie' : 'opinii') %>)</span>
             <% } else { %>
               <span class="gv-game-card-count">Brak opinii - bądź pierwszy!</span>
             <% } %>
@@ -76,7 +76,11 @@
               <div class="gv-review-top">
                 <span class="gv-review-byline">Review by:
                   <a href="/<%= review.username %>" class="gv-byline-link">
-                    <span class="gv-byline-avatar"></span>
+                    <% if (review.avatarUrl) { %>
+                      <img src="<%= review.avatarUrl %>" alt="" class="gv-byline-avatar">
+                    <% } else { %>
+                      <span class="gv-byline-avatar"></span>
+                    <% } %>
                     <span class="gv-byline-name"><%= review.username %></span>
                   </a>
                 </span>
@@ -110,11 +114,13 @@
                   <span class="gv-count"><%= review.comments.length %></span>
                 </button>
 
-                <% if (currentUser) { %>
-                  <form action="/games/<%= game.id %>/reviews/<%= review.id %>/report" method="POST"
-                        onsubmit="return confirm('Zgłosić tę opinię do moderacji?');" class="d-inline">
-                    <button type="submit" class="gv-icon-btn gv-report-btn" title="Zgłoś"><i class="bi bi-flag"></i></button>
-                  </form>
+                <% if (currentUser && currentUser.id !== review.userId) { %>
+                  <button type="button" class="gv-icon-btn gv-report-btn" title="Zgłoś"
+                          data-bs-toggle="modal" data-bs-target="#reportModal"
+                          data-report-url="/games/<%= game.id %>/reviews/<%= review.id %>/report"
+                          data-report-author="<%= review.username %>">
+                    <i class="bi bi-flag"></i>
+                  </button>
                 <% } %>
 
                 <% if (currentUser && currentUser.id === review.userId) { %>
@@ -190,6 +196,7 @@
     </div>
   </section>
 
+  <% if (currentUser) { %><%- include('../partials/report-modal') %><% } %>
   <%- include('../partials/footer') %>
 
   <script>

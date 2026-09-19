@@ -1,5 +1,27 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="csrf-token" content="<%= locals.csrfToken || '' %>" />
+<script>
+  // Ochrona CSRF: każde żądanie fetch zmieniające dane do tego samego serwera dostaje nagłówek z tokenem sesji.
+  (function () {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    var token = meta ? meta.getAttribute('content') : '';
+    var nativeFetch = window.fetch;
+    if (!token || !nativeFetch) return;
+    window.fetch = function (input, init) {
+      var options = init || {};
+      var method = String(options.method || (input && input.method) || 'GET').toUpperCase();
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var sameOrigin = url.charAt(0) === '/' || url.indexOf(location.origin) === 0;
+      if (method !== 'GET' && method !== 'HEAD' && sameOrigin) {
+        var headers = new Headers(options.headers || (input && input.headers) || {});
+        headers.set('X-CSRF-Token', token);
+        options = Object.assign({}, options, { headers: headers });
+      }
+      return nativeFetch.call(window, input, options);
+    };
+  })();
+</script>
 <title><%= title %> | GameVerse</title>
 <link rel="icon" type="image/png" href="/images/Game2.png">
 <link

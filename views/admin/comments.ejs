@@ -1,0 +1,39 @@
+<%- include('partials/top') %>
+
+<form method="GET" class="gv-admin-filters">
+  <input type="search" name="q" value="<%= q %>" class="form-control gv-input" placeholder="Szukaj w treści lub po autorze..." maxlength="100">
+  <button type="submit" class="btn gv-btn-primary"><i class="bi bi-search"></i> Szukaj</button>
+</form>
+<p class="gv-admin-count"><%= total %> <%= total === 1 ? 'komentarz' : 'komentarzy' %></p>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr><th>Autor</th><th>Komentarz</th><th>Data</th><th>Recenzja</th><th>Akcje</th></tr>
+    </thead>
+    <tbody>
+      <% comments.forEach(function(c) { %>
+        <tr>
+          <td><a href="/<%= encodeURIComponent(c.username) %>"><%= c.username %></a></td>
+          <td class="gv-cell-text"><%= c.text.length > 160 ? c.text.slice(0, 160) + '…' : c.text %></td>
+          <td><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></td>
+          <td>
+            <% if (c.gameId) { %><a href="/games/<%= c.gameId %>#review-<%= c.reviewId %>">Otwórz <i class="bi bi-arrow-right"></i></a><% } else { %><span class="gv-muted">usunięta</span><% } %>
+          </td>
+          <td>
+            <form method="POST" action="/admin/comments/<%= c.id %>/delete" onsubmit="return confirm('Usunąć ten komentarz?');">
+              <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (comments.length === 0) { %>
+        <tr><td colspan="5" class="gv-admin-empty">Brak komentarzy.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pager', { pager }) %>
+
+<%- include('partials/bottom') %>

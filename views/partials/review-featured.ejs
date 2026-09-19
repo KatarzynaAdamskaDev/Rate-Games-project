@@ -1,0 +1,37 @@
+<%
+// Karta "Najlepsza recenzja tygodnia". Użycie: include('partials/review-featured', { review })
+const __game = review.game;
+%>
+<div class="gv-featured-card">
+  <% if (__game) { %>
+    <a href="/games/<%= __game.id %>" class="gv-featured-cover-link"><img src="<%= __game.coverImage %>" alt="<%= __game.title %>" class="gv-featured-cover" /></a>
+  <% } else { %>
+    <img src="/images/game-placeholder.svg" alt="" class="gv-featured-cover" />
+  <% } %>
+  <div class="gv-featured-body">
+    <div class="gv-featured-eyebrow"><i class="bi bi-stars"></i> Najlepsza recenzja tygodnia</div>
+    <div class="gv-review-top" style="margin-bottom:6px;">
+      <% if (__game) { %>
+        <a href="/games/<%= __game.id %>" class="gv-featured-game"><%= __game.title %></a>
+      <% } else { %>
+        <span class="gv-featured-game">Gra niedostępna</span>
+      <% } %>
+      <span class="gv-review-rating-badge"><%- include('star-rating-solid', { rating: review.rating }) %></span>
+    </div>
+    <p class="gv-featured-text">„<%= review.text.length > 320 ? review.text.slice(0, 320) + '…' : review.text %>”</p>
+    <div class="gv-featured-meta">
+      <span class="gv-review-byline">Review by:
+        <a href="/<%= encodeURIComponent(review.username) %>" class="gv-byline-link">
+          <% if (review.author.avatarUrl) { %><img src="<%= review.author.avatarUrl %>" alt="" class="gv-byline-avatar"><% } else { %><span class="gv-byline-avatar"></span><% } %>
+          <span class="gv-byline-name"><%= review.username %></span>
+        </a>
+        <small class="gv-featured-level">POZ. <%= review.author.level %></small>
+      </span>
+      <span><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
+    </div>
+    <%- include('review-actions', { review, openHref: __game ? '/games/' + __game.id + '#review-' + review.id : null }) %>
+    <% if (!review.fromThisWeek) { %>
+      <p class="gv-featured-note">W tym tygodniu nie pojawiły się jeszcze nowe recenzje, więc pokazujemy najlepszą z dotychczasowych.</p>
+    <% } %>
+  </div>
+</div>

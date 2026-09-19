@@ -16,9 +16,14 @@ const {
 } = require('../utils/userHelpers');
 const { sendPasswordResetEmail } = require('../utils/mailer');
 const { isReservedUsername } = require('../utils/reservedUsernames');
+const { moderateName } = require('../utils/contentFilter');
+const { limiters } = require('../middleware/rateLimit');
+const User = require('../models/User');
+const totp = require('../utils/totp');
 
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minut
+const TWO_FACTOR_PENDING_MS = 5 * 60 * 1000; // tyle czasu na wpisanie kodu 2FA
 
 /** Weryfikuje token reCAPTCHA v2 po stronie serwera. */
 async function verifyRecaptcha(token) {
@@ -49,12 +54,27 @@ function maskEmail(email) {
 
 /** Jednoznaczny komunikat w terminalu: czy krok resetowania hasła się udał. */
 function logReset(ok, message) {
-  console.log(`${ok ? '✅ [reset hasła] OK:' : '❌ [reset hasła] BŁĄD:'} ${message}`);
+  console.log(`${ok ? '[reset hasła] OK:' : '[reset hasła] BŁĄD:'} ${message}`);
 }
 
 /** Sprawdza, czy klient oczekuje odpowiedzi JSON (fetch) czy pełnej strony. */
 function wantsJsonResponse(req) {
   return req.xhr || (req.headers.accept || '').includes('application/json');
+}
+
+/** Zapisuje użytkownika w sesji (po poprawnym haśle albo po kodzie 2FA). */
+function startSession(req, user, remember) {
+  req.session.user = {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    avatarUrl: user.avatarUrl || null,
+  };
+
+  if (remember) {
+    req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+  }
 }
 
 /* ---------------------------- SIGN UP ---------------------------- */
@@ -67,7 +87,7 @@ router.get('/signup', ensureGuest, (req, res) => {
   });
 });
 
-router.post('/signup', ensureGuest, async (req, res, next) => {
+router.post('/signup', ensureGuest, limiters.signup, async (req, res, next) => {
   const wantsJson = wantsJsonResponse(req);
 
   try {
@@ -102,6 +122,9 @@ router.post('/signup', ensureGuest, async (req, res, next) => {
     }
     if (username && (await findByUsername(username))) {
       errors.push('Ta nazwa użytkownika jest już zajęta.');
+    }
+    if (username && !moderateName(username).ok) {
+      errors.push('Ta nazwa użytkownika zawiera niedozwolone słownictwo.');
     }
 
     const recaptchaOk = await verifyRecaptcha(recaptchaToken);
@@ -148,7 +171,7 @@ router.get('/signin', ensureGuest, (req, res) => {
   res.render('auth/signin', { title: 'Zaloguj się', formData: {} });
 });
 
-router.post('/signin', ensureGuest, async (req, res, next) => {
+router.post('/signin', ensureGuest, limiters.signin, limiters.signinAccount, async (req, res, next) => {
   const wantsJson = wantsJsonResponse(req);
 
   try {
@@ -171,17 +194,39 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
       });
     }
 
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      avatarUrl: user.avatarUrl || null,
-    };
-
-    if (remember) {
-      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+    if (user.isBanned) {
+      const message = user.banReason
+        ? `Twoje konto zostało zablokowane. Powód: ${user.banReason}`
+        : 'Twoje konto zostało zablokowane przez administratora.';
+      if (wantsJson) {
+        return res.status(403).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return res.status(403).render('auth/signin', {
+        title: 'Zaloguj się',
+        formData: { identifier },
+      });
     }
+
+    // Administrator z włączonym 2FA: hasło to dopiero pierwszy krok - sesji jeszcze nie zakładamy.
+    if (user.role === 'admin' && user.twoFactorEnabled) {
+      req.session.pendingTwoFactor = {
+        userId: user.id,
+        remember: !!remember,
+        expiresAt: Date.now() + TWO_FACTOR_PENDING_MS,
+      };
+      if (wantsJson) {
+        return res.json({
+          success: true,
+          twoFactor: true,
+          message: 'Podaj kod z aplikacji uwierzytelniającej.',
+        });
+      }
+      // Okno z kodem otwiera się samo na stronie głównej (pendingTwoFactor).
+      return res.redirect('/');
+    }
+
+    startSession(req, user, remember);
 
     if (wantsJson) {
       return res.json({
@@ -201,6 +246,72 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
   }
 });
 
+/* ------------------- DRUGI KROK LOGOWANIA: KOD 2FA (ADMIN) ------------------- */
+
+function getPendingTwoFactor(req) {
+  const pending = req.session.pendingTwoFactor;
+  if (!pending || pending.expiresAt < Date.now()) {
+    delete req.session.pendingTwoFactor;
+    return null;
+  }
+  return pending;
+}
+
+// Kod 2FA wpisuje się w oknie modalnym (partials/two-factor-modal.ejs), więc osobnej strony nie ma.
+router.get('/2fa', (req, res) => res.redirect('/'));
+
+router.post('/2fa/cancel', (req, res) => {
+  delete req.session.pendingTwoFactor;
+  if (wantsJsonResponse(req)) return res.json({ success: true });
+  res.redirect('/');
+});
+
+router.post('/2fa', ensureGuest, limiters.twoFactor, async (req, res, next) => {
+  const wantsJson = wantsJsonResponse(req);
+
+  function fail(status, message, closeModal = false) {
+    if (closeModal) delete req.session.pendingTwoFactor;
+    if (wantsJson) return res.status(status).json({ success: false, message });
+    req.flash('error', message);
+    return res.redirect('/');
+  }
+
+  try {
+    const pending = getPendingTwoFactor(req);
+    if (!pending) return fail(400, 'Sesja logowania wygasła. Zaloguj się ponownie.', true);
+
+    const user = await User.findByPk(pending.userId);
+    if (!user || user.isBanned || !user.twoFactorEnabled) {
+      return fail(400, 'Nie można dokończyć logowania.', true);
+    }
+
+    const code = String((req.body && req.body.code) || '').trim();
+    let ok = totp.verifyCode(user.twoFactorSecret, code, `login:${user.id}`);
+
+    if (!ok) {
+      // Kod awaryjny (jednorazowy) zamiast kodu z aplikacji.
+      const remaining = totp.consumeRecoveryCode(user.twoFactorRecovery, code);
+      if (remaining) {
+        await user.update({ twoFactorRecovery: JSON.stringify(remaining) });
+        ok = true;
+      }
+    }
+
+    if (!ok) return fail(400, 'Nieprawidłowy kod. Spróbuj ponownie.');
+
+    delete req.session.pendingTwoFactor;
+    startSession(req, user.get({ plain: true }), pending.remember);
+
+    if (wantsJson) {
+      return res.json({ success: true, message: `Witaj ponownie, ${user.username}!` });
+    }
+    req.flash('success', `Witaj ponownie, ${user.username}!`);
+    res.redirect('/');
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.redirect('/');
@@ -213,7 +324,7 @@ router.get('/reset-password', (req, res) => {
   res.render('auth/reset-password', { title: 'Zresetuj hasło' });
 });
 
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', limiters.passwordReset, async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { email } = req.body;
 

@@ -2,40 +2,95 @@
 <html lang="pl">
 <head>
   <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
 </head>
 <body>
   <%- include('../partials/navbar') %>
   <%- include('../partials/flash') %>
 
+  <%
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    const fmtDate = function(iso) { return new Date(iso).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }); };
+  %>
+
   <section class="gv-section">
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="gv-page-title">Blog</h1>
-        <% if (currentUser && currentUser.role === 'admin') { %>
-          <a href="/blog/new" class="btn gv-btn-primary">Nowy wpis</a>
+    <div class="wrap">
+      <div class="gv-blog-head">
+        <div>
+          <h1 class="gv-page-title">Blog</h1>
+          <p class="gv-blog-sub">Aktualności, poradniki i zestawienia od redakcji GameVerse.</p>
+        </div>
+        <% if (isAdmin) { %>
+          <a href="/blog/new" class="btn gv-btn-primary"><i class="bi bi-plus-lg"></i> Nowy wpis</a>
         <% } %>
       </div>
 
-      <% if (posts.length === 0) { %>
-        <p class="gv-empty-state">Brak wpisów na blogu.</p>
-      <% } else { %>
-        <div class="row g-4">
-          <% posts.forEach(function(post) { %>
-            <div class="col-12 col-md-6 col-lg-4">
-              <a href="/blog/<%= post.id %>" class="gv-blog-card d-block text-decoration-none h-100">
-                <img src="<%= post.coverImage %>" alt="<%= post.title %>" class="gv-blog-card-img" />
-                <div class="gv-blog-card-body">
-                  <h3 class="gv-blog-card-title"><%= post.title %></h3>
-                  <p class="gv-blog-card-excerpt"><%= post.excerpt %></p>
-                  <small class="gv-review-date">
-                    <%= post.author %> · <%= new Date(post.createdAt).toLocaleDateString('pl-PL') %>
-                  </small>
-                </div>
-              </a>
+      <% if (categories.length > 1) { %>
+        <nav class="gv-blog-filters" aria-label="Kategorie bloga">
+          <a href="/blog" class="gv-blog-chip <%= !category ? 'active' : '' %>">Wszystkie <span><%= total %></span></a>
+          <% categories.forEach(function(name) { %>
+            <a href="/blog?category=<%= encodeURIComponent(name) %>" class="gv-blog-chip <%= category === name ? 'active' : '' %>"><%= name %> <span><%= counts[name] %></span></a>
+          <% }) %>
+        </nav>
+      <% } %>
+
+      <% if (!featured && posts.length === 0) { %>
+        <p class="gv-empty-state">Brak wpisów w tej kategorii.</p>
+      <% } %>
+
+      <% if (featured) { %>
+        <article class="gv-blog-featured">
+          <a href="/blog/<%= featured.id %>" class="gv-blog-featured-img" tabindex="-1" aria-hidden="true">
+            <img src="<%= featured.coverImage %>" alt="">
+          </a>
+          <div class="gv-blog-featured-body">
+            <div class="gv-blog-meta">
+              <span class="gv-blog-badge"><%= featured.category %></span>
+              <span>Najnowszy wpis</span>
             </div>
+            <h2 class="gv-blog-featured-title"><a href="/blog/<%= featured.id %>"><%= featured.title %></a></h2>
+            <p class="gv-blog-featured-excerpt"><%= featured.excerpt %></p>
+            <div class="gv-blog-foot">
+              <span><i class="bi bi-person-fill"></i> <%= featured.author %></span>
+              <span><i class="bi bi-calendar3"></i> <%= fmtDate(featured.createdAt) %></span>
+              <span><i class="bi bi-clock"></i> <%= featured.readMinutes %> min czytania</span>
+            </div>
+            <div class="gv-blog-featured-actions">
+              <a href="/blog/<%= featured.id %>" class="btn gv-btn-success">Czytaj dalej <i class="bi bi-arrow-right"></i></a>
+              <% if (isAdmin) { %><a href="/blog/<%= featured.id %>/edit" class="gv-btn-ghost"><i class="bi bi-pencil-fill"></i> Edytuj</a><% } %>
+            </div>
+          </div>
+        </article>
+      <% } %>
+
+      <% if (posts.length > 0) { %>
+        <div class="gv-blog-grid">
+          <% posts.forEach(function(post) { %>
+            <article class="gv-blog-tile">
+              <a href="/blog/<%= post.id %>" class="gv-blog-tile-img" tabindex="-1" aria-hidden="true">
+                <img src="<%= post.coverImage %>" alt="" loading="lazy">
+              </a>
+              <div class="gv-blog-tile-body">
+                <div class="gv-blog-meta">
+                  <span class="gv-blog-badge"><%= post.category %></span>
+                  <span><%= fmtDate(post.createdAt) %></span>
+                </div>
+                <h3 class="gv-blog-tile-title"><a href="/blog/<%= post.id %>"><%= post.title %></a></h3>
+                <p class="gv-blog-tile-excerpt"><%= post.excerpt %></p>
+                <div class="gv-blog-foot">
+                  <span><%= post.author %></span>
+                  <span><i class="bi bi-clock"></i> <%= post.readMinutes %> min</span>
+                </div>
+              </div>
+              <% if (isAdmin) { %>
+                <a href="/blog/<%= post.id %>/edit" class="gv-blog-tile-edit" title="Edytuj wpis" aria-label="Edytuj wpis"><i class="bi bi-pencil-fill"></i></a>
+              <% } %>
+            </article>
           <% }) %>
         </div>
       <% } %>
+
+      <%- include('../partials/pager', { pager }) %>
     </div>
   </section>
 

@@ -1,0 +1,46 @@
+<%- include('partials/top') %>
+
+<div class="gv-admin-card">
+  <h2><i class="bi bi-filetype-csv"></i> Eksport do CSV</h2>
+  <p class="gv-admin-note">
+    Pliki otwierają się w Excelu i Arkuszach Google (separator: średnik, kodowanie UTF-8).
+    Eksport użytkowników zawiera adresy e-mail - dane osobowe, więc nie udostępniaj pliku osobom postronnym.
+    Każde pobranie zapisuje się w dzienniku działań.
+  </p>
+  <div class="gv-data-grid">
+    <% exportsList.forEach(function(item) { %>
+      <a href="/admin/export/<%= item.key %>.csv" class="gv-data-item">
+        <i class="bi bi-download"></i>
+        <span>
+          <b><%= item.label %></b>
+          <small><%= item.description %></small>
+        </span>
+      </a>
+    <% }) %>
+  </div>
+</div>
+
+<div class="gv-admin-card">
+  <h2><i class="bi bi-hdd-fill"></i> Kopia zapasowa bazy</h2>
+  <p class="gv-admin-note">
+    Kopia zawiera wszystkie tabele (użytkownicy, recenzje, komentarze, czat, powiadomienia, ustawienia) oraz wpisy bloga.
+    W kopii JSON nie ma tokenów resetu haseł ani sekretów 2FA, ale są hashe haseł - przechowuj plik w bezpiecznym miejscu.
+  </p>
+  <div class="gv-data-actions">
+    <form method="POST" action="/admin/backup/json">
+      <button type="submit" class="btn gv-btn-success"><i class="bi bi-file-earmark-code-fill"></i> Pobierz kopię JSON</button>
+    </form>
+    <% if (canBackupSqlite) { %>
+      <form method="POST" action="/admin/backup/sqlite">
+        <button type="submit" class="btn gv-btn-primary"><i class="bi bi-database-down"></i> Pobierz plik bazy SQLite</button>
+      </form>
+    <% } %>
+  </div>
+  <% if (!canBackupSqlite) { %>
+    <p class="gv-admin-empty" style="margin-top:12px;">
+      Kopia pliku bazy jest dostępna tylko lokalnie (SQLite). Na produkcji z Azure SQL korzystaj z kopii JSON oraz z automatycznych kopii zapasowych Azure.
+    </p>
+  <% } %>
+</div>
+
+<%- include('partials/bottom') %>

@@ -1,49 +1,25 @@
 const express = require('express');
 const router = express.Router();
 
-const { getGenres } = require('../utils/igdbService');
-const {
-  listGames,
-  findGenre,
-  availableYears,
-  buildPagerLinks,
-} = require('../utils/gameListing');
+const { findGenre } = require('../utils/gameListing');
 
-/* Kategorie to gatunki pobierane z IGDB - lista aktualizuje się sama. */
-async function renderCategoryPage(req, res, genre) {
-  const { platform, year, sort, page } = req.query;
-
-  const result = await listGames({ genre, platform, year, sort, page });
-
-  res.render('category', {
-    title: genre ? `Kategoria: ${genre.name}` : 'Kategorie',
-    categories: await getGenres(),
-    selectedCategory: genre ? genre.slug : null,
-    selectedCategoryName: genre ? genre.name : null,
-    selectedPlatform: platform || null,
-    selectedYear: year || null,
-    availableYears: availableYears(),
-    activeSort: result.sort,
-    pager: buildPagerLinks(req, result.page, result.hasNext),
-    games: result.games,
-  });
-}
-
-/* Wszystkie gry (najpopularniejsze) z opcjonalnymi filtrami */
-router.get('/', async (req, res, next) => {
+// Osobna strona kategorii została zastąpiona filtrami na stronie /games.
+// Stare linki (/category, /category/:nazwa?platform=...) przekierowują tam.
+router.get(['/', '/:name'], async (req, res, next) => {
   try {
-    await renderCategoryPage(req, res, null);
-  } catch (err) {
-    next(err);
-  }
-});
+    const params = new URLSearchParams();
 
-/* Gry w danej kategorii (slug gatunku IGDB, np. /category/shooter) */
-router.get('/:name', async (req, res, next) => {
-  try {
-    const genre = await findGenre(req.params.name);
-    if (!genre) return next();
-    await renderCategoryPage(req, res, genre);
+    if (req.params.name) {
+      const genre = await findGenre(req.params.name);
+      if (!genre) return next();
+      params.set('category', genre.slug);
+    }
+    ['platform', 'year', 'sort'].forEach((key) => {
+      if (req.query[key]) params.set(key, req.query[key]);
+    });
+
+    const qs = params.toString();
+    res.redirect(301, `/games${qs ? `?${qs}` : ''}`);
   } catch (err) {
     next(err);
   }

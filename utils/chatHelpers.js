@@ -1,6 +1,8 @@
+const { Op } = require('sequelize');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
-const { getGameById } = require('./gameHelpers');
+const ConversationRead = require('../models/ConversationRead');
+const { getGameById } = require('./gameCatalog');
 
 /** Zamienia instancję Sequelize na zwykły obiekt, parsując pola JSON. */
 function serializeConversation(instance) {
@@ -78,7 +80,7 @@ async function createGroup({ name, ownerId, ownerUsername, members }) {
 
 /** Zwraca (lub tworzy) pokój dyskusyjny przypisany do konkretnej gry. */
 async function getOrCreateGameRoom(gameId, userId, username) {
-  const game = getGameById(gameId);
+  const game = await getGameById(gameId);
   if (!game) return null;
 
   let instance = await Conversation.findOne({
@@ -123,6 +125,7 @@ async function clearMessages(conversationId) {
 /** Usuwa całą rozmowę razem z jej wiadomościami. */
 async function deleteConversation(conversationId) {
   await Message.destroy({ where: { conversationId } });
+  await ConversationRead.destroy({ where: { conversationId } });
   const count = await Conversation.destroy({ where: { id: conversationId } });
   return count > 0;
 }
@@ -164,6 +167,71 @@ async function removeUserFromConversations(userId) {
     { senderUsername: DELETED_USER_LABEL },
     { where: { senderId: userId } }
   );
+  await ConversationRead.destroy({ where: { userId } });
+}
+
+/* ------------------------- NIEPRZECZYTANE WIADOMOŚCI ------------------------- */
+
+/** Zapamiętuje, że użytkownik przeczytał rozmowę (do tej chwili). */
+async function markConversationRead(userId, conversationId) {
+  const now = new Date();
+  const [row, created] = await ConversationRead.findOrCreate({
+    where: { userId, conversationId },
+    defaults: { lastReadAt: now },
+  });
+  if (!created) {
+    row.lastReadAt = now;
+    await row.save();
+  }
+}
+
+/**
+ * Liczba nieprzeczytanych wiadomości (cudzych, nowszych niż ostatni odczyt):
+ * łącznie i w podziale na rozmowy. Rozmowa bez wpisu odczytu liczy się od jej utworzenia.
+ */
+async function getUnreadCounts(userId) {
+  const conversations = await getConversationsForUser(userId);
+  const reads = await ConversationRead.findAll({ where: { userId } });
+  const lastRead = new Map(reads.map((r) => [r.conversationId, r.lastReadAt]));
+
+  const byConversation = {};
+  let total = 0;
+
+  for (const conv of conversations) {
+    const since = lastRead.get(conv.id) || conv.createdAt;
+    const count = await Message.count({
+      where: {
+        conversationId: conv.id,
+        senderId: { [Op.ne]: userId },
+        createdAt: { [Op.gt]: since },
+      },
+    });
+    if (count > 0) {
+      byConversation[conv.id] = count;
+      total += count;
+    }
+  }
+
+  return { total, byConversation };
+}
+
+/**
+ * Jednorazowe uzupełnienie przy starcie: istniejące rozmowy uznajemy za przeczytane,
+ * żeby po wdrożeniu licznika cała historia nie świeciła się jako nowa.
+ */
+async function seedConversationReads() {
+  const conversations = (await Conversation.findAll()).map(serializeConversation);
+  const existing = new Set(
+    (await ConversationRead.findAll()).map((r) => `${r.userId}:${r.conversationId}`)
+  );
+  const now = new Date();
+
+  for (const conv of conversations) {
+    for (const userId of conv.memberIds) {
+      if (existing.has(`${userId}:${conv.id}`)) continue;
+      await ConversationRead.create({ userId, conversationId: conv.id, lastReadAt: now });
+    }
+  }
 }
 
 /* ----------------------------- WIADOMOŚCI ----------------------------- */
@@ -176,6 +244,15 @@ async function getMessages(conversationId) {
       senderDeleted: m.senderUsername === DELETED_USER_LABEL,
     }))
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+
+/** Ostatnia wiadomość rozmowy (do podglądu na liście mini czatu). */
+async function getLastMessage(conversationId) {
+  const row = await Message.findOne({
+    where: { conversationId },
+    order: [['createdAt', 'DESC']],
+  });
+  return row ? row.get({ plain: true }) : null;
 }
 
 async function getMessagesAfter(conversationId, afterIso) {
@@ -204,10 +281,14 @@ module.exports = {
   createGroup,
   getOrCreateGameRoom,
   getMessages,
+  getLastMessage,
   getMessagesAfter,
   addMessage,
   clearMessages,
   deleteConversation,
   removeUserFromConversations,
+  markConversationRead,
+  getUnreadCounts,
+  seedConversationReads,
   DELETED_USER_LABEL,
 };

@@ -20,9 +20,11 @@
       <!-- Główne menu z dynamiczną klasą .active -->
       <nav class="main-nav" id="mainNav">
         <a href="/games" class="<%= path.startsWith('/games') ? 'active' : '' %>">GAMES</a>
-        <a href="/category" class="<%= path.startsWith('/category') ? 'active' : '' %>">CATEGORIES</a>
         <a href="/reviews" class="<%= path.startsWith('/reviews') ? 'active' : '' %>">REVIEWS</a>
         <a href="/blog" class="<%= path.startsWith('/blog') ? 'active' : '' %>">BLOG</a>
+        <% if (user && user.role === 'admin') { %>
+          <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">ADMIN</a>
+        <% } %>
       </nav>
 
       <!-- Wyszukiwarka -->
@@ -43,17 +45,51 @@
       <!-- Akcje użytkownika / Logowanie -->
       <div class="nav-actions">
         <% if (user) { %>
+          <!-- Mini czat (rozwijane okienko z licznikiem nieprzeczytanych) -->
+          <div class="nav-pop" id="navChat" data-me="<%= user.id %>">
+            <button type="button" class="icon-btn" id="navChatBtn" title="Czat" aria-label="Czat" aria-expanded="false">
+              <i class="bi bi-chat-dots"></i><span class="nav-badge d-none" id="navChatBadge"></span>
+            </button>
+            <div class="nav-panel nav-chat-panel" id="navChatPanel">
+              <div class="nav-panel-head">
+                <button type="button" class="nav-chat-back d-none" id="navChatBack" aria-label="Wróć do listy rozmów"><i class="bi bi-arrow-left"></i></button>
+                <b id="navChatTitle">Czat</b>
+                <a href="/chat" class="nav-panel-link" id="navChatFull">Pełny czat <i class="bi bi-box-arrow-up-right"></i></a>
+              </div>
+              <div class="nav-chat-list" id="navChatList"></div>
+              <div class="nav-chat-view d-none" id="navChatView">
+                <div class="nav-chat-messages" id="navChatMessages"></div>
+                <form class="nav-chat-form" id="navChatForm">
+                  <input type="text" maxlength="1000" autocomplete="off" placeholder="Napisz wiadomość..." aria-label="Wiadomość">
+                  <button type="submit" class="nav-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Powiadomienia -->
+          <div class="nav-pop" id="navNotif">
+            <button type="button" class="icon-btn" id="navBellBtn" title="Powiadomienia" aria-label="Powiadomienia" aria-expanded="false">
+              <i class="bi bi-bell"></i><span class="nav-badge d-none" id="navBellBadge"></span>
+            </button>
+            <div class="nav-panel nav-notif-panel" id="navNotifPanel">
+              <div class="nav-panel-head">
+                <b>Powiadomienia</b>
+                <button type="button" class="nav-panel-link" id="navNotifReadAll">Oznacz jako przeczytane</button>
+              </div>
+              <div class="nav-notif-list" id="navNotifList"></div>
+            </div>
+          </div>
+
           <!-- Panel zalogowanego użytkownika: awatar (zdjęcie profilowe lub gradient) -->
           <a href="/profile" class="avatar" title="<%= user.username %>">
             <% if (user.avatarUrl) { %><img src="<%= user.avatarUrl %>" alt="<%= user.username %>"><% } %>
           </a>
-          
-          <% if (user.role === 'admin') { %>
-            <a href="/games/new" class="icon-btn" title="Dodaj grę">+</a>
-          <% } %>
 
-          <form action="/auth/logout" method="POST" style="display: inline;">
-            <button type="submit" class="btn-ghost" style="padding: 8px 12px; font-size: 12px;">Wyloguj</button>
+          <form action="/auth/logout" method="POST" class="nav-logout-form">
+            <button type="submit" class="icon-btn icon-btn-danger" title="Wyloguj" aria-label="Wyloguj">
+              <i class="bi bi-box-arrow-right"></i>
+            </button>
           </form>
         <% } else { %>
           <!-- Przycisk dla niezalogowanych -->
@@ -71,10 +107,23 @@
   </div>
 </header>
 
+<% if (typeof announcement !== 'undefined' && announcement) { %>
+  <div class="gv-announcement gv-announcement-<%= announcement.type %>" role="status">
+    <div class="wrap">
+      <i class="bi <%= announcement.type === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-megaphone-fill' %>"></i>
+      <span><%= announcement.text %></span>
+    </div>
+  </div>
+<% } %>
+
+<% if (user) { %>
+<script src="/js/navbar-popups.js" defer></script>
+<% } %>
+
 <script>
   const hamburger = document.getElementById('hamburgerMenu');
   const mainNav = document.getElementById('mainNav');
-  
+
   if (hamburger) {
     hamburger.addEventListener('click', function() {
       hamburger.classList.toggle('active');

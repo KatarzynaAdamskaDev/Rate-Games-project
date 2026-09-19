@@ -17,3 +17,4 @@ yarn-error.log*
 Thumbs.db
 
 public/images/avatars/
+public/images/blog/uploads/

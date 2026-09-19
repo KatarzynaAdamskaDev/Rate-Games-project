@@ -18,7 +18,7 @@
 
           <form action="/chat/start/placeholder" method="POST" id="startDmForm" class="gv-chat-mini-form">
             <input type="text" id="dmUsername" name="dmUsername" list="userList" placeholder="Napisz do gracza..." autocomplete="off">
-            <button type="submit">➤</button>
+            <button type="submit" aria-label="Rozpocznij rozmowę"><i class="bi bi-send-fill"></i></button>
           </form>
           <p class="gv-group-hint mb-2">Możesz pisać prywatnie tylko do wzajemnych znajomych.</p>
           <datalist id="userList">
@@ -37,6 +37,7 @@
             <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
               <div class="gv-c-avatar"></div>
               <div><b><%= c.displayName %></b><span>Rozmowa prywatna</span></div>
+              <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
             </a>
           <% }) %>
           <% if (conversations.filter(function(c){return c.type === 'dm';}).length === 0) { %>
@@ -48,6 +49,7 @@
             <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
               <div class="gv-c-avatar"></div>
               <div><b><%= c.displayName %></b><span><%= c.memberIds.length %> członków</span></div>
+              <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
             </a>
           <% }) %>
           <button type="button" class="gv-btn-outline w-100 mt-2 mb-1" data-bs-toggle="collapse" data-bs-target="#newGroupForm">+ Nowa grupa</button>
@@ -160,6 +162,7 @@
               <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
                 <div class="gv-c-avatar"></div>
                 <div><b><%= c.displayName %></b><span><%= c.memberIds.length %> graczy</span></div>
+                <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
               </a>
             <% }) %>
             <% if (popularGames.length) { %>
@@ -205,10 +208,10 @@
               </div>
               <div class="gv-chat-topbar-actions">
                 <form action="/chat/<%= active.id %>/clear" method="POST" onsubmit="return confirm('Wyczyścić wszystkie wiadomości w tej rozmowie?');">
-                  <button type="submit" class="gv-chat-action-btn" title="Wyczyść czat">🧹</button>
+                  <button type="submit" class="gv-chat-action-btn" title="Wyczyść czat" aria-label="Wyczyść czat"><i class="bi bi-eraser-fill"></i></button>
                 </form>
                 <form action="/chat/<%= active.id %>/delete" method="POST" onsubmit="return confirm('Usunąć tę rozmowę na stałe? Tej operacji nie można cofnąć.');">
-                  <button type="submit" class="gv-chat-action-btn" title="Usuń czat">🗑️</button>
+                  <button type="submit" class="gv-chat-action-btn" title="Usuń czat" aria-label="Usuń czat"><i class="bi bi-trash3-fill"></i></button>
                 </form>
               </div>
             </div>
@@ -227,7 +230,7 @@
 
             <form class="gv-chat-input-row" id="chatForm">
               <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
-              <button type="submit" class="gv-chat-send">➤</button>
+              <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
             </form>
           <% } %>
         </div>
@@ -308,6 +311,10 @@
             if (data.message) {
               appendMessage(data.message);
               lastTimestamp = data.message.createdAt;
+            } else if (data.error) {
+              // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
+              if (window.showToast) showToast(data.error, false);
+              input.value = text;
             }
           })
           .finally(function () {

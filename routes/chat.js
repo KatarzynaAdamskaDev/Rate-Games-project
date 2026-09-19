@@ -9,15 +9,20 @@ const {
   getOrCreateDM,
   createGroup,
   getOrCreateGameRoom,
+  markConversationRead,
+  getUnreadCounts,
   getMessages,
+  getLastMessage,
   getMessagesAfter,
   addMessage,
   clearMessages,
   deleteConversation,
 } = require('../utils/chatHelpers');
 const { findByUsername, findById, getAllUsers } = require('../utils/userHelpers');
-const { getAllGames } = require('../utils/gameHelpers');
+const { getPopularGames } = require('../utils/igdbService');
 const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
+const { moderateText, moderateName } = require('../utils/contentFilter');
+const { limiters } = require('../middleware/rateLimit');
 
 // Cały czat wymaga zalogowania.
 router.use(ensureAuthenticated);
@@ -42,6 +47,13 @@ router.get('/', async (req, res) => {
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
   const messages = canSeeActive ? await getMessages(active.id) : [];
 
+  // Liczniki nieprzeczytanych liczymy przed oznaczeniem aktywnej rozmowy jako przeczytanej.
+  const unread = await getUnreadCounts(me.id);
+  if (canSeeActive) {
+    await markConversationRead(me.id, active.id);
+    delete unread.byConversation[active.id];
+  }
+
   const allUsers = await getAllUsers();
   const mutualIds = new Set(await getMutualFriends(me.id));
 
@@ -50,11 +62,53 @@ router.get('/', async (req, res) => {
     conversations,
     active: canSeeActive ? active : null,
     messages,
+    unreadByConversation: unread.byConversation,
     otherUsers: allUsers
       .filter((u) => u.id !== me.id && mutualIds.has(u.id))
       .map((u) => u.username),
-    popularGames: getAllGames().slice(0, 20),
+    popularGames: await getPopularGames(20),
   });
+});
+
+/* -------------------- LISTA ROZMÓW DLA MINI CZATU (JSON) -------------------- */
+
+router.get('/api/list', async (req, res, next) => {
+  try {
+    const me = req.session.user;
+    const [conversations, unread] = await Promise.all([
+      getConversationsForUser(me.id),
+      getUnreadCounts(me.id),
+    ]);
+
+    const items = await Promise.all(
+      conversations.slice(0, 30).map(async (c) => {
+        let name = c.name;
+        if (c.type === 'dm') {
+          const otherId = c.memberIds.find((id) => id !== me.id);
+          name = (otherId && c.memberNames[otherId]) || 'Rozmowa';
+        }
+        const last = await getLastMessage(c.id);
+        return {
+          id: c.id,
+          type: c.type,
+          name,
+          unread: unread.byConversation[c.id] || 0,
+          lastMessage: last
+            ? {
+                text: last.text.slice(0, 80),
+                senderUsername: last.senderUsername,
+                mine: last.senderId === me.id,
+                createdAt: last.createdAt,
+              }
+            : null,
+        };
+      })
+    );
+
+    res.json({ conversations: items });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ------------------- WYSZUKIWANIE ZNAJOMYCH (do grupy) ------------------- */
@@ -76,7 +130,7 @@ router.get('/friends-search', async (req, res) => {
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
 
-router.post('/start/:username', async (req, res) => {
+router.post('/start/:username', limiters.chatCreate, async (req, res) => {
   const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika o takiej nazwie.');
@@ -106,7 +160,7 @@ router.post('/start/:username', async (req, res) => {
 
 /* ------------------------------ GRUPY ------------------------------ */
 
-router.post('/groups/new', async (req, res) => {
+router.post('/groups/new', limiters.chatCreate, async (req, res) => {
   const { name } = req.body;
   let memberIds = req.body.memberIds || [];
   if (!Array.isArray(memberIds)) memberIds = [memberIds];
@@ -114,6 +168,11 @@ router.post('/groups/new', async (req, res) => {
 
   if (!name || !name.trim()) {
     req.flash('error', 'Podaj nazwę grupy.');
+    return res.redirect('/chat');
+  }
+  const nameCheck = moderateName(name);
+  if (!nameCheck.ok) {
+    req.flash('error', nameCheck.error);
     return res.redirect('/chat');
   }
   if (memberIds.length === 0) {
@@ -200,10 +259,13 @@ router.get('/:conversationId/messages', async (req, res) => {
     ? await getMessagesAfter(conversationId, req.query.after)
     : await getMessages(conversationId);
 
+  // Okno rozmowy jest otwarte, więc wszystko, co przyszło, jest już widoczne.
+  await markConversationRead(req.session.user.id, conversationId);
+
   res.json({ messages });
 });
 
-router.post('/:conversationId/messages', async (req, res) => {
+router.post('/:conversationId/messages', limiters.chatMessage, async (req, res) => {
   const { conversationId } = req.params;
 
   if (!(await canAccessConversation(req.session.user.id, conversationId))) {
@@ -215,12 +277,18 @@ router.post('/:conversationId/messages', async (req, res) => {
     return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
   }
 
+  const checked = moderateText(text.slice(0, 1000), { userId: req.session.user.id });
+  if (!checked.ok) {
+    return res.status(400).json({ error: checked.error });
+  }
+
   const message = await addMessage({
     conversationId,
     senderId: req.session.user.id,
     senderUsername: req.session.user.username,
-    text: text.slice(0, 1000),
+    text: checked.text,
   });
+  await markConversationRead(req.session.user.id, conversationId);
 
   res.json({ message });
 });

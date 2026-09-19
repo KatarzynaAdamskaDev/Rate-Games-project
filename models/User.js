@@ -57,6 +57,53 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: 'bg-default',
     },
+    // Odznaka wyświetlana jako trofeum w banerze profilu (id odznaki; null = domyślne).
+    activeTrophy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // Administrator odblokował temu użytkownikowi wszystkie ramki, tła i odznaki.
+    unlockAll: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    // Ustawienia powiadomień jako JSON (tylko odstępstwa od domyślnych - patrz utils/notificationPrefs.js).
+    notificationPrefs: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    // Dwuetapowe logowanie (TOTP) - dostępne dla administratorów.
+    twoFactorEnabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    twoFactorSecret: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // JSON z hashami (SHA-256) jednorazowych kodów awaryjnych.
+    twoFactorRecovery: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    // Od kiedy użytkownik jest administratorem (nadane w panelu). null = konto założycielskie
+    // albo zwykły użytkownik. Potrzebne do okresu próbnego i hierarchii (utils/adminRoles.js).
+    adminSince: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Blokada konta przez administratora (panel /admin).
+    isBanned: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    banReason: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
     // Punkty doświadczenia (PD) i poziom - przechowywane w bazie, a
     // aktualizowane przy każdej zmianie aktywności (utils/progressHelpers.js).
     points: {

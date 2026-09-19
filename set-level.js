@@ -10,12 +10,9 @@
  */
 require('dotenv').config();
 const { sequelize } = require('./config/database');
-const User = require('./models/User');
-const Review = require('./models/Review');
 const { findByUsername } = require('./utils/userHelpers');
 const { addMissingColumns } = require('./utils/schemaHelpers');
-const { syncUserProgress } = require('./utils/progressHelpers');
-const { POINTS_PER_REVIEW, POINTS_PER_LEVEL } = require('./utils/pointsHelpers');
+const { setUserLevel } = require('./utils/progressHelpers');
 
 async function main() {
   const [, , username, levelArg] = process.argv;
@@ -41,16 +38,11 @@ async function main() {
     process.exit(1);
   }
 
-  const reviewCount = await Review.count({ where: { userId: user.id } });
-  const activityPoints = reviewCount * POINTS_PER_REVIEW;
-  const bonusPoints = isReset ? 0 : (level - 1) * POINTS_PER_LEVEL - activityPoints;
-
-  await User.update({ bonusPoints }, { where: { id: user.id } });
-  const result = await syncUserProgress(user.id);
+  const result = await setUserLevel(user.id, isReset ? null : level);
 
   console.log(
     `${user.username}: poziom ${result.level}, ${result.points} PD ` +
-      `(z recenzji: ${activityPoints}, bonus: ${bonusPoints}).`
+      `(z recenzji: ${result.activityPoints}, bonus: ${result.bonusPoints}).`
   );
   process.exit(0);
 }

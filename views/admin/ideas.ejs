@@ -1,0 +1,127 @@
+<%- include('partials/top') %>
+
+<div class="gv-ideas-intro">
+  <p class="gv-admin-note">
+    Propozycje kolejnych funkcji dla bezpieczeństwa i użyteczności serwisu. Zdecyduj, co przyjąć do realizacji,
+    co odłożyć, a co odrzucić - decyzje zapisują się w panelu i w dzienniku działań. Masz własny pomysł?
+    Dodaj go - pozostali administratorzy dostaną powiadomienie i go rozpatrzą.
+  </p>
+  <button type="button" class="btn gv-btn-success" data-bs-toggle="modal" data-bs-target="#ideaModal">
+    <i class="bi bi-plus-lg"></i> Dodaj propozycję
+  </button>
+</div>
+
+<div class="gv-admin-tabs gv-ideas-filters">
+  <% [['', 'Wszystkie'], ['pending', 'Czeka na decyzję'], ['security', 'Bezpieczeństwo'], ['usability', 'Użyteczność'], ['accepted', 'Przyjęte'], ['done', 'Zrealizowane'], ['later', 'Odłożone'], ['rejected', 'Odrzucone']].forEach(function(tab) { %>
+    <a href="/admin/ideas<%= tab[0] ? '?filter=' + tab[0] : '' %>" class="<%= filter === tab[0] ? 'active' : '' %>">
+      <%= tab[1] %> <small><%= counts[tab[0] || 'all'] %></small>
+    </a>
+  <% }) %>
+</div>
+
+<% if (ideas.length === 0) { %>
+  <div class="gv-admin-card"><p class="gv-admin-empty">Brak propozycji w tym widoku.</p></div>
+<% } else { %>
+  <div class="gv-ideas-grid">
+    <% ideas.forEach(function(idea) { %>
+      <article class="gv-admin-card gv-idea">
+        <div class="gv-idea-head">
+          <span class="gv-badge gv-badge-info"><i class="bi <%= areas[idea.area].icon %>"></i> <%= areas[idea.area].label %></span>
+          <% if (idea.decision) { %>
+            <span class="gv-badge <%= decisions[idea.decision].badge %>"><%= decisions[idea.decision].label %></span>
+          <% } else { %>
+            <span class="gv-badge gv-badge-warn">czeka na decyzję</span>
+          <% } %>
+        </div>
+
+        <h2><%= idea.title %></h2>
+        <p><%= idea.description %></p>
+
+        <div class="gv-idea-meta">
+          <span>Nakład pracy: <b><%= idea.effort %></b></span>
+          <span>Korzyść: <b><%= idea.impact %></b></span>
+        </div>
+
+        <% if (idea.custom) { %>
+          <div class="gv-idea-author">
+            <i class="bi bi-person-fill"></i>
+            Zaproponował(a) <b><%= idea.authorName %></b>, <%= new Date(idea.createdAt).toLocaleDateString('pl-PL') %>
+          </div>
+        <% } %>
+
+        <% if (!idea.canDecide) { %>
+          <p class="gv-idea-wait"><i class="bi bi-hourglass-split"></i> To Twoja propozycja - rozpatrują ją inni administratorzy.</p>
+        <% } else { %>
+          <form method="POST" action="/admin/ideas/<%= idea.id %>" class="gv-idea-actions">
+            <% if (idea.decision !== 'accepted') { %><button type="submit" name="decision" value="accepted" class="gv-mini-btn gv-mini-blue"><i class="bi bi-check2-circle"></i> Przyjmij</button><% } %>
+            <% if (idea.decision !== 'done') { %><button type="submit" name="decision" value="done" class="gv-mini-btn gv-mini-ok"><i class="bi bi-patch-check-fill"></i> Zrealizowane</button><% } %>
+            <% if (idea.decision !== 'later') { %><button type="submit" name="decision" value="later" class="gv-mini-btn gv-mini-warn"><i class="bi bi-clock-history"></i> Odłóż</button><% } %>
+            <% if (idea.decision !== 'rejected') { %><button type="submit" name="decision" value="rejected" class="gv-mini-btn gv-mini-danger"><i class="bi bi-x-circle"></i> Odrzuć</button><% } %>
+            <% if (idea.decision) { %><button type="submit" name="decision" value="reset" class="gv-mini-btn"><i class="bi bi-arrow-counterclockwise"></i> Cofnij decyzję</button><% } %>
+          </form>
+        <% } %>
+
+        <% if (idea.mine) { %>
+          <form method="POST" action="/admin/ideas/<%= idea.id %>/delete" onsubmit="return confirm('Usunąć swoją propozycję?');" class="gv-idea-delete">
+            <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń moją propozycję</button>
+          </form>
+        <% } %>
+      </article>
+    <% }) %>
+  </div>
+<% } %>
+
+<div class="modal fade" id="ideaModal" tabindex="-1" aria-labelledby="ideaModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content gv-modal-content">
+      <form method="POST" action="/admin/ideas">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="ideaModalLabel"><i class="bi bi-lightbulb-fill"></i> Nowa propozycja</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext">Opisz funkcję, którą warto dodać. Rozpatrzą ją pozostali administratorzy.</p>
+
+          <div class="mb-3">
+            <label class="gv-label" for="ideaTitle">Tytuł</label>
+            <input type="text" id="ideaTitle" name="title" class="form-control gv-input" minlength="5" maxlength="120" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="gv-label" for="ideaDescription">Opis - co to da i jak to mogłoby działać (min. 15 znaków)</label>
+            <textarea id="ideaDescription" name="description" rows="5" minlength="15" maxlength="800" class="form-control gv-input" required></textarea>
+          </div>
+
+          <div class="gv-idea-form-row">
+            <div>
+              <label class="gv-label" for="ideaArea">Obszar</label>
+              <select id="ideaArea" name="area" class="form-select gv-select">
+                <% Object.keys(areas).forEach(function(key) { %>
+                  <option value="<%= key %>"><%= areas[key].label %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div>
+              <label class="gv-label" for="ideaEffort">Nakład pracy</label>
+              <select id="ideaEffort" name="effort" class="form-select gv-select">
+                <% efforts.forEach(function(value) { %><option value="<%= value %>" <%= value === 'średni' ? 'selected' : '' %>><%= value %></option><% }) %>
+              </select>
+            </div>
+            <div>
+              <label class="gv-label" for="ideaImpact">Korzyść</label>
+              <select id="ideaImpact" name="impact" class="form-select gv-select">
+                <% impacts.forEach(function(value) { %><option value="<%= value %>" <%= value === 'średni' ? 'selected' : '' %>><%= value %></option><% }) %>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="submit" class="btn gv-btn-success">Dodaj propozycję</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/bottom') %>

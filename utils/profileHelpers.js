@@ -13,15 +13,24 @@ const ReviewComment = require('../models/ReviewComment');
 const ReviewReport = require('../models/ReviewReport');
 const CommentLike = require('../models/CommentLike');
 const Follow = require('../models/Follow');
-const BacklogEntry = require('../models/BacklogEntry');
 const { deleteReviewData } = require('./reviewSocialHelpers');
 const { removeUserFromConversations } = require('./chatHelpers');
+const Notification = require('../models/Notification');
+const FavoriteGame = require('../models/FavoriteGame');
 
 /** Zwraca dane użytkownika bezpieczne do wyświetlenia (bez hasha i tokenów). */
 function getUserPublic(user) {
   if (!user) return null;
-  const { passwordHash, resetPasswordToken, resetPasswordExpires, ...safe } =
-    user;
+  const {
+    passwordHash,
+    resetPasswordToken,
+    resetPasswordExpires,
+    twoFactorSecret,
+    twoFactorRecovery,
+    twoFactorEnabled,
+    notificationPrefs,
+    ...safe
+  } = user;
   return safe;
 }
 
@@ -50,15 +59,12 @@ async function updateUsername(userId, newUsername) {
 }
 
 /**
- * Usuwa konto użytkownika razem z jego danymi: recenzjami (wraz z ich
- * polubieniami, komentarzami i zgłoszeniami), własnymi polubieniami i
- * komentarzami, zgłoszeniami, obserwowaniem, backlogiem oraz czatami
- * (zob. removeUserFromConversations).
+ * Usuwa wszystkie dane użytkownika (bez samego wiersza konta): recenzje wraz z ich
+ * polubieniami, komentarzami i zgłoszeniami, własne polubienia i komentarze,
+ * zgłoszenia, obserwowanie, ulubione gry, powiadomienia oraz czaty
+ * (zob. removeUserFromConversations). Działa też dla kont, których już nie ma.
  */
-async function deleteUser(userId) {
-  const user = await User.findByPk(userId);
-  if (!user) return false;
-
+async function purgeUserData(userId) {
   const reviews = await Review.findAll({ where: { userId } });
   for (const review of reviews) {
     await deleteReviewData(review.id);
@@ -75,13 +81,22 @@ async function deleteUser(userId) {
     CommentLike.destroy({ where: { userId } }),
     ReviewReport.destroy({ where: { reporterId: userId } }),
     Follow.destroy({ where: { [Op.or]: [{ followerId: userId }, { followingId: userId }] } }),
-    BacklogEntry.destroy({ where: { userId } }),
+    FavoriteGame.destroy({ where: { userId } }),
+    Notification.destroy({ where: { [Op.or]: [{ userId }, { actorId: userId }] } }),
   ]);
 
   await removeUserFromConversations(userId);
+}
+
+/** Usuwa konto użytkownika razem z całą jego aktywnością (zob. purgeUserData). */
+async function deleteUser(userId) {
+  const user = await User.findByPk(userId);
+  if (!user) return false;
+
+  await purgeUserData(userId);
 
   const count = await User.destroy({ where: { id: userId } });
   return count > 0;
 }
 
-module.exports = { getUserPublic, updateUsername, deleteUser };
+module.exports = { getUserPublic, updateUsername, deleteUser, purgeUserData };

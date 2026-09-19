@@ -7,12 +7,13 @@ Strona z opiniami o grach - Node.js + Express + EJS + Bootstrap, dane przechowyw
 ```
 gameverse/
 ├── bin/www              # skrypt startujący serwer HTTP
-├── middleware/          # auth.js, locals.js, errorHandlers.js
+├── middleware/          # auth.js, locals.js, rateLimit.js, errorHandlers.js
 ├── public/              # CSS, JS, obrazki (pliki statyczne)
-├── routes/              # index, auth, games, category, blog, search
+├── routes/              # index, auth, games, blog, search, profile, chat, reviews, notifications, admin
 ├── views/               # szablony EJS (partials, auth, games, blog)
-├── utils/               # dostęp do danych JSON (dataStore, gameHelpers, userHelpers)
-├── data/                # users.json, games.json, reviews.json, blog.json
+├── models/              # modele Sequelize (użytkownicy, recenzje, czat, powiadomienia...)
+├── utils/               # logika aplikacji (katalog gier IGDB, statystyki, profile, czat)
+├── data/                # blog.json oraz lokalna baza SQLite (dev.sqlite3)
 ├── app.js               # konfiguracja aplikacji Express
 ├── create-admin.js      # skrypt CLI do utworzenia konta administratora
 └── package.json
@@ -31,7 +32,7 @@ cp .env.example .env
 
 Uzupełnij plik `.env`:
 
-- `SESSION_SECRET` - dowolny losowy ciąg znaków
+- `SESSION_SECRET` - długi, losowy ciąg znaków (na produkcji obowiązkowy - bez niego serwer się nie uruchomi)
 - `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - klucze wygenerowane na
   https://www.google.com/recaptcha/admin/create (typ **reCAPTCHA v2 "Checkbox"**).
   Jeśli zostawisz je puste, formularz rejestracji będzie działał, ale bez
@@ -56,15 +57,49 @@ Dodawanie gier (`/games/new`) i wpisów na blogu (`/blog/new`) wymaga roli
 node create-admin.js admin@example.com admin MojeHaslo123
 ```
 
+Administrator ma w nawigacji link **ADMIN** (`/admin`): pulpit ze statystykami,
+użytkownicy (blokady, role, poziomy, "odblokuj wszystko", reset 2FA), recenzje,
+zgłoszenia, komentarze, gry własne, blog, moderacja czatu, eksport CSV i kopie
+zapasowe bazy, dziennik działań oraz ustawienia (ogłoszenie, filtr wulgaryzmów,
+antyspam, limity zapytań, wymóg 2FA).
+
+### Nadawanie i odbieranie uprawnień administratora
+
+Zmiana roli wymaga potwierdzenia: wpisania nazwy użytkownika, własnego hasła i (przy
+włączonym 2FA) kodu. Nowy administrator ma 7 dni okresu próbnego, w którym nie zmienia
+uprawnień innym, a administrator nie może odebrać uprawnień komuś, kto jest nim dłużej
+(konta założycielskie, np. z `create-admin.js`, są najstarsze). Po 5 błędnych
+potwierdzeniach zmiany blokują się na 10 minut, a o każdej zmianie wszyscy administratorzy
+dostają powiadomienie i wpis w dzienniku.
+
+### Weryfikacja dwuetapowa (2FA) administratorów
+
+Administrator włącza 2FA w **Edytuj profil -> Konto i bezpieczeństwo** (kod QR do
+aplikacji typu Google Authenticator + jednorazowe kody awaryjne). Po włączeniu
+logowanie wymaga kodu, a w panelu **Ustawienia** można wymusić 2FA dla wszystkich
+administratorów. Zgubiony telefon: inny administrator wyłącza 2FA w
+**Użytkownicy -> Akcje**.
+
+### Limity zapytań i antyspam
+
+Limity (logowanie, rejestracja, recenzje, komentarze, czat i inne) trzymane są w
+pamięci procesu i można je wyłączyć w panelu. Za serwerem pośredniczącym
+(Azure App Service) aplikacja ufa nagłówkowi `X-Forwarded-For` tylko przy
+`NODE_ENV=production`.
+
 ## Dane
 
-Aplikacja **nie korzysta z bazy danych** - wszystkie dane (użytkownicy, gry,
-opinie, wpisy na blogu) są przechowywane w plikach JSON w katalogu `data/`.
-Pliki `games.json`, `reviews.json` i `blog.json` są wstępnie wypełnione
-przykładowymi danymi.
+Użytkownicy, recenzje, komentarze, czat, powiadomienia i pozostałe dane
+aplikacji są zapisywane w bazie danych (Sequelize): lokalnie w pliku SQLite
+`data/dev.sqlite3`, a na produkcji w Azure SQL. Brakujące tabele i kolumny są
+uzupełniane przy starcie serwera.
 
-Hasła użytkowników są hashowane przy pomocy `bcryptjs` - w plikach JSON nigdy
-nie są zapisywane jawne hasła.
+Gry pochodzą z API IGDB (wymagane `TWITCH_CLIENT_ID` i `TWITCH_CLIENT_SECRET`
+w `.env`); gry dodane ręcznie przez administratora trafiają do tabeli
+`custom_games`. Jedynie wpisy na blogu są nadal w pliku `data/blog.json`.
+
+Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
+zapisywane jawnie.
 
 ## Funkcje
 
@@ -80,6 +115,8 @@ nie są zapisywane jawne hasła.
 - Blog (lista + pojedynczy wpis)
 - Wyszukiwarka (gry + wpisy blogowe)
 - Panel dodawania gier / wpisów na blogu dla roli `admin`
+- Edycja profilu w zakładkach (ogólne, awatar, wygląd, powiadomienia, konto) z wyborem rodzajów powiadomień
+- Panel administratora `/admin` (patrz wyżej)
 
 ## Czego brakuje / co warto dodać dalej
 

@@ -1,0 +1,122 @@
+<%- include('partials/top') %>
+
+<form method="POST" action="/admin/settings/announcement" class="gv-admin-card gv-admin-form">
+  <h2><i class="bi bi-megaphone-fill"></i> Ogłoszenie na górze strony</h2>
+  <p class="gv-admin-note">Krótki komunikat widoczny dla wszystkich na każdej podstronie (np. o przerwie technicznej lub nowej funkcji).</p>
+
+  <div class="gv-admin-form-grid">
+    <div class="full">
+      <label class="gv-label" for="annText">Treść ogłoszenia (do 300 znaków)</label>
+      <textarea id="annText" name="text" rows="3" maxlength="300" class="form-control gv-input"><%= announcementForm.text %></textarea>
+    </div>
+    <div>
+      <label class="gv-label" for="annType">Rodzaj</label>
+      <select id="annType" name="type" class="form-select gv-select">
+        <option value="info" <%= announcementForm.type === 'info' ? 'selected' : '' %>>Informacja</option>
+        <option value="warning" <%= announcementForm.type === 'warning' ? 'selected' : '' %>>Ostrzeżenie</option>
+      </select>
+    </div>
+    <div class="gv-admin-check">
+      <label class="gv-check">
+        <input type="checkbox" name="enabled" value="1" <%= announcementForm.enabled ? 'checked' : '' %>>
+        <span>Wyświetlaj ogłoszenie</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="gv-admin-form-actions">
+    <button type="submit" class="btn gv-btn-success"><i class="bi bi-check-lg"></i> Zapisz</button>
+  </div>
+</form>
+
+<form method="POST" action="/admin/settings/moderation" class="gv-admin-card gv-admin-form">
+  <h2><i class="bi bi-shield-check"></i> Moderacja treści</h2>
+  <p class="gv-admin-note">
+    Dotyczy recenzji, komentarzy, wiadomości na czacie i opisów profilu. Nazwy użytkowników i grup z wulgaryzmami są zawsze odrzucane.
+  </p>
+
+  <div class="gv-admin-form-grid">
+    <div>
+      <label class="gv-label" for="profanityMode">Filtr wulgaryzmów</label>
+      <select id="profanityMode" name="profanityMode" class="form-select gv-select">
+        <option value="mask" <%= moderation.profanityMode === 'mask' ? 'selected' : '' %>>Maskuj gwiazdkami (treść zostaje dodana)</option>
+        <option value="block" <%= moderation.profanityMode === 'block' ? 'selected' : '' %>>Odrzucaj z komunikatem</option>
+        <option value="off" <%= moderation.profanityMode === 'off' ? 'selected' : '' %>>Wyłączony</option>
+      </select>
+    </div>
+    <div class="gv-admin-stack">
+      <label class="gv-check">
+        <input type="checkbox" name="antispamEnabled" value="1" <%= moderation.antispamEnabled ? 'checked' : '' %>>
+        <span>Antyspam (linki, powtórzenia, CAPS LOCK, identyczne wiadomości)</span>
+      </label>
+      <label class="gv-check">
+        <input type="checkbox" name="rateLimitEnabled" value="1" <%= moderation.rateLimitEnabled ? 'checked' : '' %>>
+        <span>Limity zapytań (logowanie, recenzje, komentarze, czat i inne)</span>
+      </label>
+    </div>
+    <div class="full">
+      <label class="gv-label" for="profanityWords">Dodatkowe zakazane słowa (po przecinku lub w osobnych liniach, maks. <%= maxExtraWords %> znaków)</label>
+      <textarea id="profanityWords" name="profanityWords" rows="3" maxlength="<%= maxExtraWords %>" class="form-control gv-input" placeholder="np. słowo1, słowo2"><%= moderation.profanityWords %></textarea>
+      <small class="gv-muted">Dopasowanie po początku wyrazu, bez rozróżniania wielkości liter i polskich znaków.</small>
+    </div>
+  </div>
+
+  <div class="gv-admin-form-actions">
+    <button type="submit" class="btn gv-btn-success"><i class="bi bi-check-lg"></i> Zapisz</button>
+  </div>
+</form>
+
+<div class="gv-admin-card">
+  <h2><i class="bi bi-speedometer"></i> Limity zapytań</h2>
+  <p class="gv-admin-note">
+    Status: <span class="gv-badge <%= moderation.rateLimitEnabled ? 'gv-badge-ok' : 'gv-badge-warn' %>"><%= moderation.rateLimitEnabled ? 'włączone' : 'wyłączone' %></span>
+    - od uruchomienia serwera zablokowano <b><%= rateStats.blocked %></b> zapytań.
+    Administratorzy nie są limitowani po zalogowaniu.
+  </p>
+  <div class="gv-table-wrap">
+    <table class="gv-table">
+      <thead><tr><th>Reguła</th><th>Limit</th></tr></thead>
+      <tbody>
+        <% rules.forEach(function(rule) {
+             const minutes = rule.windowMs / 60000;
+             const windowText = minutes >= 60 ? (minutes / 60) + ' godz.' : minutes + ' min';
+        %>
+          <tr>
+            <td><%= rule.label %></td>
+            <td><b><%= rule.max %></b> / <%= windowText %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (rateStats.recent.length > 0) { %>
+    <h3 class="gv-admin-subtitle">Ostatnie blokady</h3>
+    <ul class="gv-admin-list">
+      <% rateStats.recent.forEach(function(item) { %>
+        <li>
+          <span><span class="gv-badge"><%= item.name %></span> <%= item.key %></span>
+          <small><%= new Date(item.at).toLocaleTimeString('pl-PL') %></small>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<form method="POST" action="/admin/settings/security" class="gv-admin-card gv-admin-form">
+  <h2><i class="bi bi-shield-lock-fill"></i> Bezpieczeństwo administratorów</h2>
+  <p class="gv-admin-note">
+    Twoje 2FA:
+    <span class="gv-badge <%= adminHasTwoFactor ? 'gv-badge-ok' : 'gv-badge-warn' %>"><%= adminHasTwoFactor ? 'włączone' : 'wyłączone' %></span>
+    <a href="/profile/settings?tab=account" class="gv-admin-more" style="margin:0 0 0 8px;">Skonfiguruj 2FA <i class="bi bi-arrow-right"></i></a>
+  </p>
+  <label class="gv-check">
+    <input type="checkbox" name="require2fa" value="1" <%= moderation.require2fa ? 'checked' : '' %>>
+    <span>Wymagaj 2FA od administratorów (bez niego panel admina będzie niedostępny)</span>
+  </label>
+  <div class="gv-admin-form-actions">
+    <button type="submit" class="btn gv-btn-success"><i class="bi bi-check-lg"></i> Zapisz</button>
+  </div>
+</form>
+
+<%- include('partials/bottom') %>

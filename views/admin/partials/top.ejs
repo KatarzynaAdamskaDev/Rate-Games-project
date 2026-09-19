@@ -1,0 +1,47 @@
+<%
+// Wspólny początek stron panelu admina: nagłówek, navbar i menu boczne.
+// Użycie: include('partials/top') ... treść ... include('partials/bottom'); zmienna "active" wskazuje aktywną pozycję.
+const __items = [
+  { key: 'dashboard', href: '/admin', icon: 'bi-speedometer2', label: 'Pulpit' },
+  { key: 'users', href: '/admin/users', icon: 'bi-people-fill', label: 'Użytkownicy' },
+  { key: 'reviews', href: '/admin/reviews', icon: 'bi-journal-text', label: 'Recenzje' },
+  { key: 'reports', href: '/admin/reports', icon: 'bi-flag-fill', label: 'Zgłoszenia', badge: locals.pendingReportsCount || 0 },
+  { key: 'comments', href: '/admin/comments', icon: 'bi-chat-left-text-fill', label: 'Komentarze' },
+  { key: 'games', href: '/admin/games', icon: 'bi-controller', label: 'Gry własne' },
+  { key: 'blog', href: '/admin/blog', icon: 'bi-newspaper', label: 'Blog' },
+  { key: 'chat', href: '/admin/chat', icon: 'bi-chat-dots-fill', label: 'Czat' },
+  { key: 'data', href: '/admin/data', icon: 'bi-database-fill', label: 'Dane i kopie' },
+  { key: 'log', href: '/admin/log', icon: 'bi-clock-history', label: 'Dziennik działań' },
+  { key: 'ideas', href: '/admin/ideas', icon: 'bi-lightbulb-fill', label: 'Propozycje', badge: locals.pendingIdeasCount || 0 },
+  { key: 'settings', href: '/admin/settings', icon: 'bi-gear-fill', label: 'Ustawienia' },
+];
+%>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../../partials/head') %>
+</head>
+<body>
+  <%- include('../../partials/navbar') %>
+  <%- include('../../partials/flash') %>
+
+  <section class="gv-section">
+    <div class="wrap gv-admin">
+      <aside class="gv-admin-side">
+        <div class="gv-admin-side-title"><i class="bi bi-shield-lock-fill"></i> Panel admina</div>
+        <nav class="gv-admin-nav">
+          <% __items.forEach(function(item) { %>
+            <a href="<%= item.href %>" class="<%= active === item.key ? 'active' : '' %>">
+              <i class="bi <%= item.icon %>"></i>
+              <span><%= item.label %></span>
+              <% if (item.badge > 0) { %><em class="gv-admin-nav-badge"><%= item.badge %></em><% } %>
+            </a>
+          <% }) %>
+          <a href="/" class="gv-admin-back"><i class="bi bi-box-arrow-up-left"></i><span>Wróć do serwisu</span></a>
+        </nav>
+      </aside>
+
+      <main class="gv-admin-main">
+        <div class="gv-admin-head">
+          <h1 class="gv-page-title"><%= pageTitle %></h1>
+        </div>

@@ -1,0 +1,30 @@
+<%
+// Drugi krok logowania administratora (kod 2FA) w oknie modalnym. Otwiera się po poprawnym haśle
+// z okna logowania albo samo (data-auto-open), gdy serwer ma zapamiętane niedokończone logowanie.
+%>
+<div class="modal fade" id="twoFactorModal" tabindex="-1" aria-labelledby="twoFactorModalLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-auto-open="<%= locals.pendingTwoFactor ? '1' : '0' %>">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content gv-modal-content">
+      <div class="modal-header gv-modal-header">
+        <h2 class="gv-auth-title mb-0" id="twoFactorModalLabel"><i class="bi bi-shield-lock-fill"></i> Kod 2FA</h2>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Anuluj logowanie"></button>
+      </div>
+      <div class="modal-body">
+        <p class="gv-auth-subtext">Konto administratora jest chronione weryfikacją dwuetapową. Wpisz 6-cyfrowy kod z aplikacji uwierzytelniającej albo kod awaryjny.</p>
+
+        <form id="twoFactorForm" action="/auth/2fa" method="POST" novalidate>
+          <div class="mb-3">
+            <label for="twoFactorCode" class="gv-label">Kod z aplikacji lub kod awaryjny</label>
+            <input type="text" id="twoFactorCode" name="code" class="form-control gv-input" autocomplete="one-time-code" required />
+          </div>
+          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Zaloguj</button>
+        </form>
+
+        <p class="gv-auth-alt-link mb-0">
+          <button type="button" class="gv-auth-switch" data-bs-dismiss="modal">← Anuluj logowanie</button>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+<%
+// Przyciski "Polub" i "Komentarze" pod recenzją wraz z panelem komentarzy.
+// Obsługuje je public/js/review-actions.js (polubienie i komentarze bez opuszczania strony).
+// Użycie: include('review-actions', { review, openHref: '/games/1#review-x' }) - openHref opcjonalny.
+const __openHref = typeof openHref !== 'undefined' ? openHref : null;
+%>
+<div class="gv-ractions" data-review-id="<%= review.id %>" data-game-id="<%= review.gameId %>">
+  <% if (currentUser) { %>
+    <button type="button" class="gv-icon-btn gv-ract-like <%= review.liked ? 'liked' : '' %>" title="Polub" aria-label="Polub">
+  <% } else { %>
+    <button type="button" class="gv-icon-btn gv-ract-like" title="Zaloguj się, aby polubić" aria-label="Zaloguj się, aby polubić" data-bs-toggle="modal" data-bs-target="#signInModal">
+  <% } %>
+    <i class="bi <%= review.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i><span class="gv-count"><%= review.likeCount %></span>
+  </button>
+  <button type="button" class="gv-icon-btn gv-ract-comments" title="Komentarze" aria-label="Komentarze" aria-expanded="false">
+    <i class="bi bi-chat-dots"></i><span class="gv-count"><%= review.commentCount %></span>
+  </button>
+  <% if (__openHref) { %><a href="<%= __openHref %>" class="gv-rcard-open">Otwórz recenzję <i class="bi bi-arrow-right"></i></a><% } %>
+</div>
+<div class="gv-rcomments d-none">
+  <div class="gv-rcomments-list"></div>
+  <% if (currentUser) { %>
+    <form class="gv-rcomments-form">
+      <input type="text" maxlength="500" placeholder="Napisz komentarz..." class="form-control gv-input" required>
+      <button type="submit" class="btn gv-btn-success btn-sm">Dodaj</button>
+    </form>
+  <% } else { %>
+    <p class="gv-rcomments-login">
+      <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>, aby dodać komentarz.
+    </p>
+  <% } %>
+</div>

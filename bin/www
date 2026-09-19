@@ -5,6 +5,9 @@ const http = require('http');
 const { sequelize } = require('../config/database');
 const { addMissingColumns } = require('../utils/schemaHelpers');
 const { syncAllUsersProgress } = require('../utils/progressHelpers');
+const { seedConversationReads } = require('../utils/chatHelpers');
+const { purgeOrphanedData } = require('../utils/cleanupHelpers');
+const { startModerationSettings } = require('../utils/moderationSettings');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -26,8 +29,17 @@ sequelize
   })
   // sync() nie dodaje nowych kolumn do istniejących tabel - robi to poniższy krok.
   .then(() => addMissingColumns())
+  // Usuwa dane kont, których już nie ma (recenzje, wiadomości, obserwowania...).
+  .then(() => purgeOrphanedData())
+  .then((count) => {
+    if (count > 0) console.log(`[czyszczenie] usunięto dane ${count} nieistniejących kont.`);
+  })
   // Uzupełnia PD/poziom (users.points, users.level) u istniejących użytkowników.
   .then(() => syncAllUsersProgress())
+  // Istniejące rozmowy traktujemy jako przeczytane (licznik nieprzeczytanych czatu).
+  .then(() => seedConversationReads())
+  // Ustawienia moderacji z panelu admina (limity zapytań, filtr, wymóg 2FA) trzymamy w pamięci.
+  .then(() => startModerationSettings())
   .then(() => {
     server.listen(port);
   })

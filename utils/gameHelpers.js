@@ -1,13 +1,4 @@
-const { readCollection } = require('./dataStore');
 const Review = require('../models/Review');
-
-function getAllGames() {
-  return readCollection('games');
-}
-
-function getGameById(id) {
-  return getAllGames().find((g) => g.id === id) || null;
-}
 
 /**
  * Zwraca recenzje gry jako ZWYKŁE obiekty (nie instancje Sequelize) - widoki
@@ -42,8 +33,6 @@ async function withRatings(games) {
 }
 
 module.exports = {
-  getAllGames,
-  getGameById,
   getReviewsForGame,
   getAverageRating,
   withRatings,

@@ -1,14 +1,25 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 
 const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 const { getReviewsForGame } = require('../utils/gameHelpers');
-const { readCollection, writeCollection } = require('../utils/dataStore');
 const Review = require('../models/Review');
+const CustomGame = require('../models/CustomGame');
+const User = require('../models/User');
+const { getGameById } = require('../utils/gameCatalog');
 const { syncUserProgress } = require('../utils/progressHelpers');
-const { fetchIGDBGames, formatIGDBGame, getGenres } = require('../utils/igdbService');
-const { listGames, findGenre, buildPagerLinks } = require('../utils/gameListing');
+const { createNotification } = require('../utils/notificationHelpers');
+const { moderateText } = require('../utils/contentFilter');
+const { limiters } = require('../middleware/rateLimit');
+const { REPORT_REASONS, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
+const ReviewComment = require('../models/ReviewComment');
+const { getGenres, PLATFORM_OPTIONS } = require('../utils/igdbService');
+const {
+  listGames,
+  findGenre,
+  availableYears,
+  buildPagerLinks,
+} = require('../utils/gameListing');
 
 const {
   toggleLike,
@@ -31,16 +42,30 @@ function wantsJsonResponse(req) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { category, sort, q, page } = req.query;
+    const { category, platform, year, sort, q, page } = req.query;
 
     const genre = await findGenre(category);
-    const result = await listGames({ q, genre, sort, page });
+    const activePlatform = PLATFORM_OPTIONS.find((p) => p.key === String(platform || '').toLowerCase());
+    const activeYear = availableYears().includes(parseInt(year, 10)) ? parseInt(year, 10) : null;
+
+    const result = await listGames({
+      q,
+      genre,
+      platform: activePlatform ? activePlatform.key : null,
+      year: activeYear,
+      sort,
+      page,
+    });
 
     res.render('games/list', {
       title: 'Gry',
       games: result.games,
-      categories: await getGenres(),
-      activeCategory: genre ? genre.slug : null,
+      genres: await getGenres(),
+      platforms: PLATFORM_OPTIONS,
+      years: availableYears(),
+      activeGenre: genre,
+      activePlatform: activePlatform || null,
+      activeYear,
       activeSort: result.sort,
       query: String(q || '').trim(),
       pager: buildPagerLinks(req, result.page, result.hasNext),
@@ -56,7 +81,7 @@ router.get('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
   res.render('games/form', { title: 'Dodaj grę', formData: {}, game: null });
 });
 
-router.post('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
+router.post('/new', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
   const { title, category, platform, releaseYear, coverImage, description } = req.body;
 
   if (!title || !category || !description) {
@@ -68,53 +93,64 @@ router.post('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
     });
   }
 
-  const localGames = readCollection('games') || [];
-  const newGame = {
-    id: uuidv4(),
-    title,
-    category,
-    platform: platform || 'PC',
-    releaseYear: Number(releaseYear) || new Date().getFullYear(),
-    coverImage: coverImage || '/images/game-placeholder.svg',
-    description,
-  };
-  localGames.push(newGame);
-  writeCollection('games', localGames);
+  try {
+    const newGame = await CustomGame.create({
+      title,
+      category,
+      platform: platform || 'PC',
+      releaseYear: Number(releaseYear) || new Date().getFullYear(),
+      coverImage: coverImage || '/images/game-placeholder.svg',
+      description,
+    });
 
-  req.flash('success', `Gra "${title}" została dodana.`);
-  res.redirect(`/games/${newGame.id}`);
+    req.flash('success', `Gra "${title}" została dodana.`);
+    res.redirect(`/games/${newGame.id}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------ WYSZUKIWANIE GIER (JSON, do formularzy) ------------------ */
+
+// Używane przez okno wyboru ulubionej gry. Musi być przed /:id.
+router.get('/search-json', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ games: [] });
+
+  const { games } = await listGames({ q, pageSize: 8 });
+  res.json({
+    games: games.map((g) => ({
+      id: String(g.id),
+      title: g.title,
+      coverImage: g.coverImage,
+      releaseYear: g.releaseYear,
+      platform: g.platform,
+    })),
+  });
 });
 
 /* --------------------------- SZCZEGÓŁY GRY (IGDB lub LOKALNE) --------------------------- */
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const gameId = req.params.id;
-    let game = null;
-
-    // 1. Sprawdzamy czy to ID numeryczne z IGDB, czy UUID lokalnej gry
-    if (!isNaN(gameId)) {
-      const rawGames = await fetchIGDBGames(
-        `fields name, cover.url, summary, genres.name, platforms.name, first_release_date; where id = ${gameId};`
-      );
-      if (rawGames.length > 0) {
-        game = formatIGDBGame(rawGames[0]);
-      }
-    } else {
-      // Pobieranie z lokalnego pliku/bazy (dla gier dodanych przez Admina)
-      const localGames = readCollection('games') || [];
-      game = localGames.find((g) => g.id === gameId);
-    }
-
+    // Gra z IGDB (id numeryczne) albo dodana ręcznie przez admina (UUID)
+    const game = await getGameById(req.params.id);
     if (!game) return next();
 
     // 2. Pobieramy Wasze opinie/komentarze z bazy danych dla danego ID gry
     const rawReviews = await getReviewsForGame(game.id);
     const meId = req.session.user ? req.session.user.id : null;
 
+    const authors = await User.findAll({
+      where: { id: [...new Set(rawReviews.map((r) => r.userId))] },
+      attributes: ['id', 'avatarUrl'],
+    });
+    const avatarById = new Map(authors.map((u) => [u.id, u.avatarUrl || null]));
+
     const reviews = await Promise.all(
       rawReviews.map(async (r) => ({
         ...r,
+        avatarUrl: avatarById.get(r.userId) || null,
         likeCount: await getLikeCount(r.id),
         liked: await hasLiked(r.id, meId),
         comments: await getCommentsForReview(r.id, meId),
@@ -132,10 +168,16 @@ router.get('/:id', async (req, res, next) => {
 
     res.render('games/detail', {
       title: game.title,
-      game,
+      // Na stronie gry pokazujemy pełną listę platform (na kartach - skrót).
+      game: {
+        ...game,
+        platform: game.platformsFull && game.platformsFull.length ? game.platformsFull.join(', ') : game.platform,
+      },
       reviews,
       averageRating,
       myReview,
+      reportReasons: REPORT_REASONS,
+      reportCommentMax: MAX_COMMENT_LENGTH,
     });
   } catch (error) {
     next(error);
@@ -144,7 +186,7 @@ router.get('/:id', async (req, res, next) => {
 
 /* --------------------------- DODAJ OPINIĘ --------------------------- */
 
-router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
+router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
 
   const existing = await Review.findOne({
@@ -166,22 +208,33 @@ router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
     return res.redirect(`/games/${gameId}`);
   }
 
+  const checked = moderateText(text, { userId: req.session.user.id });
+  if (!checked.ok) {
+    req.flash('error', checked.error);
+    return res.redirect(`/games/${gameId}`);
+  }
+
   await Review.create({
     gameId,
     userId: req.session.user.id,
     username: req.session.user.username,
     rating: numericRating,
-    text,
+    text: checked.text,
   });
   await syncUserProgress(req.session.user.id);
 
-  req.flash('success', 'Dziękujemy za dodanie opinii!');
+  req.flash(
+    'success',
+    checked.masked
+      ? 'Dziękujemy za opinię! Niedozwolone słowa zostały w niej zamaskowane.'
+      : 'Dziękujemy za dodanie opinii!'
+  );
   res.redirect(`/games/${gameId}`);
 });
 
 /* --- RESZTA TRAS (EDYCJA, USUWANE, KOMENTARZE, LAJKI) POZOSTAJE BEZ ZMIAN --- */
 
-router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
   const review = await Review.findByPk(req.params.reviewId);
   if (!review || String(review.gameId) !== gameId) return next();
@@ -199,8 +252,14 @@ router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, async (req, res,
     return res.redirect(`/games/${gameId}`);
   }
 
+  const checked = moderateText(text, { userId: req.session.user.id, duplicates: false });
+  if (!checked.ok) {
+    req.flash('error', checked.error);
+    return res.redirect(`/games/${gameId}`);
+  }
+
   review.rating = numericRating;
-  review.text = text;
+  review.text = checked.text;
   review.editedAt = new Date();
   await review.save();
 
@@ -229,12 +288,26 @@ router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, re
   res.redirect(`/games/${gameId}`);
 });
 
-router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, async (req, res) => {
+router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, limiters.like, async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { reviewId } = req.params;
 
   const result = await toggleLike(reviewId, req.session.user.id);
   const likeCount = await getLikeCount(reviewId);
+
+  if (result.liked) {
+    const review = await Review.findByPk(reviewId);
+    if (review) {
+      const game = await getGameById(review.gameId);
+      await createNotification({
+        userId: review.userId,
+        type: 'review-like',
+        actorId: req.session.user.id,
+        message: `${req.session.user.username} polubił(a) Twoją recenzję${game ? ` gry „${game.title}”` : ''}`,
+        link: `/games/${review.gameId}#review-${review.id}`,
+      });
+    }
+  }
 
   if (wantsJson) {
     return res.json({ success: true, liked: result.liked, likeCount });
@@ -243,21 +316,72 @@ router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, async (req, res)
   res.redirect(`/games/${req.params.id}`);
 });
 
-router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, res, next) => {
+/* Komentarze pod recenzją (JSON) - używane na stronie głównej i w liście recenzji. */
+router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
+  const meId = req.session.user ? req.session.user.id : null;
+  const comments = await getCommentsForReview(req.params.reviewId, meId);
+  res.json({
+    comments: comments.map((c) => ({
+      id: c.id,
+      username: c.username,
+      text: c.text,
+      createdAt: c.createdAt,
+      likeCount: c.likeCount,
+      liked: c.liked,
+    })),
+  });
+});
+
+router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, limiters.comment, async (req, res, next) => {
   const gameId = String(req.params.id);
+  const wantsJson = wantsJsonResponse(req);
 
   const text = (req.body.text || '').trim();
   if (!text) {
+    if (wantsJson) return res.status(400).json({ error: 'Komentarz nie może być pusty.' });
     req.flash('error', 'Komentarz nie może być pusty.');
     return res.redirect(`/games/${gameId}`);
   }
 
-  await addComment({
+  const checked = moderateText(text.slice(0, 500), { userId: req.session.user.id });
+  if (!checked.ok) {
+    if (wantsJson) return res.status(400).json({ error: checked.error });
+    req.flash('error', checked.error);
+    return res.redirect(`/games/${gameId}#review-${req.params.reviewId}`);
+  }
+
+  const created = await addComment({
     reviewId: req.params.reviewId,
     userId: req.session.user.id,
     username: req.session.user.username,
-    text: text.slice(0, 500),
+    text: checked.text,
   });
+
+  const commentedReview = await Review.findByPk(req.params.reviewId);
+  if (commentedReview) {
+    const game = await getGameById(commentedReview.gameId);
+    await createNotification({
+      userId: commentedReview.userId,
+      type: 'review-comment',
+      actorId: req.session.user.id,
+      message: `${req.session.user.username} skomentował(a) Twoją recenzję${game ? ` gry „${game.title}”` : ''}`,
+      link: `/games/${commentedReview.gameId}#review-${commentedReview.id}`,
+    });
+  }
+
+  if (wantsJson) {
+    return res.json({
+      ok: true,
+      comment: {
+        id: created.id,
+        username: created.username,
+        text: created.text,
+        createdAt: created.createdAt,
+        likeCount: 0,
+        liked: false,
+      },
+    });
+  }
 
   res.redirect(`/games/${gameId}#review-${req.params.reviewId}`);
 });
@@ -273,12 +397,25 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/delete', ensureAuthentic
   res.redirect(`/games/${gameId}#review-${req.params.reviewId}`);
 });
 
-router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticated, async (req, res) => {
+router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticated, limiters.like, async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { commentId } = req.params;
 
   const result = await toggleCommentLike(commentId, req.session.user.id);
   const likeCount = await getCommentLikeCount(commentId);
+
+  if (result.liked) {
+    const comment = await ReviewComment.findByPk(commentId);
+    if (comment) {
+      await createNotification({
+        userId: comment.userId,
+        type: 'comment-like',
+        actorId: req.session.user.id,
+        message: `${req.session.user.username} polubił(a) Twój komentarz`,
+        link: `/games/${req.params.id}#review-${comment.reviewId}`,
+      });
+    }
+  }
 
   if (wantsJson) {
     return res.json({ success: true, liked: result.liked, likeCount });
@@ -287,20 +424,44 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticat
   res.redirect(`/games/${req.params.id}`);
 });
 
-router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, async (req, res, next) => {
-  const gameId = String(req.params.id);
+router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, limiters.report, async (req, res, next) => {
+  try {
+    const gameId = String(req.params.id);
+    const back = `/games/${gameId}#review-${req.params.reviewId}`;
 
-  await reportReview({
-    reviewId: req.params.reviewId,
-    reporterId: req.session.user.id,
-    reason: req.body.reason || null,
-  });
+    const review = await Review.findByPk(req.params.reviewId);
+    if (!review || String(review.gameId) !== gameId) return next();
 
-  req.flash(
-    'success',
-    'Dziękujemy za zgłoszenie. Opinia trafiła do kolejki weryfikacji (panel administratora w budowie).'
-  );
-  res.redirect(`/games/${gameId}`);
+    if (review.userId === req.session.user.id) {
+      req.flash('error', 'Nie możesz zgłosić własnej opinii.');
+      return res.redirect(back);
+    }
+
+    const reason = findReason(req.body.reason);
+    if (!reason) {
+      req.flash('error', 'Wybierz powód zgłoszenia.');
+      return res.redirect(back);
+    }
+
+    const comment = String(req.body.comment || '').trim().slice(0, MAX_COMMENT_LENGTH);
+    if (reason.id === 'other' && comment.length < 5) {
+      req.flash('error', 'Przy powodzie "Inny" opisz krótko, o co chodzi.');
+      return res.redirect(back);
+    }
+
+    await reportReview({
+      reviewId: review.id,
+      reporterId: req.session.user.id,
+      reason: reason.label,
+      category: reason.id,
+      comment,
+    });
+
+    req.flash('success', 'Dziękujemy za zgłoszenie. Opinia trafiła do weryfikacji przez administratorów.');
+    res.redirect(back);
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
