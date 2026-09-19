@@ -1,0 +1,29 @@
+<%- include('partials/top') %>
+
+<p class="gv-admin-count"><%= total %> <%= total === 1 ? 'wpis' : 'wpisów' %> w dzienniku</p>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr><th>Data</th><th>Administrator</th><th>Działanie</th><th>Obiekt</th><th>Szczegóły</th></tr>
+    </thead>
+    <tbody>
+      <% entries.forEach(function(e) { %>
+        <tr>
+          <td><%= new Date(e.createdAt).toLocaleString('pl-PL') %></td>
+          <td><%= e.adminUsername %></td>
+          <td><span class="gv-badge"><%= e.action %></span></td>
+          <td><%= e.targetLabel || '-' %></td>
+          <td class="gv-cell-text"><%= e.details || '' %></td>
+        </tr>
+      <% }) %>
+      <% if (entries.length === 0) { %>
+        <tr><td colspan="5" class="gv-admin-empty">Dziennik jest pusty - zapisujemy tu każde działanie administratora.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pager', { pager }) %>
+
+<%- include('partials/bottom') %>

@@ -50,7 +50,7 @@ router.get('/', async (req, res, next) => {
   try {
     const [trending, weeklyReview, stats] = await Promise.all([
       buildTrending(),
-      getReviewOfTheWeek(),
+      getReviewOfTheWeek(req.session.user ? req.session.user.id : null),
       getOverallStats(),
     ]);
 

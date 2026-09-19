@@ -246,6 +246,15 @@ async function getMessages(conversationId) {
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
+/** Ostatnia wiadomość rozmowy (do podglądu na liście mini czatu). */
+async function getLastMessage(conversationId) {
+  const row = await Message.findOne({
+    where: { conversationId },
+    order: [['createdAt', 'DESC']],
+  });
+  return row ? row.get({ plain: true }) : null;
+}
+
 async function getMessagesAfter(conversationId, afterIso) {
   const all = await getMessages(conversationId);
   if (!afterIso) return all;
@@ -272,6 +281,7 @@ module.exports = {
   createGroup,
   getOrCreateGameRoom,
   getMessages,
+  getLastMessage,
   getMessagesAfter,
   addMessage,
   clearMessages,

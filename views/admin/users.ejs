@@ -1,0 +1,100 @@
+<%- include('partials/top') %>
+
+<form method="GET" class="gv-admin-filters">
+  <input type="search" name="q" value="<%= q %>" class="form-control gv-input" placeholder="Szukaj po nazwie lub e-mailu..." maxlength="100">
+  <select name="filter" class="form-select gv-select" onchange="this.form.submit()">
+    <option value="">Wszyscy</option>
+    <option value="admin" <%= filter === 'admin' ? 'selected' : '' %>>Administratorzy</option>
+    <option value="banned" <%= filter === 'banned' ? 'selected' : '' %>>Zablokowani</option>
+  </select>
+  <button type="submit" class="btn gv-btn-primary"><i class="bi bi-search"></i> Szukaj</button>
+</form>
+<p class="gv-admin-count"><%= total %> <%= total === 1 ? 'użytkownik' : 'użytkowników' %></p>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr>
+        <th>Użytkownik</th>
+        <th>Rola</th>
+        <th>Poziom</th>
+        <th>Recenzje</th>
+        <th>Dołączył(a)</th>
+        <th>Status</th>
+        <th>Akcje</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach(function(u) { %>
+        <% const isMe = u.id === currentUser.id; %>
+        <tr>
+          <td>
+            <a href="/<%= encodeURIComponent(u.username) %>" class="gv-admin-user">
+              <% if (u.avatarUrl) { %><img src="<%= u.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
+              <span><b><%= u.username %></b><small><%= u.email %></small></span>
+            </a>
+          </td>
+          <td><span class="gv-badge <%= u.role === 'admin' ? 'gv-badge-info' : '' %>"><%= u.role === 'admin' ? 'admin' : 'użytkownik' %></span></td>
+          <td><%= u.level %> <small class="gv-muted">(<%= u.points %> PD)</small></td>
+          <td><%= u.reviewCount %></td>
+          <td><%= new Date(u.createdAt).toLocaleDateString('pl-PL') %></td>
+          <td>
+            <% if (u.isBanned) { %>
+              <span class="gv-badge gv-badge-danger" title="<%= u.banReason || '' %>">zablokowany</span>
+            <% } else { %>
+              <span class="gv-badge gv-badge-ok">aktywny</span>
+            <% } %>
+          </td>
+          <td>
+            <% if (isMe) { %>
+              <span class="gv-muted">to Ty</span>
+            <% } else { %>
+              <details class="gv-row-menu">
+                <summary class="gv-mini-btn"><i class="bi bi-three-dots"></i> Akcje</summary>
+                <div class="gv-row-menu-body">
+                  <form method="POST" action="/admin/users/<%= u.id %>/role">
+                    <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+                    <button type="submit" class="gv-mini-btn"><i class="bi bi-shield-<%= u.role === 'admin' ? 'x' : 'plus' %>"></i> <%= u.role === 'admin' ? 'Odbierz uprawnienia admina' : 'Nadaj uprawnienia admina' %></button>
+                  </form>
+
+                  <form method="POST" action="/admin/users/<%= u.id %>/level" class="gv-inline-form">
+                    <input type="number" name="level" min="1" max="100" value="<%= u.level %>" class="form-control gv-input" aria-label="Poziom">
+                    <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-up-circle"></i> Ustaw poziom</button>
+                  </form>
+                  <form method="POST" action="/admin/users/<%= u.id %>/level">
+                    <input type="hidden" name="level" value="reset">
+                    <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-counterclockwise"></i> Zresetuj poziom</button>
+                  </form>
+
+                  <% if (u.isBanned) { %>
+                    <form method="POST" action="/admin/users/<%= u.id %>/unban">
+                      <button type="submit" class="gv-mini-btn gv-mini-ok"><i class="bi bi-unlock-fill"></i> Odblokuj konto</button>
+                    </form>
+                  <% } else if (u.role !== 'admin') { %>
+                    <form method="POST" action="/admin/users/<%= u.id %>/ban" class="gv-inline-form">
+                      <input type="text" name="reason" maxlength="200" placeholder="Powód blokady" class="form-control gv-input" aria-label="Powód blokady">
+                      <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-slash-circle"></i> Zablokuj</button>
+                    </form>
+                  <% } %>
+
+                  <% if (u.role !== 'admin') { %>
+                    <form method="POST" action="/admin/users/<%= u.id %>/delete" onsubmit="return confirm('Usunąć konto <%= u.username %> razem z recenzjami, komentarzami i rozmowami? Tej operacji nie można cofnąć.');">
+                      <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń konto</button>
+                    </form>
+                  <% } %>
+                </div>
+              </details>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (users.length === 0) { %>
+        <tr><td colspan="7" class="gv-admin-empty">Brak użytkowników spełniających kryteria.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pager', { pager }) %>
+
+<%- include('partials/bottom') %>

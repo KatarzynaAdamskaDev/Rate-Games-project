@@ -1,0 +1,40 @@
+<%- include('partials/top') %>
+
+<p class="gv-admin-note">
+  Moderacja czatu: widzisz tylko informacje o rozmowach (uczestnicy, liczba wiadomości) - treść prywatnych rozmów nie jest wyświetlana.
+</p>
+<p class="gv-admin-count"><%= total %> <%= total === 1 ? 'rozmowa' : 'rozmów' %></p>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr><th>Rozmowa</th><th>Typ</th><th>Uczestnicy</th><th>Wiadomości</th><th>Ostatnia aktywność</th><th>Akcje</th></tr>
+    </thead>
+    <tbody>
+      <% conversations.forEach(function(c) { %>
+        <tr>
+          <td><b><%= c.label %></b></td>
+          <td><span class="gv-badge"><%= c.type === 'dm' ? 'prywatna' : (c.type === 'group' ? 'grupa' : 'pokój gry') %></span></td>
+          <td class="gv-cell-text"><%= c.memberList.slice(0, 6).join(', ') %><%= c.memberList.length > 6 ? ' +' + (c.memberList.length - 6) : '' %></td>
+          <td><%= c.messageCount %></td>
+          <td><%= c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString('pl-PL') : '-' %></td>
+          <td class="gv-cell-actions">
+            <form method="POST" action="/admin/chat/<%= c.id %>/clear" onsubmit="return confirm('Wyczyścić wszystkie wiadomości w tej rozmowie?');">
+              <button type="submit" class="gv-mini-btn"><i class="bi bi-eraser-fill"></i> Wyczyść</button>
+            </form>
+            <form method="POST" action="/admin/chat/<%= c.id %>/delete" onsubmit="return confirm('Usunąć rozmowę razem z wiadomościami?');">
+              <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (conversations.length === 0) { %>
+        <tr><td colspan="6" class="gv-admin-empty">Brak rozmów.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pager', { pager }) %>
+
+<%- include('partials/bottom') %>

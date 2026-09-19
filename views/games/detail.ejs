@@ -76,7 +76,11 @@
               <div class="gv-review-top">
                 <span class="gv-review-byline">Review by:
                   <a href="/<%= review.username %>" class="gv-byline-link">
-                    <span class="gv-byline-avatar"></span>
+                    <% if (review.avatarUrl) { %>
+                      <img src="<%= review.avatarUrl %>" alt="" class="gv-byline-avatar">
+                    <% } else { %>
+                      <span class="gv-byline-avatar"></span>
+                    <% } %>
                     <span class="gv-byline-name"><%= review.username %></span>
                   </a>
                 </span>

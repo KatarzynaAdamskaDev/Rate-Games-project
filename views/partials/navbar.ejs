@@ -1,7 +1,7 @@
 <% const path = typeof currentPath !== 'undefined' ? currentPath : ''; %>
 <% const user = typeof currentUser !== 'undefined' ? currentUser : (locals.user || null); %>
 
-<header class="site<%= user ? ' has-user' : '' %>">
+<header class="site">
   <div class="wrap">
     <div class="nav-row">
       <!-- Logo -->
@@ -22,6 +22,9 @@
         <a href="/games" class="<%= path.startsWith('/games') ? 'active' : '' %>">GAMES</a>
         <a href="/reviews" class="<%= path.startsWith('/reviews') ? 'active' : '' %>">REVIEWS</a>
         <a href="/blog" class="<%= path.startsWith('/blog') ? 'active' : '' %>">BLOG</a>
+        <% if (user && user.role === 'admin') { %>
+          <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>"><i class="bi bi-shield-lock-fill"></i> ADMIN</a>
+        <% } %>
       </nav>
 
       <!-- Wyszukiwarka -->
@@ -42,18 +45,37 @@
       <!-- Akcje użytkownika / Logowanie -->
       <div class="nav-actions">
         <% if (user) { %>
-          <!-- Czat (z licznikiem nieprzeczytanych) i powiadomienia -->
-          <a href="/chat" class="icon-btn" id="navChatBtn" title="Czat i grupy" aria-label="Czat i grupy">
-            <i class="bi bi-chat-dots"></i><span class="nav-badge d-none" id="navChatBadge"></span>
-          </a>
-          <div class="nav-notif" id="navNotif">
+          <!-- Mini czat (rozwijane okienko z licznikiem nieprzeczytanych) -->
+          <div class="nav-pop" id="navChat" data-me="<%= user.id %>">
+            <button type="button" class="icon-btn" id="navChatBtn" title="Czat" aria-label="Czat" aria-expanded="false">
+              <i class="bi bi-chat-dots"></i><span class="nav-badge d-none" id="navChatBadge"></span>
+            </button>
+            <div class="nav-panel nav-chat-panel" id="navChatPanel">
+              <div class="nav-panel-head">
+                <button type="button" class="nav-chat-back d-none" id="navChatBack" aria-label="Wróć do listy rozmów"><i class="bi bi-arrow-left"></i></button>
+                <b id="navChatTitle">Czat</b>
+                <a href="/chat" class="nav-panel-link" id="navChatFull">Pełny czat <i class="bi bi-box-arrow-up-right"></i></a>
+              </div>
+              <div class="nav-chat-list" id="navChatList"></div>
+              <div class="nav-chat-view d-none" id="navChatView">
+                <div class="nav-chat-messages" id="navChatMessages"></div>
+                <form class="nav-chat-form" id="navChatForm">
+                  <input type="text" maxlength="1000" autocomplete="off" placeholder="Napisz wiadomość..." aria-label="Wiadomość">
+                  <button type="submit" class="nav-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Powiadomienia -->
+          <div class="nav-pop" id="navNotif">
             <button type="button" class="icon-btn" id="navBellBtn" title="Powiadomienia" aria-label="Powiadomienia" aria-expanded="false">
               <i class="bi bi-bell"></i><span class="nav-badge d-none" id="navBellBadge"></span>
             </button>
-            <div class="nav-notif-panel d-none" id="navNotifPanel">
-              <div class="nav-notif-head">
+            <div class="nav-panel nav-notif-panel" id="navNotifPanel">
+              <div class="nav-panel-head">
                 <b>Powiadomienia</b>
-                <button type="button" class="nav-notif-readall" id="navNotifReadAll">Oznacz jako przeczytane</button>
+                <button type="button" class="nav-panel-link" id="navNotifReadAll">Oznacz jako przeczytane</button>
               </div>
               <div class="nav-notif-list" id="navNotifList"></div>
             </div>
@@ -63,13 +85,11 @@
           <a href="/profile" class="avatar" title="<%= user.username %>">
             <% if (user.avatarUrl) { %><img src="<%= user.avatarUrl %>" alt="<%= user.username %>"><% } %>
           </a>
-          
-          <% if (user.role === 'admin') { %>
-            <a href="/games/new" class="icon-btn" title="Dodaj grę">+</a>
-          <% } %>
 
-          <form action="/auth/logout" method="POST" style="display: inline;">
-            <button type="submit" class="btn-ghost" style="padding: 8px 12px; font-size: 12px;">Wyloguj</button>
+          <form action="/auth/logout" method="POST" class="nav-logout-form">
+            <button type="submit" class="icon-btn icon-btn-danger" title="Wyloguj" aria-label="Wyloguj">
+              <i class="bi bi-box-arrow-right"></i>
+            </button>
           </form>
         <% } else { %>
           <!-- Przycisk dla niezalogowanych -->
@@ -87,115 +107,23 @@
   </div>
 </header>
 
+<% if (typeof announcement !== 'undefined' && announcement) { %>
+  <div class="gv-announcement gv-announcement-<%= announcement.type %>" role="status">
+    <div class="wrap">
+      <i class="bi <%= announcement.type === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-megaphone-fill' %>"></i>
+      <span><%= announcement.text %></span>
+    </div>
+  </div>
+<% } %>
+
 <% if (user) { %>
-<script>
-  // Plakietki czatu i powiadomień + rozwijany panel powiadomień.
-  (function () {
-    var bellBtn = document.getElementById('navBellBtn');
-    if (!bellBtn) return;
-
-    var panel = document.getElementById('navNotifPanel');
-    var list = document.getElementById('navNotifList');
-    var chatBadge = document.getElementById('navChatBadge');
-    var bellBadge = document.getElementById('navBellBadge');
-    var readAllBtn = document.getElementById('navNotifReadAll');
-
-    function setBadge(el, count) {
-      if (count > 0) {
-        el.textContent = count > 99 ? '99+' : String(count);
-        el.classList.remove('d-none');
-      } else {
-        el.classList.add('d-none');
-      }
-    }
-
-    function refreshSummary() {
-      fetch('/notifications/summary', { headers: { Accept: 'application/json' } })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (data) {
-          if (!data) return;
-          setBadge(chatBadge, data.messages);
-          setBadge(bellBadge, data.notifications);
-        })
-        .catch(function () {});
-    }
-
-    function timeAgo(iso) {
-      var seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-      if (seconds < 60) return 'przed chwilą';
-      if (seconds < 3600) return Math.floor(seconds / 60) + ' min temu';
-      if (seconds < 86400) return Math.floor(seconds / 3600) + ' godz. temu';
-      return new Date(iso).toLocaleDateString('pl-PL');
-    }
-
-    function renderList(items) {
-      list.innerHTML = '';
-      if (items.length === 0) {
-        var empty = document.createElement('div');
-        empty.className = 'nav-notif-empty';
-        empty.textContent = 'Nie masz jeszcze żadnych powiadomień.';
-        list.appendChild(empty);
-        return;
-      }
-      items.forEach(function (n) {
-        var link = document.createElement('a');
-        link.href = '/notifications/' + encodeURIComponent(n.id) + '/open';
-        link.className = 'nav-notif-item' + (n.isRead ? '' : ' unread');
-        var text = document.createElement('span');
-        text.textContent = n.message;
-        var time = document.createElement('small');
-        time.textContent = timeAgo(n.createdAt);
-        link.appendChild(text);
-        link.appendChild(time);
-        list.appendChild(link);
-      });
-    }
-
-    function loadList() {
-      fetch('/notifications/list', { headers: { Accept: 'application/json' } })
-        .then(function (r) { return r.ok ? r.json() : { items: [] }; })
-        .then(function (data) { renderList(data.items || []); })
-        .catch(function () {});
-    }
-
-    function closePanel() {
-      panel.classList.add('d-none');
-      bellBtn.setAttribute('aria-expanded', 'false');
-    }
-
-    bellBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var opening = panel.classList.contains('d-none');
-      panel.classList.toggle('d-none', !opening);
-      bellBtn.setAttribute('aria-expanded', String(opening));
-      if (opening) loadList();
-    });
-
-    readAllBtn.addEventListener('click', function () {
-      fetch('/notifications/read-all', { method: 'POST', headers: { Accept: 'application/json' } })
-        .then(function () { loadList(); refreshSummary(); });
-    });
-
-    document.addEventListener('click', function (e) {
-      if (!panel.contains(e.target)) closePanel();
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closePanel();
-    });
-
-    refreshSummary();
-    setInterval(refreshSummary, 30000);
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) refreshSummary();
-    });
-  })();
-</script>
+<script src="/js/navbar-popups.js" defer></script>
 <% } %>
 
 <script>
   const hamburger = document.getElementById('hamburgerMenu');
   const mainNav = document.getElementById('mainNav');
-  
+
   if (hamburger) {
     hamburger.addEventListener('click', function() {
       hamburger.classList.toggle('active');

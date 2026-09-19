@@ -62,6 +62,16 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // Blokada konta przez administratora (panel /admin).
+    isBanned: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    banReason: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
     // Punkty doświadczenia (PD) i poziom - przechowywane w bazie, a
     // aktualizowane przy każdej zmianie aktywności (utils/progressHelpers.js).
     points: {

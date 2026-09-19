@@ -5,6 +5,7 @@ const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 const { getReviewsForGame } = require('../utils/gameHelpers');
 const Review = require('../models/Review');
 const CustomGame = require('../models/CustomGame');
+const User = require('../models/User');
 const { getGameById } = require('../utils/gameCatalog');
 const { syncUserProgress } = require('../utils/progressHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
@@ -137,9 +138,16 @@ router.get('/:id', async (req, res, next) => {
     const rawReviews = await getReviewsForGame(game.id);
     const meId = req.session.user ? req.session.user.id : null;
 
+    const authors = await User.findAll({
+      where: { id: [...new Set(rawReviews.map((r) => r.userId))] },
+      attributes: ['id', 'avatarUrl'],
+    });
+    const avatarById = new Map(authors.map((u) => [u.id, u.avatarUrl || null]));
+
     const reviews = await Promise.all(
       rawReviews.map(async (r) => ({
         ...r,
+        avatarUrl: avatarById.get(r.userId) || null,
         likeCount: await getLikeCount(r.id),
         liked: await hasLiked(r.id, meId),
         comments: await getCommentsForReview(r.id, meId),
@@ -286,16 +294,34 @@ router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, async (req, res)
   res.redirect(`/games/${req.params.id}`);
 });
 
+/* Komentarze pod recenzją (JSON) - używane na stronie głównej i w liście recenzji. */
+router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
+  const meId = req.session.user ? req.session.user.id : null;
+  const comments = await getCommentsForReview(req.params.reviewId, meId);
+  res.json({
+    comments: comments.map((c) => ({
+      id: c.id,
+      username: c.username,
+      text: c.text,
+      createdAt: c.createdAt,
+      likeCount: c.likeCount,
+      liked: c.liked,
+    })),
+  });
+});
+
 router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, res, next) => {
   const gameId = String(req.params.id);
+  const wantsJson = wantsJsonResponse(req);
 
   const text = (req.body.text || '').trim();
   if (!text) {
+    if (wantsJson) return res.status(400).json({ error: 'Komentarz nie może być pusty.' });
     req.flash('error', 'Komentarz nie może być pusty.');
     return res.redirect(`/games/${gameId}`);
   }
 
-  await addComment({
+  const created = await addComment({
     reviewId: req.params.reviewId,
     userId: req.session.user.id,
     username: req.session.user.username,
@@ -311,6 +337,20 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, 
       actorId: req.session.user.id,
       message: `${req.session.user.username} skomentował(a) Twoją recenzję${game ? ` gry „${game.title}”` : ''}`,
       link: `/games/${commentedReview.gameId}#review-${commentedReview.id}`,
+    });
+  }
+
+  if (wantsJson) {
+    return res.json({
+      ok: true,
+      comment: {
+        id: created.id,
+        username: created.username,
+        text: created.text,
+        createdAt: created.createdAt,
+        likeCount: 0,
+        liked: false,
+      },
     });
   }
 
@@ -366,7 +406,7 @@ router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, async (req, re
 
   req.flash(
     'success',
-    'Dziękujemy za zgłoszenie. Opinia trafiła do kolejki weryfikacji (panel administratora w budowie).'
+    'Dziękujemy za zgłoszenie. Opinia trafiła do kolejki weryfikacji przez administratorów.'
   );
   res.redirect(`/games/${gameId}`);
 });

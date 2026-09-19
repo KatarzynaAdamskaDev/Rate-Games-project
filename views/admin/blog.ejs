@@ -1,0 +1,32 @@
+<%- include('partials/top') %>
+
+<div class="gv-admin-toolbar">
+  <a href="/blog/new" class="btn gv-btn-success"><i class="bi bi-plus-lg"></i> Nowy wpis</a>
+</div>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr><th>Tytuł</th><th>Autor</th><th>Data</th><th>Akcje</th></tr>
+    </thead>
+    <tbody>
+      <% posts.forEach(function(p) { %>
+        <tr>
+          <td><a href="/blog/<%= p.id %>"><b><%= p.title %></b></a></td>
+          <td><%= p.author %></td>
+          <td><%= new Date(p.createdAt).toLocaleDateString('pl-PL') %></td>
+          <td>
+            <form method="POST" action="/admin/blog/<%= p.id %>/delete" onsubmit="return confirm('Usunąć ten wpis?');">
+              <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (posts.length === 0) { %>
+        <tr><td colspan="4" class="gv-admin-empty">Brak wpisów na blogu.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/bottom') %>

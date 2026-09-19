@@ -1,0 +1,43 @@
+<%- include('partials/top') %>
+
+<%
+const __v = function (name) {
+  if (formData && formData[name] !== undefined) return formData[name];
+  return game && game[name] !== undefined && game[name] !== null ? game[name] : '';
+};
+%>
+
+<form method="POST" action="<%= game ? '/admin/games/' + game.id + '/edit' : '/admin/games/new' %>" class="gv-admin-card gv-admin-form">
+  <div class="gv-admin-form-grid">
+    <div class="full">
+      <label class="gv-label" for="gfTitle">Tytuł *</label>
+      <input type="text" id="gfTitle" name="title" class="form-control gv-input" value="<%= __v('title') %>" maxlength="150" required>
+    </div>
+    <div>
+      <label class="gv-label" for="gfCategory">Kategoria *</label>
+      <input type="text" id="gfCategory" name="category" class="form-control gv-input" value="<%= __v('category') %>" maxlength="60" required>
+    </div>
+    <div>
+      <label class="gv-label" for="gfPlatform">Platforma</label>
+      <input type="text" id="gfPlatform" name="platform" class="form-control gv-input" value="<%= __v('platform') || 'PC' %>" maxlength="80">
+    </div>
+    <div>
+      <label class="gv-label" for="gfYear">Rok wydania</label>
+      <input type="number" id="gfYear" name="releaseYear" class="form-control gv-input" value="<%= __v('releaseYear') %>" min="1970" max="2100">
+    </div>
+    <div>
+      <label class="gv-label" for="gfCover">Adres okładki (URL)</label>
+      <input type="text" id="gfCover" name="coverImage" class="form-control gv-input" value="<%= __v('coverImage') %>" maxlength="500" placeholder="/images/game-placeholder.svg">
+    </div>
+    <div class="full">
+      <label class="gv-label" for="gfDesc">Opis *</label>
+      <textarea id="gfDesc" name="description" rows="5" class="form-control gv-input" required><%= __v('description') %></textarea>
+    </div>
+  </div>
+  <div class="gv-admin-form-actions">
+    <button type="submit" class="btn gv-btn-success"><i class="bi bi-check-lg"></i> <%= game ? 'Zapisz zmiany' : 'Dodaj grę' %></button>
+    <a href="/admin/games" class="gv-btn-outline">Anuluj</a>
+  </div>
+</form>
+
+<%- include('partials/bottom') %>

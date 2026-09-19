@@ -171,6 +171,20 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
       });
     }
 
+    if (user.isBanned) {
+      const message = user.banReason
+        ? `Twoje konto zostało zablokowane. Powód: ${user.banReason}`
+        : 'Twoje konto zostało zablokowane przez administratora.';
+      if (wantsJson) {
+        return res.status(403).json({ success: false, message });
+      }
+      req.flash('error', message);
+      return res.status(403).render('auth/signin', {
+        title: 'Zaloguj się',
+        formData: { identifier },
+      });
+    }
+
     req.session.user = {
       id: user.id,
       username: user.username,

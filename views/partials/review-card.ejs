@@ -16,22 +16,18 @@ const __game = review.game;
       <% } else { %>
         <span class="gv-rcard-game">Gra niedostępna</span>
       <% } %>
-      <span class="gv-review-rating-badge">
-        <% for (let i = 1; i <= 5; i++) { %><i class="bi <%= i <= Math.round(review.rating) ? 'bi-star-fill' : 'bi-star' %>"></i><% } %>
-      </span>
+      <span class="gv-review-rating-badge"><%- include('star-rating-solid', { rating: review.rating }) %></span>
     </div>
     <p class="gv-rcard-text"><%= review.text %></p>
     <div class="gv-rcard-foot">
-      <a href="/<%= encodeURIComponent(review.username) %>" class="gv-review-byline gv-rcard-author">
-        <% if (review.author.avatarUrl) { %><img src="<%= review.author.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
-        Review by: <strong><%= review.username %></strong>
-      </a>
-      <span class="gv-rcard-meta">
-        <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
-        <span title="Polubienia"><i class="bi bi-heart"></i> <%= review.likeCount %></span>
-        <span title="Komentarze"><i class="bi bi-chat-dots"></i> <%= review.commentCount %></span>
-        <% if (__game) { %><a href="/games/<%= __game.id %>#review-<%= review.id %>" class="gv-rcard-open">Otwórz</a><% } %>
+      <span class="gv-review-byline">Review by:
+        <a href="/<%= encodeURIComponent(review.username) %>" class="gv-byline-link">
+          <% if (review.author.avatarUrl) { %><img src="<%= review.author.avatarUrl %>" alt="" class="gv-byline-avatar"><% } else { %><span class="gv-byline-avatar"></span><% } %>
+          <span class="gv-byline-name"><%= review.username %></span>
+        </a>
       </span>
+      <span class="gv-rcard-meta"><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
     </div>
+    <%- include('review-actions', { review, openHref: __game ? '/games/' + __game.id + '#review-' + review.id : null }) %>
   </div>
 </article>

@@ -5,7 +5,7 @@
  */
 const Review = require('../models/Review');
 const User = require('../models/User');
-const { pointsFromStats, levelFromPoints } = require('./pointsHelpers');
+const { pointsFromStats, levelFromPoints, POINTS_PER_REVIEW, POINTS_PER_LEVEL } = require('./pointsHelpers');
 
 /** Zapisuje PD i poziom tylko wtedy, gdy różnią się od tego, co jest w bazie. */
 async function saveProgress(userId, points, level, current) {
@@ -33,4 +33,18 @@ async function syncAllUsersProgress() {
   }
 }
 
-module.exports = { saveProgress, syncUserProgress, syncAllUsersProgress };
+/**
+ * Ustawia poziom konta przez ręczną korektę PD (users.bonusPoints).
+ * @param {number|null} level docelowy poziom (>= 1) albo null, żeby usunąć korektę
+ */
+async function setUserLevel(userId, level) {
+  const reviewCount = await Review.count({ where: { userId } });
+  const activityPoints = reviewCount * POINTS_PER_REVIEW;
+  const bonusPoints = level === null ? 0 : (level - 1) * POINTS_PER_LEVEL - activityPoints;
+
+  await User.update({ bonusPoints }, { where: { id: userId } });
+  const result = await syncUserProgress(userId);
+  return { ...result, activityPoints, bonusPoints };
+}
+
+module.exports = { saveProgress, syncUserProgress, syncAllUsersProgress, setUserLevel };

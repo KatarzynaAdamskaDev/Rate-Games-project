@@ -1,0 +1,38 @@
+<%- include('partials/top') %>
+
+<p class="gv-admin-note">
+  Większość gier pochodzi z bazy IGDB i nie wymaga zarządzania. Tutaj dodajesz i edytujesz gry, których w IGDB nie ma.
+</p>
+<div class="gv-admin-toolbar">
+  <a href="/admin/games/new" class="btn gv-btn-success"><i class="bi bi-plus-lg"></i> Dodaj grę</a>
+</div>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr><th>Tytuł</th><th>Kategoria</th><th>Platforma</th><th>Rok</th><th>Recenzje</th><th>Akcje</th></tr>
+    </thead>
+    <tbody>
+      <% games.forEach(function(g) { %>
+        <tr>
+          <td><a href="/games/<%= g.id %>"><b><%= g.title %></b></a></td>
+          <td><%= g.category %></td>
+          <td><%= g.platform %></td>
+          <td><%= g.releaseYear || '-' %></td>
+          <td><%= g.reviewCount %></td>
+          <td class="gv-cell-actions">
+            <a href="/admin/games/<%= g.id %>/edit" class="gv-mini-btn"><i class="bi bi-pencil-square"></i> Edytuj</a>
+            <form method="POST" action="/admin/games/<%= g.id %>/delete" onsubmit="return confirm('Usunąć grę „<%= g.title %>” razem z jej recenzjami (<%= g.reviewCount %>)?');">
+              <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (games.length === 0) { %>
+        <tr><td colspan="6" class="gv-admin-empty">Nie dodano jeszcze żadnej własnej gry.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/bottom') %>

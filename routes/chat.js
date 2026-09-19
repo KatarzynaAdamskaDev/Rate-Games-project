@@ -12,6 +12,7 @@ const {
   markConversationRead,
   getUnreadCounts,
   getMessages,
+  getLastMessage,
   getMessagesAfter,
   addMessage,
   clearMessages,
@@ -65,6 +66,47 @@ router.get('/', async (req, res) => {
       .map((u) => u.username),
     popularGames: await getPopularGames(20),
   });
+});
+
+/* -------------------- LISTA ROZMÓW DLA MINI CZATU (JSON) -------------------- */
+
+router.get('/api/list', async (req, res, next) => {
+  try {
+    const me = req.session.user;
+    const [conversations, unread] = await Promise.all([
+      getConversationsForUser(me.id),
+      getUnreadCounts(me.id),
+    ]);
+
+    const items = await Promise.all(
+      conversations.slice(0, 30).map(async (c) => {
+        let name = c.name;
+        if (c.type === 'dm') {
+          const otherId = c.memberIds.find((id) => id !== me.id);
+          name = (otherId && c.memberNames[otherId]) || 'Rozmowa';
+        }
+        const last = await getLastMessage(c.id);
+        return {
+          id: c.id,
+          type: c.type,
+          name,
+          unread: unread.byConversation[c.id] || 0,
+          lastMessage: last
+            ? {
+                text: last.text.slice(0, 80),
+                senderUsername: last.senderUsername,
+                mine: last.senderId === me.id,
+                createdAt: last.createdAt,
+              }
+            : null,
+        };
+      })
+    );
+
+    res.json({ conversations: items });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ------------------- WYSZUKIWANIE ZNAJOMYCH (do grupy) ------------------- */

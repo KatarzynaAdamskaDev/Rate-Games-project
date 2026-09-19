@@ -51,15 +51,12 @@ async function updateUsername(userId, newUsername) {
 }
 
 /**
- * Usuwa konto użytkownika razem z jego danymi: recenzjami (wraz z ich
- * polubieniami, komentarzami i zgłoszeniami), własnymi polubieniami i
- * komentarzami, zgłoszeniami, obserwowaniem, ulubionymi grami oraz czatami
- * (zob. removeUserFromConversations).
+ * Usuwa wszystkie dane użytkownika (bez samego wiersza konta): recenzje wraz z ich
+ * polubieniami, komentarzami i zgłoszeniami, własne polubienia i komentarze,
+ * zgłoszenia, obserwowanie, ulubione gry, powiadomienia oraz czaty
+ * (zob. removeUserFromConversations). Działa też dla kont, których już nie ma.
  */
-async function deleteUser(userId) {
-  const user = await User.findByPk(userId);
-  if (!user) return false;
-
+async function purgeUserData(userId) {
   const reviews = await Review.findAll({ where: { userId } });
   for (const review of reviews) {
     await deleteReviewData(review.id);
@@ -81,9 +78,17 @@ async function deleteUser(userId) {
   ]);
 
   await removeUserFromConversations(userId);
+}
+
+/** Usuwa konto użytkownika razem z całą jego aktywnością (zob. purgeUserData). */
+async function deleteUser(userId) {
+  const user = await User.findByPk(userId);
+  if (!user) return false;
+
+  await purgeUserData(userId);
 
   const count = await User.destroy({ where: { id: userId } });
   return count > 0;
 }
 
-module.exports = { getUserPublic, updateUsername, deleteUser };
+module.exports = { getUserPublic, updateUsername, deleteUser, purgeUserData };

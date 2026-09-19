@@ -1,0 +1,119 @@
+<%- include('partials/top') %>
+
+<%
+const __kpis = [
+  { icon: 'bi-people-fill', value: stats.users, label: 'użytkowników', hint: '+' + stats.newUsers + ' w tym tygodniu', href: '/admin/users' },
+  { icon: 'bi-journal-text', value: stats.reviews, label: 'recenzji', hint: '+' + stats.newReviews + ' w tym tygodniu', href: '/admin/reviews' },
+  { icon: 'bi-flag-fill', value: stats.pendingReports, label: 'zgłoszeń do rozpatrzenia', hint: stats.pendingReports > 0 ? 'wymaga uwagi' : 'brak zaległości', href: '/admin/reports', alert: stats.pendingReports > 0 },
+  { icon: 'bi-chat-left-text-fill', value: stats.comments, label: 'komentarzy', hint: stats.likes + ' polubień recenzji', href: '/admin/comments' },
+  { icon: 'bi-slash-circle-fill', value: stats.banned, label: 'zablokowanych kont', hint: stats.admins + ' administratorów', href: '/admin/users?filter=banned' },
+  { icon: 'bi-controller', value: stats.customGames, label: 'gier własnych', hint: 'dodanych ręcznie', href: '/admin/games' },
+  { icon: 'bi-newspaper', value: stats.blogPosts, label: 'wpisów na blogu', hint: 'plik data/blog.json', href: '/admin/blog' },
+  { icon: 'bi-chat-dots-fill', value: stats.conversations, label: 'rozmów na czacie', hint: stats.messages + ' wiadomości', href: '/admin/chat' },
+];
+const __max = function (series) { return Math.max(1, ...series.map(function (d) { return d.count; })); };
+%>
+
+<div class="gv-kpis">
+  <% __kpis.forEach(function(k) { %>
+    <a href="<%= k.href %>" class="gv-kpi <%= k.alert ? 'gv-kpi-alert' : '' %>">
+      <i class="bi <%= k.icon %>"></i>
+      <b><%= k.value %></b>
+      <span><%= k.label %></span>
+      <small><%= k.hint %></small>
+    </a>
+  <% }) %>
+</div>
+
+<div class="gv-admin-grid">
+  <div class="gv-admin-card">
+    <h2><i class="bi bi-person-plus-fill"></i> Nowi użytkownicy (14 dni)</h2>
+    <div class="gv-chart">
+      <% stats.usersChart.forEach(function(d) { %>
+        <div class="gv-chart-col" title="<%= d.date.toLocaleDateString('pl-PL') %>: <%= d.count %>">
+          <span class="gv-chart-bar" style="height: <%= Math.round((d.count / __max(stats.usersChart)) * 100) %>%;"></span>
+          <small><%= d.date.getDate() %></small>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <div class="gv-admin-card">
+    <h2><i class="bi bi-journal-plus"></i> Nowe recenzje (14 dni)</h2>
+    <div class="gv-chart">
+      <% stats.reviewsChart.forEach(function(d) { %>
+        <div class="gv-chart-col" title="<%= d.date.toLocaleDateString('pl-PL') %>: <%= d.count %>">
+          <span class="gv-chart-bar gv-chart-bar-alt" style="height: <%= Math.round((d.count / __max(stats.reviewsChart)) * 100) %>%;"></span>
+          <small><%= d.date.getDate() %></small>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<div class="gv-admin-grid">
+  <div class="gv-admin-card">
+    <h2><i class="bi bi-flag-fill"></i> Zgłoszenia do rozpatrzenia</h2>
+    <% if (pendingReports.length === 0) { %>
+      <p class="gv-admin-empty">Brak zgłoszeń - wszystko rozpatrzone.</p>
+    <% } else { %>
+      <ul class="gv-admin-list">
+        <% pendingReports.forEach(function(r) { %>
+          <li>
+            <span><%= r.review ? r.review.text.slice(0, 70) + (r.review.text.length > 70 ? '…' : '') : 'Recenzja została usunięta' %></span>
+            <small><%= new Date(r.createdAt).toLocaleDateString('pl-PL') %></small>
+          </li>
+        <% }) %>
+      </ul>
+      <a href="/admin/reports" class="gv-admin-more">Przejdź do zgłoszeń <i class="bi bi-arrow-right"></i></a>
+    <% } %>
+  </div>
+
+  <div class="gv-admin-card">
+    <h2><i class="bi bi-people-fill"></i> Ostatnio zarejestrowani</h2>
+    <ul class="gv-admin-list">
+      <% latestUsers.forEach(function(u) { %>
+        <li>
+          <a href="/<%= encodeURIComponent(u.username) %>"><%= u.username %></a>
+          <small><%= new Date(u.createdAt).toLocaleDateString('pl-PL') %></small>
+        </li>
+      <% }) %>
+    </ul>
+    <a href="/admin/users" class="gv-admin-more">Wszyscy użytkownicy <i class="bi bi-arrow-right"></i></a>
+  </div>
+</div>
+
+<div class="gv-admin-card">
+  <h2><i class="bi bi-journal-text"></i> Ostatnie recenzje</h2>
+  <% if (latestReviews.length === 0) { %>
+    <p class="gv-admin-empty">Nie ma jeszcze żadnych recenzji.</p>
+  <% } else { %>
+    <ul class="gv-admin-list">
+      <% latestReviews.forEach(function(r) { %>
+        <li>
+          <span>
+            <b><%= r.game ? r.game.title : 'Gra niedostępna' %></b> -
+            <%= r.username %>: <%= r.text.slice(0, 80) + (r.text.length > 80 ? '…' : '') %>
+          </span>
+          <small><%= new Date(r.createdAt).toLocaleDateString('pl-PL') %></small>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<div class="gv-admin-card gv-admin-ideas">
+  <h2><i class="bi bi-lightbulb-fill"></i> Propozycje kolejnych funkcji</h2>
+  <p class="gv-admin-empty">Tego jeszcze nie ma w aplikacji, a warto rozważyć:</p>
+  <ul class="gv-admin-ideas-list">
+    <li><b>Weryfikacja adresu e-mail</b> przy rejestracji (mail z linkiem aktywacyjnym).</li>
+    <li><b>Limity i antyspam</b>: ograniczenie liczby recenzji, komentarzy i wiadomości na minutę.</li>
+    <li><b>Filtr wulgaryzmów</b> w recenzjach i komentarzach z automatycznym zgłoszeniem.</li>
+    <li><b>Eksport danych do CSV</b> (użytkownicy, recenzje) i kopia zapasowa bazy jednym kliknięciem.</li>
+    <li><b>Dwuetapowe logowanie (2FA)</b> dla kont administratorów.</li>
+    <li><b>Historia edycji recenzji</b> i możliwość przywrócenia usuniętej recenzji.</li>
+    <li><b>Wiadomość do użytkownika</b> (ostrzeżenie) zamiast od razu blokady.</li>
+  </ul>
+</div>
+
+<%- include('partials/bottom') %>

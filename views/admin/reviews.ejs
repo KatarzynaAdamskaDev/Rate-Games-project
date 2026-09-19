@@ -1,0 +1,47 @@
+<%- include('partials/top') %>
+
+<form method="GET" class="gv-admin-filters">
+  <input type="search" name="q" value="<%= q %>" class="form-control gv-input" placeholder="Szukaj w treści lub po autorze..." maxlength="100">
+  <select name="rating" class="form-select gv-select" onchange="this.form.submit()">
+    <option value="">Każda ocena</option>
+    <% [5, 4, 3, 2, 1].forEach(function(n) { %>
+      <option value="<%= n %>" <%= rating === n ? 'selected' : '' %>><%= n %> <%= n === 1 ? 'gwiazdka' : (n < 5 ? 'gwiazdki' : 'gwiazdek') %></option>
+    <% }) %>
+  </select>
+  <button type="submit" class="btn gv-btn-primary"><i class="bi bi-search"></i> Szukaj</button>
+</form>
+<p class="gv-admin-count"><%= total %> <%= total === 1 ? 'recenzja' : 'recenzji' %></p>
+
+<div class="gv-table-wrap">
+  <table class="gv-table">
+    <thead>
+      <tr><th>Gra</th><th>Autor</th><th>Ocena</th><th>Treść</th><th>Data</th><th>Reakcje</th><th>Akcje</th></tr>
+    </thead>
+    <tbody>
+      <% reviews.forEach(function(r) { %>
+        <tr>
+          <td>
+            <% if (r.game) { %><a href="/games/<%= r.game.id %>#review-<%= r.id %>"><%= r.game.title %></a><% } else { %><span class="gv-muted">gra niedostępna</span><% } %>
+          </td>
+          <td><a href="/<%= encodeURIComponent(r.username) %>"><%= r.username %></a></td>
+          <td><span class="gv-review-rating-badge"><%- include('../partials/star-rating-solid', { rating: r.rating }) %></span></td>
+          <td class="gv-cell-text"><%= r.text.length > 140 ? r.text.slice(0, 140) + '…' : r.text %></td>
+          <td><%= new Date(r.createdAt).toLocaleDateString('pl-PL') %></td>
+          <td><i class="bi bi-heart"></i> <%= r.likeCount %> &nbsp; <i class="bi bi-chat-dots"></i> <%= r.commentCount %></td>
+          <td>
+            <form method="POST" action="/admin/reviews/<%= r.id %>/delete" onsubmit="return confirm('Usunąć tę recenzję na stałe?');">
+              <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (reviews.length === 0) { %>
+        <tr><td colspan="7" class="gv-admin-empty">Brak recenzji spełniających kryteria.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/pager', { pager }) %>
+
+<%- include('partials/bottom') %>

@@ -14,6 +14,7 @@ const { buildPagerLinks } = require('../utils/gameListing');
 router.get('/', async (req, res, next) => {
   try {
     const { sort, rating, page } = req.query;
+    const viewerId = req.session.user ? req.session.user.id : null;
 
     const [stats, mostReviewedGames, topRatedGames, topReviewers, weeklyReview, feed] =
       await Promise.all([
@@ -21,8 +22,8 @@ router.get('/', async (req, res, next) => {
         getMostReviewedGames(10),
         getTopRatedGames(10, 1),
         getTopReviewers(6),
-        getReviewOfTheWeek(),
-        getReviewFeed({ sort, rating, page }),
+        getReviewOfTheWeek(viewerId),
+        getReviewFeed({ sort, rating, page, viewerId }),
       ]);
 
     res.render('reviews', {

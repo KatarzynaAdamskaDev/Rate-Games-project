@@ -65,7 +65,7 @@
               <div class="gv-rank-body">
                 <b><%= game.title %></b>
                 <span><%= game.category %> · <%= game.releaseYear %></span>
-                <span class="gv-rank-metric"><%- include('partials/star-rating', { rating: game.averageRating }) %> <%= game.averageRating %> / 5</span>
+                <span class="gv-rank-metric gv-rank-rating"><span class="gv-review-rating-badge"><%- include('partials/star-rating-solid', { rating: game.averageRating }) %></span><span><%= game.averageRating %> / 5</span></span>
               </div>
             </a>
           <% }) %>
@@ -138,5 +138,6 @@
   </section>
 
   <%- include('partials/footer') %>
+  <script src="/js/review-actions.js"></script>
 </body>
 </html>

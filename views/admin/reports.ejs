@@ -1,0 +1,57 @@
+<%- include('partials/top') %>
+
+<div class="gv-admin-tabs">
+  <a href="/admin/reports" class="<%= status === 'pending' ? 'active' : '' %>">Do rozpatrzenia</a>
+  <a href="/admin/reports?status=all" class="<%= status === 'all' ? 'active' : '' %>">Wszystkie</a>
+</div>
+<p class="gv-admin-count"><%= total %> <%= total === 1 ? 'zgłoszenie' : 'zgłoszeń' %></p>
+
+<% if (reports.length === 0) { %>
+  <div class="gv-admin-card"><p class="gv-admin-empty">Brak zgłoszeń w tym widoku.</p></div>
+<% } else { %>
+  <div class="gv-report-list">
+    <% reports.forEach(function(rep) { %>
+      <div class="gv-admin-card gv-report">
+        <div class="gv-report-head">
+          <span class="gv-badge <%= rep.status === 'pending' ? 'gv-badge-warn' : (rep.status === 'dismissed' ? '' : 'gv-badge-ok') %>">
+            <%= rep.status === 'pending' ? 'do rozpatrzenia' : (rep.status === 'dismissed' ? 'odrzucone' : 'rozpatrzone') %>
+          </span>
+          <small class="gv-muted">zgłosił(a) <b><%= rep.reporterName %></b> · <%= new Date(rep.createdAt).toLocaleString('pl-PL') %></small>
+        </div>
+
+        <% if (rep.review) { %>
+          <div class="gv-report-review">
+            <div class="gv-report-meta">
+              <a href="/<%= encodeURIComponent(rep.review.username) %>"><b><%= rep.review.username %></b></a>
+              o grze
+              <% if (rep.review.game) { %><a href="/games/<%= rep.review.game.id %>#review-<%= rep.review.id %>"><%= rep.review.game.title %></a><% } else { %>(gra niedostępna)<% } %>
+              <span class="gv-review-rating-badge"><%- include('../partials/star-rating-solid', { rating: rep.review.rating }) %></span>
+            </div>
+            <p><%= rep.review.text %></p>
+          </div>
+        <% } else { %>
+          <p class="gv-admin-empty">Zgłoszona recenzja została już usunięta.</p>
+        <% } %>
+
+        <p class="gv-report-reason"><b>Powód:</b> <%= rep.reason || 'nie podano' %></p>
+
+        <% if (rep.status === 'pending') { %>
+          <div class="gv-report-actions">
+            <% if (rep.review) { %>
+              <form method="POST" action="/admin/reports/<%= rep.id %>/delete-review" onsubmit="return confirm('Usunąć zgłoszoną recenzję na stałe?');">
+                <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń recenzję</button>
+              </form>
+            <% } %>
+            <form method="POST" action="/admin/reports/<%= rep.id %>/dismiss">
+              <button type="submit" class="gv-mini-btn"><i class="bi bi-x-circle"></i> Odrzuć zgłoszenie</button>
+            </form>
+          </div>
+        <% } %>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('../partials/pager', { pager }) %>
+
+<%- include('partials/bottom') %>

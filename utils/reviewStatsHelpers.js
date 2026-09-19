@@ -42,17 +42,32 @@ async function getSocialCounts(reviewIds) {
   };
 }
 
-/** Dokleja do recenzji: grę, autora (awatar, poziom) oraz liczbę polubień i komentarzy. */
-async function enrichReviews(reviews) {
+/** Zbiór identyfikatorów recenzji polubionych przez danego użytkownika. */
+async function getLikedReviewIds(reviewIds, userId) {
+  if (!userId || reviewIds.length === 0) return new Set();
+  const rows = await ReviewLike.findAll({
+    where: { reviewId: reviewIds, userId },
+    attributes: ['reviewId'],
+    raw: true,
+  });
+  return new Set(rows.map((r) => r.reviewId));
+}
+
+/**
+ * Dokleja do recenzji: grę, autora (awatar, poziom), liczbę polubień i komentarzy
+ * oraz (dla zalogowanego przeglądającego) informację, czy recenzja jest przez niego polubiona.
+ */
+async function enrichReviews(reviews, viewerId = null) {
   if (reviews.length === 0) return [];
 
-  const [games, users, counts] = await Promise.all([
+  const [games, users, counts, likedIds] = await Promise.all([
     getGamesByIds(reviews.map((r) => r.gameId)),
     User.findAll({
       where: { id: [...new Set(reviews.map((r) => r.userId))] },
       attributes: ['id', 'username', 'avatarUrl', 'level'],
     }),
     getSocialCounts(reviews.map((r) => r.id)),
+    getLikedReviewIds(reviews.map((r) => r.id), viewerId),
   ]);
   const usersById = new Map(users.map((u) => [u.id, u]));
 
@@ -66,6 +81,7 @@ async function enrichReviews(reviews) {
         : { avatarUrl: null, level: 1 },
       likeCount: counts.likes.get(r.id) || 0,
       commentCount: counts.comments.get(r.id) || 0,
+      liked: likedIds.has(r.id),
     };
   });
 }
@@ -157,7 +173,7 @@ async function getTopReviewers(limit = 6) {
  * Lista wszystkich recenzji z sortowaniem, filtrem oceny i stronicowaniem.
  * @returns {{ items: object[], total: number, page: number, pages: number, sort: string }}
  */
-async function getReviewFeed({ sort, rating, page } = {}) {
+async function getReviewFeed({ sort, rating, page, viewerId } = {}) {
   const activeSort = FEED_SORTS.includes(sort) ? sort : 'newest';
   const ratingFilter = Number(rating);
 
@@ -187,7 +203,7 @@ async function getReviewFeed({ sort, rating, page } = {}) {
   const slice = reviews.slice((activePage - 1) * FEED_PAGE_SIZE, activePage * FEED_PAGE_SIZE);
 
   return {
-    items: await enrichReviews(slice),
+    items: await enrichReviews(slice, viewerId),
     total: reviews.length,
     page: activePage,
     pages,
@@ -201,7 +217,7 @@ async function getReviewFeed({ sort, rating, page } = {}) {
  * tekst, nowsza). Gdy w tym tygodniu nikt nic nie napisał, zwracamy najlepszą
  * recenzję ze wszystkich (flaga `fromThisWeek: false`).
  */
-async function getReviewOfTheWeek() {
+async function getReviewOfTheWeek(viewerId = null) {
   const all = await loadReviews();
   if (all.length === 0) return null;
 
@@ -220,12 +236,13 @@ async function getReviewOfTheWeek() {
     (a, b) => score(b) - score(a) || new Date(b.createdAt) - new Date(a.createdAt)
   )[0];
 
-  const [enriched] = await enrichReviews([best]);
+  const [enriched] = await enrichReviews([best], viewerId);
   return { ...enriched, fromThisWeek: recent.length > 0 };
 }
 
 module.exports = {
   FEED_SORTS,
+  enrichReviews,
   getMostReviewedGames,
   getTopRatedGames,
   getOverallStats,
