@@ -38,7 +38,8 @@ const User = require('../models/User');
 const SETTINGS_TABS = [
   { id: 'general', label: 'Ogólne', icon: 'bi-person-fill' },
   { id: 'avatar', label: 'Awatar', icon: 'bi-image-fill' },
-  { id: 'appearance', label: 'Wygląd profilu', icon: 'bi-palette-fill' },
+  { id: 'background', label: 'Tło profilu', icon: 'bi-card-image' },
+  { id: 'badge', label: 'Wyróżniona odznaka', icon: 'bi-award-fill' },
   { id: 'notifications', label: 'Powiadomienia', icon: 'bi-bell-fill' },
   { id: 'account', label: 'Konto i bezpieczeństwo', icon: 'bi-shield-lock-fill' },
 ];
@@ -108,7 +109,9 @@ router.get('/', ensureAuthenticated, async (req, res) => {
 
 router.get('/settings', ensureAuthenticated, async (req, res, next) => {
   try {
-    const tab = SETTINGS_TABS.some((t) => t.id === req.query.tab) ? req.query.tab : 'general';
+    // Stara zakładka "Wygląd profilu" została rozdzielona na awatar, tło i odznakę.
+    const requested = req.query.tab === 'appearance' ? 'avatar' : req.query.tab;
+    const tab = SETTINGS_TABS.some((t) => t.id === requested) ? requested : 'general';
     const user = await findById(req.session.user.id);
     // Poziom, ramki, tła i odznaki (wcześniej zakładka na profilu) są częścią edycji profilu.
     const vm = await buildProfileViewModel(user);
@@ -143,6 +146,7 @@ router.get('/settings', ensureAuthenticated, async (req, res, next) => {
       tab,
       tabs: SETTINGS_TABS,
       accountEmail: user.email,
+      profileUrlBase: `${req.protocol}://${req.get('host')}`,
       notificationTypes: NOTIFICATION_TYPES,
       notificationPrefs: parsePrefs(user.notificationPrefs),
       twoFactor,
@@ -150,6 +154,60 @@ router.get('/settings', ensureAuthenticated, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+router.post('/settings/general', ensureAuthenticated, async (req, res) => {
+  const me = req.session.user;
+  const wantedName = String(req.body.username || '').trim();
+  const messages = [];
+
+  if (wantedName && wantedName !== me.username) {
+    if (wantedName.length < 3) {
+      req.flash('error', 'Nazwa użytkownika musi mieć co najmniej 3 znaki.');
+      return res.redirect(settingsUrl('general'));
+    }
+    if (isReservedUsername(wantedName)) {
+      req.flash('error', 'Ta nazwa użytkownika jest zarezerwowana i niedostępna.');
+      return res.redirect(settingsUrl('general'));
+    }
+    const nameCheck = moderateName(wantedName);
+    if (!nameCheck.ok) {
+      req.flash('error', nameCheck.error);
+      return res.redirect(settingsUrl('general'));
+    }
+
+    const result = await updateUsername(me.id, wantedName);
+    if (!result.ok) {
+      req.flash(
+        'error',
+        result.reason === 'taken'
+          ? 'Ta nazwa użytkownika jest już zajęta.'
+          : 'Nie udało się zmienić nazwy użytkownika.'
+      );
+      return res.redirect(settingsUrl('general'));
+    }
+    req.session.user.username = result.user.username;
+    messages.push('nazwę użytkownika');
+  }
+
+  const checked = moderateText(String(req.body.bio || '').trim().slice(0, 300), {
+    userId: me.id,
+    duplicates: false,
+  });
+  if (!checked.ok) {
+    req.flash('error', checked.error);
+    return res.redirect(settingsUrl('general'));
+  }
+  await User.update({ bio: checked.text }, { where: { id: me.id } });
+  messages.push('opis profilu');
+
+  req.flash(
+    'success',
+    checked.masked
+      ? 'Zapisano zmiany - niedozwolone słowa w opisie zostały zamaskowane.'
+      : `Zapisano: ${messages.join(' i ')}.`
+  );
+  res.redirect(settingsUrl('general'));
 });
 
 router.post('/settings/username', ensureAuthenticated, async (req, res) => {
@@ -296,18 +354,18 @@ router.post('/customize/frame/:frameId', ensureAuthenticated, async (req, res) =
 
   if (!frame) {
     req.flash('error', 'Nieznana ramka.');
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('avatar'));
   }
 
   const { level, unlockAll } = await getUnlockContext(req.session.user.id);
   if (!unlockAll && frame.levelRequired > level) {
     req.flash('error', `Ta ramka odblokowuje się na poziomie ${frame.levelRequired}.`);
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('avatar'));
   }
 
   await User.update({ activeFrame: frameId }, { where: { id: req.session.user.id } });
   req.flash('success', `Ustawiono ramkę: ${frame.label}.`);
-  res.redirect(settingsUrl('appearance'));
+  res.redirect(settingsUrl('avatar'));
 });
 
 router.post('/customize/background/:bgId', ensureAuthenticated, async (req, res) => {
@@ -316,18 +374,18 @@ router.post('/customize/background/:bgId', ensureAuthenticated, async (req, res)
 
   if (!bg) {
     req.flash('error', 'Nieznane tło.');
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('background'));
   }
 
   const { level, unlockAll } = await getUnlockContext(req.session.user.id);
   if (!unlockAll && bg.levelRequired > level) {
     req.flash('error', `To tło odblokowuje się na poziomie ${bg.levelRequired}.`);
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('background'));
   }
 
   await User.update({ activeBackground: bgId }, { where: { id: req.session.user.id } });
   req.flash('success', `Ustawiono tło: ${bg.label}.`);
-  res.redirect(settingsUrl('appearance'));
+  res.redirect(settingsUrl('background'));
 });
 
 router.post('/customize/trophy/:badgeId', ensureAuthenticated, async (req, res) => {
@@ -338,22 +396,22 @@ router.post('/customize/trophy/:badgeId', ensureAuthenticated, async (req, res) 
   if (badgeId === 'default') {
     await User.update({ activeTrophy: null }, { where: { id: user.id } });
     req.flash('success', 'Ustawiono domyślne trofeum.');
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('badge'));
   }
 
   const badge = allBadges.find((b) => b.id === badgeId);
   if (!badge) {
     req.flash('error', 'Nieznana odznaka.');
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('badge'));
   }
   if (badge.locked) {
     req.flash('error', 'Ta odznaka nie jest jeszcze odblokowana.');
-    return res.redirect(settingsUrl('appearance'));
+    return res.redirect(settingsUrl('badge'));
   }
 
   await User.update({ activeTrophy: badgeId }, { where: { id: user.id } });
   req.flash('success', `Trofeum w banerze: ${badge.label}.`);
-  res.redirect(settingsUrl('appearance'));
+  res.redirect(settingsUrl('badge'));
 });
 
 /* --------------------------- POWIADOMIENIA --------------------------- */

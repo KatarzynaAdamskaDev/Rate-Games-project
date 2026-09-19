@@ -114,12 +114,15 @@ const __max = function (series) { return Math.max(1, ...series.map(function (d) 
 
 <div class="gv-admin-card gv-admin-ideas">
   <h2><i class="bi bi-lightbulb-fill"></i> Propozycje kolejnych funkcji</h2>
-  <p class="gv-admin-empty">Tego jeszcze nie ma w aplikacji, a warto rozważyć:</p>
-  <ul class="gv-admin-ideas-list">
-    <li><b>Weryfikacja adresu e-mail</b> przy rejestracji (mail z linkiem aktywacyjnym).</li>
-    <li><b>Historia edycji recenzji</b> i możliwość przywrócenia usuniętej recenzji.</li>
-    <li><b>Wiadomość do użytkownika</b> (ostrzeżenie) zamiast od razu blokady.</li>
-  </ul>
+  <% if (pendingIdeasCount > 0) { %>
+    <p class="gv-admin-note">
+      <b><%= pendingIdeasCount %></b> propozycji dotyczących bezpieczeństwa i użyteczności serwisu czeka na Twoją decyzję
+      (m.in. ochrona CSRF, blokady czasowe, ostrzeżenia dla użytkowników, listy gier).
+    </p>
+  <% } else { %>
+    <p class="gv-admin-note">Wszystkie propozycje mają już decyzję. Możesz do nich wrócić i ją zmienić.</p>
+  <% } %>
+  <a href="/admin/ideas" class="gv-admin-more">Przejdź do propozycji <i class="bi bi-arrow-right"></i></a>
 </div>
 
 <%- include('partials/bottom') %>

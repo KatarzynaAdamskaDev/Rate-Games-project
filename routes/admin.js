@@ -13,14 +13,14 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const AdminLog = require('../models/AdminLog');
 
-const { readCollection, writeCollection } = require('../utils/dataStore');
 const { deleteUser } = require('../utils/profileHelpers');
 const { findById } = require('../utils/userHelpers');
+const { createNotification } = require('../utils/notificationHelpers');
 const { buildProfileViewModel } = require('../utils/profileViewModel');
 const { deleteReviewData } = require('../utils/reviewSocialHelpers');
 const { syncUserProgress, setUserLevel } = require('../utils/progressHelpers');
 const { clearMessages, deleteConversation } = require('../utils/chatHelpers');
-const { getGamesByIds } = require('../utils/gameCatalog');
+const { getGamesByIds, getGameById } = require('../utils/gameCatalog');
 const { enrichReviews } = require('../utils/reviewStatsHelpers');
 const { buildPagerLinks } = require('../utils/gameListing');
 const {
@@ -32,6 +32,10 @@ const {
 const { getModeration, saveModeration, PROFANITY_MODES, MAX_EXTRA_WORDS_LENGTH } = require('../utils/moderationSettings');
 const { getRules, getStats: getRateLimitStats } = require('../middleware/rateLimit');
 const backup = require('../utils/backupHelpers');
+const SiteSetting = require('../models/SiteSetting');
+const AdminIdea = require('../models/AdminIdea');
+const { IDEAS, AREAS, DECISIONS, findIdea } = require('../utils/adminIdeas');
+const { getPosts: getBlogPosts, removePost: removeBlogPost } = require('../utils/blogHelpers');
 
 const PAGE_SIZE = 15;
 
@@ -49,6 +53,8 @@ router.use(async (req, res, next) => {
     }
 
     res.locals.pendingReportsCount = await ReviewReport.count({ where: { status: 'pending' } });
+
+    res.locals.pendingIdeasCount = (await loadAllIdeas()).filter((idea) => !idea.decision).length;
     next();
   } catch (err) {
     next(err);
@@ -56,6 +62,32 @@ router.use(async (req, res, next) => {
 });
 
 /* ------------------------------ narzędzia ------------------------------ */
+
+const IDEA_EFFORTS = ['mały', 'średni', 'duży'];
+const IDEA_IMPACTS = ['niski', 'średni', 'wysoki'];
+
+/** Decyzje administratora w sprawie propozycji: Map id -> accepted | later | rejected. */
+async function loadIdeaDecisions() {
+  const rows = await SiteSetting.findAll({ where: { key: { [Op.like]: 'idea:%' } } });
+  return new Map(rows.filter((r) => r.value).map((r) => [r.key.slice('idea:'.length), r.value]));
+}
+
+/** Propozycje dodane przez administratorów (najnowsze) i wbudowane, każda z decyzją lub null. */
+async function loadAllIdeas() {
+  const [decided, customRows] = await Promise.all([
+    loadIdeaDecisions(),
+    AdminIdea.findAll({ order: [['createdAt', 'DESC']] }),
+  ]);
+  const custom = customRows.map((row) => ({ ...row.get({ plain: true }), custom: true }));
+  return [...custom, ...IDEAS].map((idea) => ({ ...idea, decision: decided.get(idea.id) || null }));
+}
+
+async function findAnyIdea(id) {
+  const builtIn = findIdea(id);
+  if (builtIn) return builtIn;
+  const row = await AdminIdea.findByPk(id);
+  return row ? { ...row.get({ plain: true }), custom: true } : null;
+}
 
 function pageOf(req, total, size = PAGE_SIZE) {
   const pages = Math.max(1, Math.ceil(total / size));
@@ -402,8 +434,34 @@ router.post('/reports/:id/delete-review', async (req, res, next) => {
       return res.redirect(backTo(req, '/admin/reports'));
     }
 
-    await logAdminAction(req, 'report.delete-review', 'review', `${review.username}`, review.text.slice(0, 120));
+    const note = String(req.body.reason || '').trim().slice(0, 300);
+    const game = await getGameById(review.gameId);
+    const gameLabel = game ? ` gry „${game.title}”` : '';
+
+    // Zgłaszający i autor dowiadują się o decyzji - lista zgłaszających jest zbierana przed usunięciem.
+    const reporterIds = (await ReviewReport.findAll({ where: { reviewId: review.id }, attributes: ['reporterId'] }))
+      .map((r) => r.reporterId);
+
+    await logAdminAction(req, 'report.delete-review', 'review', `${review.username}`, note || review.text.slice(0, 120));
     await removeReview(review); // usuwa też wszystkie zgłoszenia tej recenzji
+
+    await createNotification({
+      userId: review.userId,
+      type: 'moderation',
+      actorId: req.session.user.id,
+      message: `Twoja recenzja${gameLabel} została usunięta przez moderatora${note ? `. Powód: ${note}` : '.'}`,
+      link: game ? `/games/${game.id}` : null,
+    });
+    for (const reporterId of new Set(reporterIds)) {
+      await createNotification({
+        userId: reporterId,
+        type: 'report-result',
+        actorId: req.session.user.id,
+        message: `Dziękujemy za zgłoszenie - recenzja${gameLabel} została usunięta.`,
+        link: game ? `/games/${game.id}` : null,
+      });
+    }
+
     req.flash('success', 'Recenzja została usunięta, a zgłoszenia rozpatrzone.');
     res.redirect(backTo(req, '/admin/reports'));
   } catch (err) {
@@ -418,9 +476,32 @@ router.post('/reports/:id/dismiss', async (req, res, next) => {
       req.flash('error', 'Nie znaleziono zgłoszenia.');
       return res.redirect(backTo(req, '/admin/reports'));
     }
-    await report.update({ status: 'dismissed' });
-    await logAdminAction(req, 'report.dismiss', 'report', report.id.slice(0, 8));
-    req.flash('success', 'Zgłoszenie zostało odrzucone.');
+
+    const reason = String(req.body.reason || '').trim().slice(0, 300);
+    if (reason.length < 3) {
+      req.flash('error', 'Podaj powód odrzucenia zgłoszenia (min. 3 znaki).');
+      return res.redirect(backTo(req, '/admin/reports'));
+    }
+
+    await report.update({
+      status: 'dismissed',
+      resolution: reason,
+      resolvedBy: req.session.user.username,
+      resolvedAt: new Date(),
+    });
+    await logAdminAction(req, 'report.dismiss', 'report', report.id.slice(0, 8), reason);
+
+    const review = await Review.findByPk(report.reviewId);
+    const game = review ? await getGameById(review.gameId) : null;
+    await createNotification({
+      userId: report.reporterId,
+      type: 'report-result',
+      actorId: req.session.user.id,
+      message: `Twoje zgłoszenie zostało odrzucone. Powód: ${reason}`,
+      link: review && game ? `/games/${game.id}#review-${review.id}` : null,
+    });
+
+    req.flash('success', 'Zgłoszenie zostało odrzucone, a zgłaszający dostał uzasadnienie.');
     res.redirect(backTo(req, '/admin/reports'));
   } catch (err) {
     next(err);
@@ -578,18 +659,15 @@ router.post('/games/:id/delete', async (req, res, next) => {
 /* ------------------------------ blog ------------------------------ */
 
 router.get('/blog', (req, res) => {
-  const posts = readCollection('blog').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  render(res, 'blog', 'blog', 'Blog', { posts });
+  render(res, 'blog', 'blog', 'Blog', { posts: getBlogPosts() });
 });
 
 router.post('/blog/:id/delete', async (req, res) => {
-  const posts = readCollection('blog');
-  const post = posts.find((p) => p.id === req.params.id);
+  const post = removeBlogPost(req.params.id);
   if (!post) {
     req.flash('error', 'Nie znaleziono wpisu.');
     return res.redirect('/admin/blog');
   }
-  writeCollection('blog', posts.filter((p) => p.id !== post.id));
   await logAdminAction(req, 'blog.delete', 'blog', post.title);
   req.flash('success', 'Wpis został usunięty.');
   res.redirect('/admin/blog');
@@ -670,6 +748,157 @@ router.get('/log', async (req, res, next) => {
       page,
       pages,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------------------ propozycje funkcji ------------------------------ */
+
+router.get('/ideas', async (req, res, next) => {
+  try {
+    const all = await loadAllIdeas();
+    const adminCount = await User.count({ where: { role: 'admin' } });
+
+    const counts = {
+      all: all.length,
+      pending: all.filter((i) => !i.decision).length,
+      security: all.filter((i) => i.area === 'security').length,
+      usability: all.filter((i) => i.area === 'usability').length,
+      accepted: all.filter((i) => i.decision === 'accepted').length,
+      later: all.filter((i) => i.decision === 'later').length,
+      rejected: all.filter((i) => i.decision === 'rejected').length,
+    };
+
+    const allowed = ['pending', 'security', 'usability', 'accepted', 'later', 'rejected'];
+    const filter = allowed.includes(req.query.filter) ? req.query.filter : '';
+    const ideas = all
+      .filter((idea) => {
+        if (!filter) return true;
+        if (filter === 'pending') return !idea.decision;
+        if (filter === 'security' || filter === 'usability') return idea.area === filter;
+        return idea.decision === filter;
+      })
+      // Własną propozycję rozpatrują inni administratorzy - o ile są (przy jednym adminie decyduje on sam).
+      .map((idea) => ({
+        ...idea,
+        mine: !!idea.custom && idea.authorId === req.session.user.id,
+        canDecide: !(idea.custom && idea.authorId === req.session.user.id && adminCount > 1),
+      }));
+
+    render(res, 'ideas', 'ideas', 'Propozycje funkcji', {
+      ideas,
+      filter,
+      counts,
+      areas: AREAS,
+      decisions: DECISIONS,
+      efforts: IDEA_EFFORTS,
+      impacts: IDEA_IMPACTS,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/ideas', async (req, res, next) => {
+  try {
+    const title = String(req.body.title || '').trim().slice(0, 120);
+    const description = String(req.body.description || '').trim().slice(0, 800);
+    const area = AREAS[req.body.area] ? req.body.area : 'usability';
+    const effort = IDEA_EFFORTS.includes(req.body.effort) ? req.body.effort : 'średni';
+    const impact = IDEA_IMPACTS.includes(req.body.impact) ? req.body.impact : 'średni';
+
+    if (title.length < 5 || description.length < 15) {
+      req.flash('error', 'Podaj tytuł (min. 5 znaków) i opis propozycji (min. 15 znaków).');
+      return res.redirect('/admin/ideas');
+    }
+
+    const idea = await AdminIdea.create({
+      title,
+      description,
+      area,
+      effort,
+      impact,
+      authorId: req.session.user.id,
+      authorName: req.session.user.username,
+    });
+    await logAdminAction(req, 'idea.create', 'idea', title, `${AREAS[area].label}, nakład: ${effort}, korzyść: ${impact}`);
+
+    // Pozostali administratorzy dostają powiadomienie z prośbą o decyzję.
+    const others = await User.findAll({
+      where: { role: 'admin', id: { [Op.ne]: req.session.user.id } },
+      attributes: ['id'],
+    });
+    for (const other of others) {
+      await createNotification({
+        userId: other.id,
+        type: 'admin-idea',
+        actorId: req.session.user.id,
+        message: `${req.session.user.username} proponuje nową funkcję: „${title}”. Czeka na Twoją decyzję.`,
+        link: '/admin/ideas?filter=pending',
+      });
+    }
+
+    req.flash(
+      'success',
+      others.length > 0
+        ? `Propozycja „${idea.title}” została dodana - inni administratorzy dostali powiadomienie.`
+        : `Propozycja „${idea.title}” została dodana.`
+    );
+    res.redirect('/admin/ideas');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/ideas/:id/delete', async (req, res, next) => {
+  try {
+    const row = await AdminIdea.findByPk(req.params.id);
+    if (!row) {
+      req.flash('error', 'Nie znaleziono propozycji.');
+      return res.redirect('/admin/ideas');
+    }
+    if (row.authorId !== req.session.user.id) {
+      req.flash('error', 'Propozycję może usunąć tylko jej autor.');
+      return res.redirect('/admin/ideas');
+    }
+
+    await setSetting(`idea:${row.id}`, '');
+    await row.destroy();
+    await logAdminAction(req, 'idea.delete', 'idea', row.title);
+    req.flash('success', 'Propozycja została usunięta.');
+    res.redirect('/admin/ideas');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/ideas/:id', async (req, res, next) => {
+  try {
+    const idea = await findAnyIdea(req.params.id);
+    if (!idea) {
+      req.flash('error', 'Nie znaleziono propozycji.');
+      return res.redirect('/admin/ideas');
+    }
+
+    if (idea.custom && idea.authorId === req.session.user.id && (await User.count({ where: { role: 'admin' } })) > 1) {
+      req.flash('error', 'Własną propozycję rozpatrują inni administratorzy.');
+      return res.redirect(backTo(req, '/admin/ideas'));
+    }
+
+    const decision = req.body.decision;
+    if (decision === 'reset') {
+      await setSetting(`idea:${idea.id}`, '');
+      await logAdminAction(req, 'idea.reset', 'idea', idea.title, 'Cofnięto decyzję');
+      req.flash('success', `Propozycja „${idea.title}” wraca do rozpatrzenia.`);
+    } else if (DECISIONS[decision]) {
+      await setSetting(`idea:${idea.id}`, decision);
+      await logAdminAction(req, 'idea.decide', 'idea', idea.title, DECISIONS[decision].label);
+      req.flash('success', `„${idea.title}”: ${DECISIONS[decision].label.toLowerCase()}.`);
+    } else {
+      req.flash('error', 'Nieznana decyzja.');
+    }
+    res.redirect(backTo(req, '/admin/ideas'));
   } catch (err) {
     next(err);
   }

@@ -83,8 +83,8 @@ async function hasLikedComment(commentId, userId) {
 
 /* ------------------------------ ZGŁOSZENIA ------------------------------ */
 
-/** Zapisuje zgłoszenie opinii do (przyszłej) kolejki moderacji administratora. */
-async function reportReview({ reviewId, reporterId, reason }) {
+/** Zapisuje zgłoszenie opinii do kolejki moderacji administratora. */
+async function reportReview({ reviewId, reporterId, reason, category, comment }) {
   const existing = await ReviewReport.findOne({
     where: { reviewId, reporterId, status: 'pending' },
   });
@@ -94,6 +94,8 @@ async function reportReview({ reviewId, reporterId, reason }) {
     reviewId,
     reporterId,
     reason: reason || null,
+    category: category || null,
+    comment: comment || null,
   });
   return instance.get({ plain: true });
 }

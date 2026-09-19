@@ -148,9 +148,9 @@ document.addEventListener('DOMContentLoaded', function () {
       postJson('/auth/signin', signInForm)
         .then(function (result) {
           if (result.ok && result.data.success) {
-            // Administrator z 2FA: po haśle przechodzimy do strony z kodem.
-            if (result.data.redirect) {
-              window.location.href = result.data.redirect;
+            // Administrator z 2FA: po haśle otwieramy okno na kod z aplikacji.
+            if (result.data.twoFactor) {
+              openTwoFactorModal();
             } else {
               window.location.reload();
             }
@@ -162,6 +162,62 @@ document.addEventListener('DOMContentLoaded', function () {
           showToast('Wystąpił błąd połączenia. Spróbuj ponownie.', false);
         });
     });
+  }
+
+  /* -------------------- Modal kodu 2FA (administratorzy) -------------------- */
+  var twoFactorModalEl = document.getElementById('twoFactorModal');
+  var twoFactorForm = document.getElementById('twoFactorForm');
+  var twoFactorDone = false;
+
+  function openTwoFactorModal() {
+    if (!twoFactorModalEl || typeof bootstrap === 'undefined') return;
+    twoFactorDone = false;
+    var show = function () {
+      twoFactorForm.reset();
+      bootstrap.Modal.getOrCreateInstance(twoFactorModalEl).show();
+    };
+    // Najpierw zamykamy okno logowania (jeśli jest otwarte), potem otwieramy okno z kodem.
+    if (signInModalEl && signInModalEl.classList.contains('show')) {
+      signInModalEl.addEventListener('hidden.bs.modal', show, { once: true });
+      bootstrap.Modal.getOrCreateInstance(signInModalEl).hide();
+    } else {
+      show();
+    }
+  }
+
+  if (twoFactorModalEl && twoFactorForm) {
+    twoFactorModalEl.addEventListener('shown.bs.modal', function () {
+      document.getElementById('twoFactorCode').focus();
+    });
+
+    twoFactorForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      postJson('/auth/2fa', twoFactorForm)
+        .then(function (result) {
+          if (result.ok && result.data.success) {
+            twoFactorDone = true;
+            window.location.reload();
+          } else {
+            showToast(result.data.message || 'Nieprawidłowy kod.', false);
+            document.getElementById('twoFactorCode').select();
+          }
+        })
+        .catch(function () {
+          showToast('Wystąpił błąd połączenia. Spróbuj ponownie.', false);
+        });
+    });
+
+    // Zamknięcie okna bez podania kodu przerywa logowanie (hasło było tylko pierwszym krokiem).
+    twoFactorModalEl.addEventListener('hidden.bs.modal', function () {
+      if (twoFactorDone) return;
+      fetch('/auth/2fa/cancel', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      }).catch(function () {});
+    });
+
+    // Serwer pamięta niedokończone logowanie (np. po wysłaniu formularza bez JavaScriptu).
+    if (twoFactorModalEl.getAttribute('data-auto-open') === '1') openTwoFactorModal();
   }
 
   /* -------------------- Modal rejestracji (AJAX + auto-login) -------------------- */

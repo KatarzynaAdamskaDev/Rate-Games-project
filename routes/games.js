@@ -11,6 +11,7 @@ const { syncUserProgress } = require('../utils/progressHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
 const { moderateText } = require('../utils/contentFilter');
 const { limiters } = require('../middleware/rateLimit');
+const { REPORT_REASONS, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 const ReviewComment = require('../models/ReviewComment');
 const { getGenres, PLATFORM_OPTIONS } = require('../utils/igdbService');
 const {
@@ -175,6 +176,8 @@ router.get('/:id', async (req, res, next) => {
       reviews,
       averageRating,
       myReview,
+      reportReasons: REPORT_REASONS,
+      reportCommentMax: MAX_COMMENT_LENGTH,
     });
   } catch (error) {
     next(error);
@@ -422,19 +425,43 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticat
 });
 
 router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, limiters.report, async (req, res, next) => {
-  const gameId = String(req.params.id);
+  try {
+    const gameId = String(req.params.id);
+    const back = `/games/${gameId}#review-${req.params.reviewId}`;
 
-  await reportReview({
-    reviewId: req.params.reviewId,
-    reporterId: req.session.user.id,
-    reason: req.body.reason || null,
-  });
+    const review = await Review.findByPk(req.params.reviewId);
+    if (!review || String(review.gameId) !== gameId) return next();
 
-  req.flash(
-    'success',
-    'Dziękujemy za zgłoszenie. Opinia trafiła do kolejki weryfikacji przez administratorów.'
-  );
-  res.redirect(`/games/${gameId}`);
+    if (review.userId === req.session.user.id) {
+      req.flash('error', 'Nie możesz zgłosić własnej opinii.');
+      return res.redirect(back);
+    }
+
+    const reason = findReason(req.body.reason);
+    if (!reason) {
+      req.flash('error', 'Wybierz powód zgłoszenia.');
+      return res.redirect(back);
+    }
+
+    const comment = String(req.body.comment || '').trim().slice(0, MAX_COMMENT_LENGTH);
+    if (reason.id === 'other' && comment.length < 5) {
+      req.flash('error', 'Przy powodzie "Inny" opisz krótko, o co chodzi.');
+      return res.redirect(back);
+    }
+
+    await reportReview({
+      reviewId: review.id,
+      reporterId: req.session.user.id,
+      reason: reason.label,
+      category: reason.id,
+      comment,
+    });
+
+    req.flash('success', 'Dziękujemy za zgłoszenie. Opinia trafiła do weryfikacji przez administratorów.');
+    res.redirect(back);
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;

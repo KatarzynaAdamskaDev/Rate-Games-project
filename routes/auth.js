@@ -218,11 +218,12 @@ router.post('/signin', ensureGuest, limiters.signin, limiters.signinAccount, asy
       if (wantsJson) {
         return res.json({
           success: true,
-          redirect: '/auth/2fa',
+          twoFactor: true,
           message: 'Podaj kod z aplikacji uwierzytelniającej.',
         });
       }
-      return res.redirect('/auth/2fa');
+      // Okno z kodem otwiera się samo na stronie głównej (pendingTwoFactor).
+      return res.redirect('/');
     }
 
     startSession(req, user, remember);
@@ -256,27 +257,32 @@ function getPendingTwoFactor(req) {
   return pending;
 }
 
-router.get('/2fa', ensureGuest, (req, res) => {
-  if (!getPendingTwoFactor(req)) {
-    req.flash('error', 'Sesja logowania wygasła. Zaloguj się ponownie.');
-    return res.redirect('/auth/signin');
-  }
-  res.render('auth/two-factor', { title: 'Kod 2FA' });
+// Kod 2FA wpisuje się w oknie modalnym (partials/two-factor-modal.ejs), więc osobnej strony nie ma.
+router.get('/2fa', (req, res) => res.redirect('/'));
+
+router.post('/2fa/cancel', (req, res) => {
+  delete req.session.pendingTwoFactor;
+  if (wantsJsonResponse(req)) return res.json({ success: true });
+  res.redirect('/');
 });
 
 router.post('/2fa', ensureGuest, limiters.twoFactor, async (req, res, next) => {
+  const wantsJson = wantsJsonResponse(req);
+
+  function fail(status, message, closeModal = false) {
+    if (closeModal) delete req.session.pendingTwoFactor;
+    if (wantsJson) return res.status(status).json({ success: false, message });
+    req.flash('error', message);
+    return res.redirect('/');
+  }
+
   try {
     const pending = getPendingTwoFactor(req);
-    if (!pending) {
-      req.flash('error', 'Sesja logowania wygasła. Zaloguj się ponownie.');
-      return res.redirect('/auth/signin');
-    }
+    if (!pending) return fail(400, 'Sesja logowania wygasła. Zaloguj się ponownie.', true);
 
     const user = await User.findByPk(pending.userId);
     if (!user || user.isBanned || !user.twoFactorEnabled) {
-      delete req.session.pendingTwoFactor;
-      req.flash('error', 'Nie można dokończyć logowania.');
-      return res.redirect('/auth/signin');
+      return fail(400, 'Nie można dokończyć logowania.', true);
     }
 
     const code = String((req.body && req.body.code) || '').trim();
@@ -291,13 +297,14 @@ router.post('/2fa', ensureGuest, limiters.twoFactor, async (req, res, next) => {
       }
     }
 
-    if (!ok) {
-      req.flash('error', 'Nieprawidłowy kod. Spróbuj ponownie.');
-      return res.redirect('/auth/2fa');
-    }
+    if (!ok) return fail(400, 'Nieprawidłowy kod. Spróbuj ponownie.');
 
     delete req.session.pendingTwoFactor;
     startSession(req, user.get({ plain: true }), pending.remember);
+
+    if (wantsJson) {
+      return res.json({ success: true, message: `Witaj ponownie, ${user.username}!` });
+    }
     req.flash('success', `Witaj ponownie, ${user.username}!`);
     res.redirect('/');
   } catch (err) {

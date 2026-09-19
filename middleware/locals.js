@@ -37,6 +37,9 @@ async function exposeLocals(req, res, next) {
     }
 
     res.locals.currentUser = req.session.user || null;
+    // Niedokończone logowanie z 2FA: okno z kodem otwiera się samo (partials/two-factor-modal.ejs).
+    const pending = req.session.pendingTwoFactor;
+    res.locals.pendingTwoFactor = !!(pending && pending.expiresAt > Date.now() && !req.session.user);
     res.locals.announcement = await getAnnouncement();
     res.locals.recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
     res.locals.success = req.flash('success');

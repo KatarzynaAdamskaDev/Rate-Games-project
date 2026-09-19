@@ -7,16 +7,22 @@ const Notification = require('../models/Notification');
 const { isNotificationEnabled } = require('./notificationPrefs');
 
 const MAX_PER_USER = 50;
+// Komunikaty od moderatorów (np. usunięta recenzja) nie podlegają ustawieniom powiadomień użytkownika.
+const ALWAYS_DELIVERED = new Set(['moderation', 'admin-idea']);
+const NO_DEDUPE = new Set(['moderation', 'report-result', 'admin-idea']);
 
 async function createNotification({ userId, type, actorId, message, link }) {
   if (!userId || userId === actorId) return null;
   // Odbiorca mógł wyłączyć ten rodzaj powiadomień w ustawieniach profilu.
-  if (!(await isNotificationEnabled(userId, type))) return null;
+  if (!ALWAYS_DELIVERED.has(type) && !(await isNotificationEnabled(userId, type))) return null;
 
-  const duplicate = await Notification.findOne({
-    where: { userId, type, actorId: actorId || null, link: link || null, isRead: false },
-  });
-  if (duplicate) return null;
+  // Powiadomienia o decyzjach moderatorów niosą różne treści, więc nie są traktowane jako duplikaty.
+  if (!NO_DEDUPE.has(type)) {
+    const duplicate = await Notification.findOne({
+      where: { userId, type, actorId: actorId || null, link: link || null, isRead: false },
+    });
+    if (duplicate) return null;
+  }
 
   const notification = await Notification.create({
     userId,

@@ -2,39 +2,102 @@
 <html lang="pl">
 <head>
   <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
 </head>
 <body>
   <%- include('../partials/navbar') %>
   <%- include('../partials/flash') %>
 
-  <section class="gv-auth-page">
-    <div class="container d-flex justify-content-center">
-      <div class="gv-auth-card gv-auth-card-wide">
-        <h1 class="gv-auth-title">Nowy wpis na blogu</h1>
+  <%
+    const editing = !!post;
+    const cover = formData.coverImage || formData.coverUrl || '';
+    const isUploaded = cover.indexOf('/images/blog/uploads/') === 0;
+  %>
 
-        <form action="/blog/new" method="POST" novalidate>
-          <div class="mb-3">
-            <label class="gv-label">Tytuł</label>
-            <input type="text" name="title" class="form-control gv-input" value="<%= formData.title || '' %>" required />
-          </div>
-          <div class="mb-3">
-            <label class="gv-label">Ścieżka do obrazka okładki</label>
-            <input type="text" name="coverImage" class="form-control gv-input" placeholder="/images/game-placeholder.svg" value="<%= formData.coverImage || '' %>" />
-          </div>
-          <div class="mb-3">
-            <label class="gv-label">Krótki opis (excerpt)</label>
-            <input type="text" name="excerpt" class="form-control gv-input" value="<%= formData.excerpt || '' %>" />
-          </div>
-          <div class="mb-4">
-            <label class="gv-label">Treść wpisu</label>
-            <textarea name="content" rows="6" class="form-control gv-input" required><%= formData.content || '' %></textarea>
+  <section class="gv-section">
+    <div class="wrap gv-blogform-wrap">
+      <a href="<%= editing ? '/blog/' + post.id : '/blog' %>" class="gv-post-back"><i class="bi bi-arrow-left"></i> <%= editing ? 'Wróć do wpisu' : 'Wróć do bloga' %></a>
+      <h1 class="gv-page-title mb-4"><%= editing ? 'Edytuj wpis' : 'Nowy wpis na blogu' %></h1>
+
+      <% if (formError) { %>
+        <div class="gv-blogform-error"><i class="bi bi-exclamation-triangle-fill"></i> <%= formError %></div>
+      <% } %>
+
+      <form action="<%= editing ? '/blog/' + post.id + '/edit' : '/blog/new' %>" method="POST" enctype="multipart/form-data" class="gv-blogform">
+        <div class="gv-blogform-main">
+          <div class="gv-edit-field">
+            <label class="gv-edit-label" for="blogTitle">Tytuł</label>
+            <input type="text" id="blogTitle" name="title" class="form-control gv-input" maxlength="120" value="<%= formData.title || '' %>" required>
           </div>
 
-          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Opublikuj</button>
-        </form>
-      </div>
+          <div class="gv-edit-field">
+            <label class="gv-edit-label" for="blogExcerpt">Krótki opis (widoczny na liście)</label>
+            <input type="text" id="blogExcerpt" name="excerpt" class="form-control gv-input" maxlength="200" value="<%= formData.excerpt || '' %>" placeholder="Jedno-dwa zdania o wpisie. Zostaw puste, a powstanie z początku treści.">
+          </div>
+
+          <div class="gv-edit-field">
+            <label class="gv-edit-label" for="blogContent">Treść wpisu</label>
+            <textarea id="blogContent" name="content" rows="16" class="form-control gv-input" required><%= formData.content || '' %></textarea>
+            <div class="gv-edit-hint">
+              Pusta linia rozdziela akapity. Formatowanie: <code>## Śródtytuł</code>, <code>- punkt listy</code>, <code>1. punkt</code>,
+              <code>&gt; cytat</code>, <code>**pogrubienie**</code>, <code>*kursywa*</code>, <code>[tekst](https://adres)</code>.
+            </div>
+          </div>
+        </div>
+
+        <aside class="gv-blogform-side">
+          <div class="gv-edit-field">
+            <label class="gv-edit-label" for="blogCategory">Kategoria</label>
+            <select id="blogCategory" name="category" class="form-select gv-select">
+              <% categories.forEach(function(name) { %>
+                <option value="<%= name %>" <%= (formData.category || 'Aktualności') === name ? 'selected' : '' %>><%= name %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="gv-edit-field">
+            <span class="gv-edit-label">Okładka</span>
+            <div class="gv-blogform-cover">
+              <img id="blogCoverPreview" src="<%= cover || '/images/game-placeholder.svg' %>" alt="Podgląd okładki">
+            </div>
+            <input type="file" id="blogCover" name="cover" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control gv-input mt-2">
+            <div class="gv-edit-hint">Plik PNG, JPG, WEBP lub GIF, do 3 MB.</div>
+
+            <label class="gv-edit-label mt-3" for="blogCoverUrl">albo adres obrazka</label>
+            <input type="text" id="blogCoverUrl" name="coverUrl" class="form-control gv-input" placeholder="https://... lub /images/..." value="<%= (!isUploaded && cover && cover !== '/images/game-placeholder.svg') ? cover : '' %>">
+
+            <% if (editing && cover && cover !== '/images/game-placeholder.svg') { %>
+              <label class="gv-check mt-3">
+                <input type="checkbox" name="removeCover" value="1">
+                <span>Usuń okładkę (użyj domyślnej)</span>
+              </label>
+            <% } %>
+          </div>
+
+          <div class="gv-blogform-actions">
+            <button type="submit" class="btn gv-btn-success"><%= editing ? 'Zapisz zmiany' : 'Opublikuj' %></button>
+            <a href="<%= editing ? '/blog/' + post.id : '/blog' %>" class="gv-btn-ghost">Anuluj</a>
+          </div>
+        </aside>
+      </form>
     </div>
   </section>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var fileInput = document.getElementById('blogCover');
+      var urlInput = document.getElementById('blogCoverUrl');
+      var preview = document.getElementById('blogCoverPreview');
+      if (!preview) return;
+
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files[0]) preview.src = URL.createObjectURL(fileInput.files[0]);
+      });
+      urlInput.addEventListener('change', function () {
+        if (urlInput.value.trim()) preview.src = urlInput.value.trim();
+      });
+    });
+  </script>
 
   <%- include('../partials/footer') %>
 </body>

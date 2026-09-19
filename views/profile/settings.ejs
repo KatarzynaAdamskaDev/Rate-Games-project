@@ -1,3 +1,16 @@
+<%
+// Edycja profilu w układzie z lewym menu sekcji i treścią po prawej.
+// tab: general | avatar | background | badge | notifications | account
+const currentTab = tabs.find(function(t) { return t.id === tab; });
+const tabLead = {
+  general: 'Ustaw nazwę i opis swojego profilu. Nazwa oraz awatar reprezentują Cię w całym GameVerse, więc powinny być odpowiednie dla wszystkich użytkowników.',
+  avatar: 'Wgraj zdjęcie profilowe i wybierz ramkę, w której będzie się wyświetlać. Kolejne ramki odblokowują się wraz z poziomem.',
+  background: 'Wybierz tło banera na swoim profilu. Nowe tła odblokowują się wraz z poziomem.',
+  badge: 'Wybierz odznakę, która będzie widoczna jako trofeum w banerze Twojego profilu.',
+  notifications: 'Zdecyduj, o czym chcesz dostawać powiadomienia w dzwonku na górze strony.',
+  account: 'Zmień hasło, zabezpiecz konto i zarządzaj jego istnieniem.',
+};
+%>
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -9,298 +22,347 @@
   <%- include('../partials/flash') %>
 
   <section class="gv-section">
-    <div class="wrap" style="max-width: 820px;">
-      <div class="gv-settings-head">
-        <h1 class="gv-page-title">Edytuj profil</h1>
-        <a href="/profile" class="gv-mini-link"><i class="bi bi-arrow-left"></i> Wróć do profilu</a>
-      </div>
+    <div class="wrap gv-edit">
 
-      <nav class="gv-tabs gv-settings-tabs" aria-label="Sekcje ustawień">
-        <% tabs.forEach(function(t) { %>
-          <a href="/profile/settings?tab=<%= t.id %>" class="gv-tab <%= tab === t.id ? 'active' : '' %>">
-            <i class="bi <%= t.icon %>"></i> <%= t.label %>
-          </a>
-        <% }) %>
-      </nav>
+      <header class="gv-edit-head">
+        <% if (profileUser.avatarUrl) { %>
+          <img src="<%= profileUser.avatarUrl %>" alt="" class="gv-edit-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>">
+        <% } else { %>
+          <span class="gv-edit-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>"></span>
+        <% } %>
+        <h1 class="gv-edit-name">
+          <a href="/<%= encodeURIComponent(profileUser.username) %>"><%= profileUser.username %></a>
+          <span>&raquo; Edytuj profil</span>
+        </h1>
+      </header>
 
-      <% if (tab === 'general') { %>
+      <div class="gv-edit-layout">
+        <aside class="gv-edit-side">
+          <a href="/profile" class="gv-edit-back"><i class="bi bi-arrow-left"></i> Wróć do swojego profilu</a>
 
-        <div class="gv-settings-card">
-          <h2><i class="bi bi-person-fill"></i> Nazwa użytkownika</h2>
-          <form action="/profile/settings/username" method="POST" class="gv-form-grid">
-            <div class="full">
-              <label class="gv-label" for="settingsUsername">Nowa nazwa użytkownika</label>
-              <input type="text" id="settingsUsername" name="username" class="form-control gv-input" value="<%= profileUser.username %>" minlength="3" maxlength="30" required>
-            </div>
-            <div class="full">
-              <button type="submit" class="gv-btn-success">Zapisz nazwę</button>
-            </div>
-          </form>
-        </div>
-
-        <div class="gv-settings-card">
-          <h2><i class="bi bi-card-text"></i> Opis profilu</h2>
-          <form action="/profile/settings/bio" method="POST">
-            <textarea name="bio" rows="4" maxlength="300" class="form-control gv-input mb-2" placeholder="Napisz coś o sobie..."><%= profileUser.bio || '' %></textarea>
-            <div class="gv-settings-hint">Do 300 znaków. Widoczny w banerze Twojego profilu.</div>
-            <button type="submit" class="gv-btn-success">Zapisz opis</button>
-          </form>
-        </div>
-
-        <div class="gv-settings-card">
-          <h2><i class="bi bi-info-circle-fill"></i> Informacje o koncie</h2>
-          <dl class="gv-settings-info">
-            <div><dt>Adres e-mail</dt><dd><%= accountEmail %></dd></div>
-            <div><dt>Dołączył(a)</dt><dd><%= new Date(profileUser.createdAt).toLocaleDateString('pl-PL') %></dd></div>
-            <div><dt>Poziom</dt><dd><%= progress.level %> (<%= progress.points %> PD)</dd></div>
-          </dl>
-        </div>
-
-      <% } else if (tab === 'avatar') { %>
-
-        <div class="gv-settings-card">
-          <h2><i class="bi bi-image-fill"></i> Zdjęcie profilowe</h2>
-          <div class="gv-avatar-settings-row">
-            <% if (profileUser.avatarUrl) { %>
-              <img src="<%= profileUser.avatarUrl %>" alt="Twój awatar" class="gv-avatar-preview">
-            <% } else { %>
-              <div class="gv-avatar-preview gv-avatar-preview-placeholder"></div>
-            <% } %>
-            <form action="/profile/settings/avatar" method="POST" enctype="multipart/form-data" class="gv-avatar-form">
-              <label class="gv-label" for="avatarFile">Wybierz nowe zdjęcie (PNG, JPG, WEBP, GIF - max 2 MB)</label>
-              <input type="file" id="avatarFile" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control gv-input mb-2" required>
-              <button type="submit" class="gv-btn-success">Wgraj zdjęcie</button>
-            </form>
-          </div>
-          <% if (profileUser.avatarUrl) { %>
-            <form action="/profile/settings/avatar/remove" method="POST" class="gv-settings-inline" onsubmit="return confirm('Usunąć zdjęcie profilowe?');">
-              <button type="submit" class="gv-btn-ghost-danger"><i class="bi bi-trash3-fill"></i> Usuń zdjęcie</button>
-            </form>
-          <% } %>
-        </div>
-
-      <% } else if (tab === 'appearance') { %>
-
-        <div class="gv-settings-card" id="wyglad">
-          <h2><i class="bi bi-palette-fill"></i> Wygląd profilu</h2>
-          <div class="gv-points-note">
-            <b>Jak działają punkty doświadczenia?</b>
-            Każda napisana recenzja to +10 PD. Punkty odblokowują kolejne poziomy, a te - nowe ramki
-            awatara, tła profilu i odznaki. Twój poziom: <b><%= progress.level %></b> (<%= progress.points %> PD).
-            <% if (profileUser.unlockAll) { %>
-              <br><span class="gv-unlock-all-note"><i class="bi bi-unlock-fill"></i> Administrator odblokował Ci wszystkie ramki, tła i odznaki.</span>
-            <% } %>
-          </div>
-
-          <h3 class="gv-unlock-group-title">Ramka awatara</h3>
-          <div class="gv-unlock-grid">
-            <% allFrames.forEach(function(f) { %>
-              <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
-                <div class="gv-unlock-swatch gv-swatch-<%= f.id %>"></div>
-                <b><%= f.label %></b>
-                <% if (f.locked) { %>
-                  <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= f.levelRequired %></span>
-                <% } else if (profileUser.activeFrame === f.id) { %>
-                  <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywna</span>
-                <% } else { %>
-                  <form action="/profile/customize/frame/<%= f.id %>" method="POST">
-                    <button type="submit" class="gv-set-active-btn">Ustaw jako aktywną</button>
-                  </form>
-                <% } %>
-              </div>
+          <nav class="gv-edit-nav" aria-label="Sekcje edycji profilu">
+            <% tabs.forEach(function(t) { %>
+              <% if (t.id === 'account') { %><span class="gv-edit-sep" aria-hidden="true"></span><% } %>
+              <a href="/profile/settings?tab=<%= t.id %>" class="<%= tab === t.id ? 'active' : '' %>">
+                <i class="bi <%= t.icon %>"></i><span><%= t.label %></span>
+              </a>
             <% }) %>
-          </div>
+          </nav>
 
-          <h3 class="gv-unlock-group-title">Tło profilu</h3>
-          <div class="gv-unlock-grid">
-            <% allBackgrounds.forEach(function(b) { %>
-              <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
-                <div class="gv-unlock-swatch gv-swatch-<%= b.id %>"></div>
-                <b><%= b.label %></b>
-                <% if (b.locked) { %>
-                  <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= b.levelRequired %></span>
-                <% } else if (profileUser.activeBackground === b.id) { %>
-                  <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywne</span>
-                <% } else { %>
-                  <form action="/profile/customize/background/<%= b.id %>" method="POST">
-                    <button type="submit" class="gv-set-active-btn">Ustaw jako aktywne</button>
-                  </form>
-                <% } %>
+          <div class="gv-edit-shortcuts">
+            <a href="/profile?tab=favorites" class="gv-edit-shortcut"><i class="bi bi-star-fill"></i> Ulubione gry</a>
+            <a href="/chat" class="gv-edit-shortcut"><i class="bi bi-chat-dots-fill"></i> Czat i grupy</a>
+          </div>
+        </aside>
+
+        <main class="gv-edit-main">
+          <h2 class="gv-edit-title"><%= currentTab ? currentTab.label : 'Ogólne' %></h2>
+          <p class="gv-edit-lead"><%= tabLead[tab] %></p>
+
+          <% if (tab === 'general') { %>
+
+            <form action="/profile/settings/general" method="POST" class="gv-edit-section">
+              <h3>Ogólne</h3>
+
+              <div class="gv-edit-field">
+                <label class="gv-edit-label" for="editUsername">Nazwa użytkownika</label>
+                <input type="text" id="editUsername" name="username" class="form-control gv-input" value="<%= profileUser.username %>" minlength="3" maxlength="30" required>
+                <div class="gv-edit-hint">Twój profil będzie dostępny pod adresem: <%= profileUrlBase %>/<b id="editUsernamePreview"><%= profileUser.username %></b></div>
               </div>
-            <% }) %>
-          </div>
-        </div>
 
-        <div class="gv-settings-card" id="trofeum">
-          <h2><i class="bi bi-trophy-fill"></i> Odznaki i trofeum</h2>
-          <p class="gv-section-subtitle">Wybierz odznakę, która będzie widoczna jako trofeum w banerze Twojego profilu.</p>
-          <div class="gv-unlock-grid">
-            <div class="gv-unlock-item">
-              <div class="gv-unlock-swatch gv-trophy-swatch" style="color: #ffb238;"><i class="bi bi-trophy-fill"></i></div>
-              <b>Domyślne</b>
-              <% if (!trophy.id) { %>
-                <span class="gv-active-tag"><i class="bi bi-check-lg"></i> W banerze</span>
-              <% } else { %>
-                <form action="/profile/customize/trophy/default" method="POST">
-                  <button type="submit" class="gv-set-active-btn">Ustaw w banerze</button>
+              <div class="gv-edit-field">
+                <label class="gv-edit-label" for="editBio">Opis profilu</label>
+                <textarea id="editBio" name="bio" rows="5" maxlength="300" class="form-control gv-input" placeholder="Napisz coś o sobie..."><%= profileUser.bio || '' %></textarea>
+                <div class="gv-edit-hint"><span id="editBioCount"><%= (profileUser.bio || '').length %></span> / 300 znaków. Opis widać w banerze profilu.</div>
+              </div>
+
+              <div class="gv-edit-actions">
+                <button type="submit" class="gv-btn-success">Zapisz</button>
+              </div>
+            </form>
+
+            <div class="gv-edit-section">
+              <h3>Informacje o koncie</h3>
+              <dl class="gv-settings-info">
+                <div><dt>Adres e-mail</dt><dd><%= accountEmail %></dd></div>
+                <div><dt>Dołączył(a)</dt><dd><%= new Date(profileUser.createdAt).toLocaleDateString('pl-PL') %></dd></div>
+                <div><dt>Poziom</dt><dd><%= progress.level %> (<%= progress.points %> PD)</dd></div>
+              </dl>
+            </div>
+
+          <% } else if (tab === 'avatar') { %>
+
+            <div class="gv-edit-section">
+              <h3>Zdjęcie profilowe</h3>
+              <div class="gv-avatar-settings-row">
+                <% if (profileUser.avatarUrl) { %>
+                  <img src="<%= profileUser.avatarUrl %>" alt="Twój awatar" class="gv-avatar-preview">
+                <% } else { %>
+                  <div class="gv-avatar-preview gv-avatar-preview-placeholder"></div>
+                <% } %>
+                <form action="/profile/settings/avatar" method="POST" enctype="multipart/form-data" class="gv-avatar-form">
+                  <label class="gv-edit-label" for="avatarFile">Wybierz nowe zdjęcie (PNG, JPG, WEBP, GIF - max 2 MB)</label>
+                  <input type="file" id="avatarFile" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control gv-input mb-2" required>
+                  <button type="submit" class="gv-btn-success">Wgraj zdjęcie</button>
+                </form>
+              </div>
+              <% if (profileUser.avatarUrl) { %>
+                <form action="/profile/settings/avatar/remove" method="POST" class="gv-settings-inline" onsubmit="return confirm('Usunąć zdjęcie profilowe?');">
+                  <button type="submit" class="gv-btn-ghost-danger"><i class="bi bi-trash3-fill"></i> Usuń zdjęcie</button>
                 </form>
               <% } %>
             </div>
-            <% allBadges.forEach(function(b) { %>
-              <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
-                <div class="gv-unlock-swatch gv-trophy-swatch" style="color: <%= b.color %>;"><i class="bi <%= b.icon %>"></i></div>
-                <b><%= b.label %></b>
-                <% if (b.locked) { %>
-                  <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> <%= b.description %></span>
-                <% } else if (trophy.id === b.id) { %>
-                  <span class="gv-active-tag"><i class="bi bi-check-lg"></i> W banerze</span>
+
+            <div class="gv-edit-section" id="ramka">
+              <h3>Ramka awatara</h3>
+              <div class="gv-points-note">
+                Każda napisana recenzja to +10 PD. Twój poziom: <b><%= progress.level %></b> (<%= progress.points %> PD).
+                <% if (profileUser.unlockAll) { %>
+                  <br><span class="gv-unlock-all-note"><i class="bi bi-unlock-fill"></i> Administrator odblokował Ci wszystkie ramki, tła i odznaki.</span>
+                <% } %>
+              </div>
+              <div class="gv-unlock-grid">
+                <% allFrames.forEach(function(f) { %>
+                  <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
+                    <div class="gv-unlock-swatch gv-swatch-<%= f.id %>"></div>
+                    <b><%= f.label %></b>
+                    <% if (f.locked) { %>
+                      <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= f.levelRequired %></span>
+                    <% } else if (profileUser.activeFrame === f.id) { %>
+                      <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywna</span>
+                    <% } else { %>
+                      <form action="/profile/customize/frame/<%= f.id %>" method="POST">
+                        <button type="submit" class="gv-set-active-btn">Ustaw jako aktywną</button>
+                      </form>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+
+          <% } else if (tab === 'background') { %>
+
+            <div class="gv-edit-section">
+              <h3>Tło profilu</h3>
+              <div class="gv-points-note">
+                Twój poziom: <b><%= progress.level %></b> (<%= progress.points %> PD).
+                <% if (profileUser.unlockAll) { %>
+                  <br><span class="gv-unlock-all-note"><i class="bi bi-unlock-fill"></i> Administrator odblokował Ci wszystkie ramki, tła i odznaki.</span>
+                <% } %>
+              </div>
+              <div class="gv-unlock-grid">
+                <% allBackgrounds.forEach(function(b) { %>
+                  <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
+                    <div class="gv-unlock-swatch gv-swatch-<%= b.id %>"></div>
+                    <b><%= b.label %></b>
+                    <% if (b.locked) { %>
+                      <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= b.levelRequired %></span>
+                    <% } else if (profileUser.activeBackground === b.id) { %>
+                      <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywne</span>
+                    <% } else { %>
+                      <form action="/profile/customize/background/<%= b.id %>" method="POST">
+                        <button type="submit" class="gv-set-active-btn">Ustaw jako aktywne</button>
+                      </form>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+
+          <% } else if (tab === 'badge') { %>
+
+            <div class="gv-edit-section" id="trofeum">
+              <h3>Wyróżniona odznaka</h3>
+              <div class="gv-unlock-grid">
+                <div class="gv-unlock-item">
+                  <div class="gv-unlock-swatch gv-trophy-swatch" style="color: #ffb238;"><i class="bi bi-trophy-fill"></i></div>
+                  <b>Domyślne</b>
+                  <% if (!trophy.id) { %>
+                    <span class="gv-active-tag"><i class="bi bi-check-lg"></i> W banerze</span>
+                  <% } else { %>
+                    <form action="/profile/customize/trophy/default" method="POST">
+                      <button type="submit" class="gv-set-active-btn">Ustaw w banerze</button>
+                    </form>
+                  <% } %>
+                </div>
+                <% allBadges.forEach(function(b) { %>
+                  <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
+                    <div class="gv-unlock-swatch gv-trophy-swatch" style="color: <%= b.color %>;"><i class="bi <%= b.icon %>"></i></div>
+                    <b><%= b.label %></b>
+                    <% if (b.locked) { %>
+                      <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> <%= b.description %></span>
+                    <% } else if (trophy.id === b.id) { %>
+                      <span class="gv-active-tag"><i class="bi bi-check-lg"></i> W banerze</span>
+                    <% } else { %>
+                      <form action="/profile/customize/trophy/<%= b.id %>" method="POST">
+                        <button type="submit" class="gv-set-active-btn">Ustaw w banerze</button>
+                      </form>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+
+          <% } else if (tab === 'notifications') { %>
+
+            <form action="/profile/settings/notifications" method="POST" class="gv-edit-section">
+              <h3>Powiadomienia w serwisie</h3>
+
+              <div class="gv-switch-list">
+                <label class="gv-switch-row gv-switch-master">
+                  <span class="gv-switch-icon"><i class="bi bi-bell-slash-fill"></i></span>
+                  <span class="gv-switch-text">
+                    <b>Wycisz wszystkie powiadomienia</b>
+                    <small>Nie dostaniesz żadnych nowych powiadomień, dopóki tego nie wyłączysz.</small>
+                  </span>
+                  <span class="form-check form-switch gv-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="muteAll" value="1" <%= notificationPrefs.muteAll ? 'checked' : '' %>>
+                  </span>
+                </label>
+
+                <% notificationTypes.forEach(function(type) { %>
+                  <label class="gv-switch-row">
+                    <span class="gv-switch-icon"><i class="bi <%= type.icon %>"></i></span>
+                    <span class="gv-switch-text">
+                      <b><%= type.label %></b>
+                      <small><%= type.description %></small>
+                    </span>
+                    <span class="form-check form-switch gv-switch">
+                      <input class="form-check-input" type="checkbox" role="switch" name="<%= type.id %>" value="1" <%= notificationPrefs.types[type.id] ? 'checked' : '' %>>
+                    </span>
+                  </label>
+                <% }) %>
+              </div>
+              <div class="gv-edit-hint">Komunikaty od moderatorów (np. o usuniętej recenzji) docierają zawsze.</div>
+
+              <div class="gv-edit-actions">
+                <button type="submit" class="gv-btn-success">Zapisz ustawienia</button>
+              </div>
+            </form>
+
+          <% } else if (tab === 'account') { %>
+
+            <form action="/profile/settings/password" method="POST" class="gv-edit-section">
+              <h3>Zmiana hasła</h3>
+              <div class="gv-edit-field">
+                <label class="gv-edit-label" for="newPassword">Nowe hasło</label>
+                <input type="password" id="newPassword" name="newPassword" class="form-control gv-input" minlength="8" autocomplete="new-password" required>
+                <div class="gv-edit-hint">Co najmniej 8 znaków.</div>
+              </div>
+              <div class="gv-edit-field">
+                <label class="gv-edit-label" for="confirmPassword">Potwierdź nowe hasło</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" class="form-control gv-input" minlength="8" autocomplete="new-password" required>
+              </div>
+              <div class="gv-edit-actions">
+                <button type="submit" class="gv-btn-success">Zmień hasło</button>
+              </div>
+            </form>
+
+            <% if (twoFactor.available) { %>
+              <div class="gv-edit-section" id="dwuetapowe">
+                <h3>
+                  Weryfikacja dwuetapowa (2FA)
+                  <% if (twoFactor.enabled) { %><span class="gv-status-pill gv-status-on">włączona</span><% } else { %><span class="gv-status-pill">wyłączona</span><% } %>
+                </h3>
+
+                <% if (twoFactor.newRecoveryCodes) { %>
+                  <div class="gv-recovery-box">
+                    <b><i class="bi bi-exclamation-triangle-fill"></i> Zapisz kody awaryjne</b>
+                    <p>Każdy kod działa raz i pozwala zalogować się, gdy nie masz telefonu. Ten komplet zobaczysz tylko teraz - zapisz go w bezpiecznym miejscu.</p>
+                    <ul class="gv-recovery-codes">
+                      <% twoFactor.newRecoveryCodes.forEach(function(code) { %><li><%= code %></li><% }) %>
+                    </ul>
+                  </div>
+                <% } %>
+
+                <% if (twoFactor.enabled) { %>
+                  <p class="gv-settings-hint">
+                    Przy każdym logowaniu na to konto poza hasłem podasz 6-cyfrowy kod z aplikacji uwierzytelniającej.
+                    Pozostałe kody awaryjne: <b><%= twoFactor.recoveryLeft %></b>.
+                  </p>
+                  <form action="/profile/settings/2fa/disable" method="POST">
+                    <div class="gv-edit-field">
+                      <label class="gv-edit-label" for="disablePassword">Hasło</label>
+                      <input type="password" id="disablePassword" name="password" class="form-control gv-input" autocomplete="current-password" required>
+                    </div>
+                    <div class="gv-edit-field">
+                      <label class="gv-edit-label" for="disableCode">Kod z aplikacji lub kod awaryjny</label>
+                      <input type="text" id="disableCode" name="code" class="form-control gv-input" autocomplete="one-time-code" required>
+                    </div>
+                    <div class="gv-edit-actions">
+                      <button type="submit" class="gv-btn-ghost-danger"><i class="bi bi-shield-x"></i> Wyłącz 2FA</button>
+                    </div>
+                  </form>
+                <% } else if (twoFactor.setup) { %>
+                  <ol class="gv-2fa-steps">
+                    <li>Zainstaluj aplikację uwierzytelniającą (np. Google Authenticator, Microsoft Authenticator, Authy lub 1Password).</li>
+                    <li>Zeskanuj kod QR albo wpisz ręcznie klucz poniżej.</li>
+                    <li>Wpisz 6-cyfrowy kod z aplikacji, żeby potwierdzić konfigurację.</li>
+                  </ol>
+                  <div class="gv-2fa-setup">
+                    <img src="<%= twoFactor.setup.qr %>" alt="Kod QR do skonfigurowania 2FA" width="180" height="180" class="gv-2fa-qr">
+                    <div class="gv-2fa-side">
+                      <label class="gv-edit-label">Klucz do ręcznego wpisania</label>
+                      <code class="gv-2fa-secret"><%= twoFactor.setup.secret %></code>
+                      <form action="/profile/settings/2fa/enable" method="POST" class="gv-2fa-confirm">
+                        <label class="gv-edit-label" for="enableCode">Kod z aplikacji</label>
+                        <input type="text" id="enableCode" name="code" class="form-control gv-input" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" placeholder="123456" required>
+                        <div class="gv-2fa-actions">
+                          <button type="submit" class="gv-btn-success">Potwierdź i włącz</button>
+                        </div>
+                      </form>
+                      <form action="/profile/settings/2fa/cancel" method="POST">
+                        <button type="submit" class="gv-mini-link gv-link-button">Anuluj</button>
+                      </form>
+                    </div>
+                  </div>
                 <% } else { %>
-                  <form action="/profile/customize/trophy/<%= b.id %>" method="POST">
-                    <button type="submit" class="gv-set-active-btn">Ustaw w banerze</button>
+                  <p class="gv-settings-hint">
+                    Zabezpiecz konto administratora drugim składnikiem logowania. Nawet gdy ktoś pozna Twoje hasło,
+                    bez kodu z telefonu nie wejdzie do panelu admina.
+                  </p>
+                  <form action="/profile/settings/2fa/start" method="POST">
+                    <button type="submit" class="gv-btn-success"><i class="bi bi-shield-plus"></i> Włącz 2FA</button>
                   </form>
                 <% } %>
               </div>
-            <% }) %>
-          </div>
-        </div>
-
-      <% } else if (tab === 'notifications') { %>
-
-        <form action="/profile/settings/notifications" method="POST" class="gv-settings-card">
-          <h2><i class="bi bi-bell-fill"></i> Powiadomienia</h2>
-          <p class="gv-section-subtitle">Wybierz, o czym chcesz dostawać powiadomienia w dzwonku na górze strony.</p>
-
-          <div class="gv-switch-list">
-            <label class="gv-switch-row gv-switch-master">
-              <span class="gv-switch-icon"><i class="bi bi-bell-slash-fill"></i></span>
-              <span class="gv-switch-text">
-                <b>Wycisz wszystkie powiadomienia</b>
-                <small>Nie dostaniesz żadnych nowych powiadomień, dopóki tego nie wyłączysz.</small>
-              </span>
-              <span class="form-check form-switch gv-switch">
-                <input class="form-check-input" type="checkbox" role="switch" name="muteAll" value="1" <%= notificationPrefs.muteAll ? 'checked' : '' %>>
-              </span>
-            </label>
-
-            <% notificationTypes.forEach(function(type) { %>
-              <label class="gv-switch-row">
-                <span class="gv-switch-icon"><i class="bi <%= type.icon %>"></i></span>
-                <span class="gv-switch-text">
-                  <b><%= type.label %></b>
-                  <small><%= type.description %></small>
-                </span>
-                <span class="form-check form-switch gv-switch">
-                  <input class="form-check-input" type="checkbox" role="switch" name="<%= type.id %>" value="1" <%= notificationPrefs.types[type.id] ? 'checked' : '' %>>
-                </span>
-              </label>
-            <% }) %>
-          </div>
-
-          <button type="submit" class="gv-btn-success mt-3">Zapisz ustawienia</button>
-        </form>
-
-      <% } else if (tab === 'account') { %>
-
-        <div class="gv-settings-card">
-          <h2><i class="bi bi-key-fill"></i> Zmiana hasła</h2>
-          <form action="/profile/settings/password" method="POST" class="gv-form-grid">
-            <div>
-              <label class="gv-label" for="newPassword">Nowe hasło</label>
-              <input type="password" id="newPassword" name="newPassword" class="form-control gv-input" minlength="8" autocomplete="new-password" required>
-            </div>
-            <div>
-              <label class="gv-label" for="confirmPassword">Potwierdź nowe hasło</label>
-              <input type="password" id="confirmPassword" name="confirmPassword" class="form-control gv-input" minlength="8" autocomplete="new-password" required>
-            </div>
-            <div class="full">
-              <button type="submit" class="gv-btn-success">Zmień hasło</button>
-            </div>
-          </form>
-        </div>
-
-        <% if (twoFactor.available) { %>
-          <div class="gv-settings-card" id="dwuetapowe">
-            <h2>
-              <i class="bi bi-shield-lock-fill"></i> Weryfikacja dwuetapowa (2FA)
-              <% if (twoFactor.enabled) { %><span class="gv-status-pill gv-status-on">włączona</span><% } else { %><span class="gv-status-pill">wyłączona</span><% } %>
-            </h2>
-
-            <% if (twoFactor.newRecoveryCodes) { %>
-              <div class="gv-recovery-box">
-                <b><i class="bi bi-exclamation-triangle-fill"></i> Zapisz kody awaryjne</b>
-                <p>Każdy kod działa raz i pozwala zalogować się, gdy nie masz telefonu. Ten komplet zobaczysz tylko teraz - zapisz go w bezpiecznym miejscu.</p>
-                <ul class="gv-recovery-codes">
-                  <% twoFactor.newRecoveryCodes.forEach(function(code) { %><li><%= code %></li><% }) %>
-                </ul>
-              </div>
             <% } %>
 
-            <% if (twoFactor.enabled) { %>
-              <p class="gv-settings-hint">
-                Przy każdym logowaniu na to konto poza hasłem podasz 6-cyfrowy kod z aplikacji uwierzytelniającej.
-                Pozostałe kody awaryjne: <b><%= twoFactor.recoveryLeft %></b>.
-              </p>
-              <form action="/profile/settings/2fa/disable" method="POST" class="gv-form-grid">
+            <div class="gv-edit-section gv-edit-danger">
+              <h3>Usuń konto</h3>
+              <div class="gv-danger-zone">
                 <div>
-                  <label class="gv-label" for="disablePassword">Hasło</label>
-                  <input type="password" id="disablePassword" name="password" class="form-control gv-input" autocomplete="current-password" required>
+                  <h4>Usunięcie konta jest nieodwracalne</h4>
+                  <p>Zniknie Twój profil razem z recenzjami, komentarzami, obserwowaniem i rozmowami prywatnymi, a Ty zostaniesz wylogowany(-a).</p>
                 </div>
-                <div>
-                  <label class="gv-label" for="disableCode">Kod z aplikacji lub kod awaryjny</label>
-                  <input type="text" id="disableCode" name="code" class="form-control gv-input" autocomplete="one-time-code" required>
-                </div>
-                <div class="full">
-                  <button type="submit" class="gv-btn-ghost-danger"><i class="bi bi-shield-x"></i> Wyłącz 2FA</button>
-                </div>
-              </form>
-            <% } else if (twoFactor.setup) { %>
-              <ol class="gv-2fa-steps">
-                <li>Zainstaluj aplikację uwierzytelniającą (np. Google Authenticator, Microsoft Authenticator, Authy lub 1Password).</li>
-                <li>Zeskanuj kod QR albo wpisz ręcznie klucz poniżej.</li>
-                <li>Wpisz 6-cyfrowy kod z aplikacji, żeby potwierdzić konfigurację.</li>
-              </ol>
-              <div class="gv-2fa-setup">
-                <img src="<%= twoFactor.setup.qr %>" alt="Kod QR do skonfigurowania 2FA" width="180" height="180" class="gv-2fa-qr">
-                <div class="gv-2fa-side">
-                  <label class="gv-label">Klucz do ręcznego wpisania</label>
-                  <code class="gv-2fa-secret"><%= twoFactor.setup.secret %></code>
-                  <form action="/profile/settings/2fa/enable" method="POST" class="gv-2fa-confirm">
-                    <label class="gv-label" for="enableCode">Kod z aplikacji</label>
-                    <input type="text" id="enableCode" name="code" class="form-control gv-input" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" placeholder="123456" required>
-                    <div class="gv-2fa-actions">
-                      <button type="submit" class="gv-btn-success">Potwierdź i włącz</button>
-                    </div>
-                  </form>
-                  <form action="/profile/settings/2fa/cancel" method="POST">
-                    <button type="submit" class="gv-mini-link gv-link-button">Anuluj</button>
-                  </form>
-                </div>
+                <form action="/profile/settings/delete" method="POST" onsubmit="return confirm('Na pewno chcesz usunąć swoje konto? Tej operacji nie można cofnąć.');">
+                  <button type="submit" class="gv-btn-danger">Usuń moje konto</button>
+                </form>
               </div>
-            <% } else { %>
-              <p class="gv-settings-hint">
-                Zabezpiecz konto administratora drugim składnikiem logowania. Nawet gdy ktoś pozna Twoje hasło,
-                bez kodu z telefonu nie wejdzie do panelu admina.
-              </p>
-              <form action="/profile/settings/2fa/start" method="POST">
-                <button type="submit" class="gv-btn-success"><i class="bi bi-shield-plus"></i> Włącz 2FA</button>
-              </form>
-            <% } %>
-          </div>
-        <% } %>
+            </div>
 
-        <div class="gv-danger-zone">
-          <div>
-            <h4>Usuń konto</h4>
-            <p>Ta operacja jest nieodwracalna - usunie Twój profil razem z recenzjami, komentarzami, obserwowaniem i rozmowami prywatnymi oraz wyloguje Cię z serwisu.</p>
-          </div>
-          <form action="/profile/settings/delete" method="POST" onsubmit="return confirm('Na pewno chcesz usunąć swoje konto? Tej operacji nie można cofnąć.');">
-            <button type="submit" class="gv-btn-danger">Usuń moje konto</button>
-          </form>
-        </div>
-
-      <% } %>
+          <% } %>
+        </main>
+      </div>
     </div>
   </section>
+
+  <% if (tab === 'general') { %>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var name = document.getElementById('editUsername');
+        var namePreview = document.getElementById('editUsernamePreview');
+        var bio = document.getElementById('editBio');
+        var bioCount = document.getElementById('editBioCount');
+        if (name && namePreview) {
+          name.addEventListener('input', function () { namePreview.textContent = name.value.trim() || '...'; });
+        }
+        if (bio && bioCount) {
+          bio.addEventListener('input', function () { bioCount.textContent = String(bio.value.length); });
+        }
+      });
+    </script>
+  <% } %>
 
   <%- include('../partials/footer') %>
 </body>

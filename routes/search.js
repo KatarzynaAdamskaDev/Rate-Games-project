@@ -5,7 +5,7 @@ const { Op } = require('sequelize');
 const { withRatings } = require('../utils/gameHelpers');
 const CustomGame = require('../models/CustomGame');
 const { fromCustomRow } = require('../utils/gameCatalog');
-const { readCollection } = require('../utils/dataStore');
+const { getPosts } = require('../utils/blogHelpers');
 const { listGames } = require('../utils/gameListing');
 const { searchUsersByUsername } = require('../utils/userHelpers');
 
@@ -26,10 +26,10 @@ router.get('/', async (req, res) => {
     const igdb = await listGames({ q, pageSize: 24 });
     games = [...(await withRatings(customRows.map(fromCustomRow))), ...igdb.games];
 
-    posts = readCollection('blog').filter(
+    posts = getPosts().filter(
       (p) =>
         p.title.toLowerCase().includes(needle) ||
-        p.content.toLowerCase().includes(needle)
+        String(p.content || '').toLowerCase().includes(needle)
     );
     users = await searchUsersByUsername(q);
   }

@@ -54,59 +54,9 @@
             <% } %>
           </td>
           <td>
-            <% if (isMe) { %>
-              <span class="gv-muted">to Ty</span>
-            <% } else { %>
-              <details class="gv-row-menu">
-                <summary class="gv-mini-btn"><i class="bi bi-three-dots"></i> Akcje</summary>
-                <div class="gv-row-menu-body">
-                  <form method="POST" action="/admin/users/<%= u.id %>/role">
-                    <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
-                    <button type="submit" class="gv-mini-btn"><i class="bi bi-shield-<%= u.role === 'admin' ? 'x' : 'plus' %>"></i> <%= u.role === 'admin' ? 'Odbierz uprawnienia admina' : 'Nadaj uprawnienia admina' %></button>
-                  </form>
-
-                  <form method="POST" action="/admin/users/<%= u.id %>/level" class="gv-inline-form">
-                    <input type="number" name="level" min="1" max="100" value="<%= u.level %>" class="form-control gv-input" aria-label="Poziom">
-                    <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-up-circle"></i> Ustaw poziom</button>
-                  </form>
-                  <form method="POST" action="/admin/users/<%= u.id %>/level">
-                    <input type="hidden" name="level" value="reset">
-                    <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-counterclockwise"></i> Zresetuj poziom</button>
-                  </form>
-
-                  <form method="POST" action="/admin/users/<%= u.id %>/unlock">
-                    <input type="hidden" name="value" value="<%= u.unlockAll ? '0' : '1' %>">
-                    <button type="submit" class="gv-mini-btn <%= u.unlockAll ? '' : 'gv-mini-ok' %>">
-                      <i class="bi bi-<%= u.unlockAll ? 'lock-fill' : 'unlock-fill' %>"></i>
-                      <%= u.unlockAll ? 'Cofnij odblokowanie wszystkiego' : 'Odblokuj wszystko (ramki, tła, odznaki)' %>
-                    </button>
-                  </form>
-
-                  <% if (u.role === 'admin' && u.twoFactorEnabled) { %>
-                    <form method="POST" action="/admin/users/<%= u.id %>/2fa-reset" onsubmit="return confirm('Wyłączyć 2FA dla <%= u.username %>? Użyj tego, gdy administrator zgubił telefon.');">
-                      <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-shield-x"></i> Wyłącz 2FA tego admina</button>
-                    </form>
-                  <% } %>
-
-                  <% if (u.isBanned) { %>
-                    <form method="POST" action="/admin/users/<%= u.id %>/unban">
-                      <button type="submit" class="gv-mini-btn gv-mini-ok"><i class="bi bi-unlock-fill"></i> Odblokuj konto</button>
-                    </form>
-                  <% } else if (u.role !== 'admin') { %>
-                    <form method="POST" action="/admin/users/<%= u.id %>/ban" class="gv-inline-form">
-                      <input type="text" name="reason" maxlength="200" placeholder="Powód blokady" class="form-control gv-input" aria-label="Powód blokady">
-                      <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-slash-circle"></i> Zablokuj</button>
-                    </form>
-                  <% } %>
-
-                  <% if (u.role !== 'admin') { %>
-                    <form method="POST" action="/admin/users/<%= u.id %>/delete" onsubmit="return confirm('Usunąć konto <%= u.username %> razem z recenzjami, komentarzami i rozmowami? Tej operacji nie można cofnąć.');">
-                      <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń konto</button>
-                    </form>
-                  <% } %>
-                </div>
-              </details>
-            <% } %>
+            <button type="button" class="gv-mini-btn" data-bs-toggle="modal" data-bs-target="#userModal-<%= u.id %>">
+              <i class="bi bi-sliders"></i> <%= isMe ? 'Moje opcje' : 'Akcje' %>
+            </button>
           </td>
         </tr>
       <% }) %>
@@ -118,5 +68,89 @@
 </div>
 
 <%- include('../partials/pager', { pager }) %>
+
+<% users.forEach(function(u) { %>
+  <% const isMe = u.id === currentUser.id; %>
+  <div class="modal fade" id="userModal-<%= u.id %>" tabindex="-1" aria-labelledby="userModalLabel-<%= u.id %>" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content gv-admin-modal">
+        <div class="modal-header gv-modal-header">
+          <div class="gv-admin-user">
+            <% if (u.avatarUrl) { %><img src="<%= u.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
+            <span>
+              <b id="userModalLabel-<%= u.id %>"><%= u.username %><%= isMe ? ' (Ty)' : '' %></b>
+              <small><%= u.email %></small>
+            </span>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+
+        <div class="modal-body">
+          <section class="gv-admin-modal-section">
+            <h3><i class="bi bi-stars"></i> Poziom i odblokowania</h3>
+            <form method="POST" action="/admin/users/<%= u.id %>/level" class="gv-inline-form">
+              <input type="number" name="level" min="1" max="100" value="<%= u.level %>" class="form-control gv-input" aria-label="Poziom">
+              <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-up-circle"></i> Ustaw poziom</button>
+            </form>
+            <div class="gv-admin-modal-row">
+              <form method="POST" action="/admin/users/<%= u.id %>/level">
+                <input type="hidden" name="level" value="reset">
+                <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-counterclockwise"></i> Zresetuj poziom</button>
+              </form>
+              <form method="POST" action="/admin/users/<%= u.id %>/unlock">
+                <input type="hidden" name="value" value="<%= u.unlockAll ? '0' : '1' %>">
+                <button type="submit" class="gv-mini-btn <%= u.unlockAll ? '' : 'gv-mini-ok' %>">
+                  <i class="bi bi-<%= u.unlockAll ? 'lock-fill' : 'unlock-fill' %>"></i>
+                  <%= u.unlockAll ? 'Cofnij odblokowanie wszystkiego' : 'Odblokuj wszystko (ramki, tła, odznaki)' %>
+                </button>
+              </form>
+            </div>
+          </section>
+
+          <% if (!isMe) { %>
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-shield-lock-fill"></i> Rola i dostęp</h3>
+              <div class="gv-admin-modal-row">
+                <form method="POST" action="/admin/users/<%= u.id %>/role">
+                  <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+                  <button type="submit" class="gv-mini-btn"><i class="bi bi-shield-<%= u.role === 'admin' ? 'x' : 'plus' %>"></i> <%= u.role === 'admin' ? 'Odbierz uprawnienia admina' : 'Nadaj uprawnienia admina' %></button>
+                </form>
+                <% if (u.role === 'admin' && u.twoFactorEnabled) { %>
+                  <form method="POST" action="/admin/users/<%= u.id %>/2fa-reset" onsubmit="return confirm('Wyłączyć 2FA dla <%= u.username %>? Użyj tego, gdy administrator zgubił telefon.');">
+                    <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-shield-x"></i> Wyłącz 2FA tego admina</button>
+                  </form>
+                <% } %>
+              </div>
+
+              <% if (u.isBanned) { %>
+                <p class="gv-admin-note">Konto jest zablokowane<%= u.banReason ? ': ' + u.banReason : '' %>.</p>
+                <form method="POST" action="/admin/users/<%= u.id %>/unban">
+                  <button type="submit" class="gv-mini-btn gv-mini-ok"><i class="bi bi-unlock-fill"></i> Odblokuj konto</button>
+                </form>
+              <% } else if (u.role !== 'admin') { %>
+                <form method="POST" action="/admin/users/<%= u.id %>/ban" class="gv-inline-form">
+                  <input type="text" name="reason" maxlength="200" placeholder="Powód blokady" class="form-control gv-input" aria-label="Powód blokady">
+                  <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-slash-circle"></i> Zablokuj</button>
+                </form>
+              <% } %>
+            </section>
+
+            <% if (u.role !== 'admin') { %>
+              <section class="gv-admin-modal-section gv-admin-modal-danger">
+                <h3><i class="bi bi-exclamation-triangle-fill"></i> Strefa niebezpieczna</h3>
+                <p class="gv-admin-note">Usunięcie konta kasuje też recenzje, komentarze, obserwowania i rozmowy użytkownika. Tego nie da się cofnąć.</p>
+                <form method="POST" action="/admin/users/<%= u.id %>/delete" onsubmit="return confirm('Usunąć konto <%= u.username %> razem z recenzjami, komentarzami i rozmowami? Tej operacji nie można cofnąć.');">
+                  <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń konto</button>
+                </form>
+              </section>
+            <% } %>
+          <% } else { %>
+            <p class="gv-admin-note">Rolę, blokadę i usuwanie konta zmienia się tylko na cudzych kontach.</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% }) %>
 
 <%- include('partials/bottom') %>

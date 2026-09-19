@@ -33,19 +33,31 @@
           <p class="gv-admin-empty">Zgłoszona recenzja została już usunięta.</p>
         <% } %>
 
-        <p class="gv-report-reason"><b>Powód:</b> <%= rep.reason || 'nie podano' %></p>
+        <p class="gv-report-reason">
+          <b>Powód:</b> <span class="gv-badge gv-badge-info"><%= rep.reason || 'nie podano' %></span>
+          <% if (rep.comment) { %><br><b>Dopisek zgłaszającego:</b> <%= rep.comment %><% } %>
+        </p>
 
         <% if (rep.status === 'pending') { %>
           <div class="gv-report-actions">
             <% if (rep.review) { %>
-              <form method="POST" action="/admin/reports/<%= rep.id %>/delete-review" onsubmit="return confirm('Usunąć zgłoszoną recenzję na stałe?');">
-                <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń recenzję</button>
-              </form>
+              <button type="button" class="gv-mini-btn gv-mini-danger"
+                      data-bs-toggle="modal" data-bs-target="#deleteReviewModal"
+                      data-action="/admin/reports/<%= rep.id %>/delete-review"
+                      data-author="<%= rep.review.username %>">
+                <i class="bi bi-trash3-fill"></i> Usuń recenzję
+              </button>
             <% } %>
-            <form method="POST" action="/admin/reports/<%= rep.id %>/dismiss">
-              <button type="submit" class="gv-mini-btn"><i class="bi bi-x-circle"></i> Odrzuć zgłoszenie</button>
-            </form>
+            <button type="button" class="gv-mini-btn"
+                    data-bs-toggle="modal" data-bs-target="#dismissModal"
+                    data-action="/admin/reports/<%= rep.id %>/dismiss">
+              <i class="bi bi-x-circle"></i> Odrzuć zgłoszenie
+            </button>
           </div>
+        <% } else if (rep.resolution) { %>
+          <p class="gv-report-reason"><b>Uzasadnienie decyzji:</b> <%= rep.resolution %>
+            <% if (rep.resolvedBy) { %><small class="gv-muted"> - <%= rep.resolvedBy %><%= rep.resolvedAt ? ', ' + new Date(rep.resolvedAt).toLocaleDateString('pl-PL') : '' %></small><% } %>
+          </p>
         <% } %>
       </div>
     <% }) %>
@@ -53,5 +65,83 @@
 <% } %>
 
 <%- include('../partials/pager', { pager }) %>
+
+<div class="modal fade" id="dismissModal" tabindex="-1" aria-labelledby="dismissModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content gv-modal-content">
+      <form method="POST" action="" id="dismissForm">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="dismissModalLabel"><i class="bi bi-x-circle"></i> Odrzucenie zgłoszenia</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext">Podaj powód odrzucenia - zgłaszający dostanie go w powiadomieniu.</p>
+          <div class="gv-chip-row">
+            <button type="button" class="gv-chip" data-fill="Opinia nie łamie regulaminu.">Brak naruszenia</button>
+            <button type="button" class="gv-chip" data-fill="Zgłoszenie jest bezpodstawne.">Bezpodstawne</button>
+            <button type="button" class="gv-chip" data-fill="To subiektywna opinia o grze, a nie naruszenie zasad.">Subiektywna opinia</button>
+          </div>
+          <label class="gv-label" for="dismissReason">Powód (min. 3 znaki)</label>
+          <textarea id="dismissReason" name="reason" rows="3" minlength="3" maxlength="300" required class="form-control gv-input"></textarea>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="submit" class="btn gv-btn-success">Odrzuć zgłoszenie</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteReviewModal" tabindex="-1" aria-labelledby="deleteReviewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content gv-modal-content">
+      <form method="POST" action="" id="deleteReviewForm">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="deleteReviewModalLabel"><i class="bi bi-trash3-fill"></i> Usunięcie recenzji</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext" id="deleteReviewIntro">Recenzja zostanie usunięta na stałe razem z komentarzami i polubieniami.</p>
+          <label class="gv-label" for="deleteReason">Powód dla autora (opcjonalnie)</label>
+          <textarea id="deleteReason" name="reason" rows="3" maxlength="300" class="form-control gv-input" placeholder="Autor dostanie ten powód w powiadomieniu."></textarea>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="submit" class="btn gv-btn-danger">Usuń recenzję</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    function wire(modalId, formId, onOpen) {
+      var modal = document.getElementById(modalId);
+      var form = document.getElementById(formId);
+      if (!modal || !form) return;
+      modal.addEventListener('show.bs.modal', function (event) {
+        var trigger = event.relatedTarget;
+        form.reset();
+        form.action = trigger ? trigger.getAttribute('data-action') : '';
+        if (onOpen) onOpen(trigger);
+      });
+    }
+
+    wire('dismissModal', 'dismissForm');
+    wire('deleteReviewModal', 'deleteReviewForm', function (trigger) {
+      var author = trigger && trigger.getAttribute('data-author');
+      document.getElementById('deleteReviewIntro').textContent =
+        'Recenzja użytkownika ' + (author || '') + ' zostanie usunięta na stałe razem z komentarzami i polubieniami.';
+    });
+
+    document.querySelectorAll('#dismissModal [data-fill]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.getElementById('dismissReason').value = chip.getAttribute('data-fill');
+      });
+    });
+  });
+</script>
 
 <%- include('partials/bottom') %>

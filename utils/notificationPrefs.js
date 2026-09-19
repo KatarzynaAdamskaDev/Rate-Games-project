@@ -30,6 +30,12 @@ const NOTIFICATION_TYPES = [
     label: 'Polubienia komentarzy',
     description: 'Ktoś polubił Twój komentarz.',
   },
+  {
+    id: 'report-result',
+    icon: 'bi-flag-fill',
+    label: 'Decyzje w sprawie zgłoszeń',
+    description: 'Moderator rozpatrzył zgłoszenie, które wysłałeś(-aś).',
+  },
 ];
 
 /** Zamienia zapisany w bazie JSON na komplet ustawień: { muteAll, types: { id: bool } }. */

@@ -23,7 +23,10 @@
           <div class="gv-profile-meta">
             <h1><%= profileUser.username %></h1>
             <% if (profileUser.bio) { %>
-              <p class="gv-profile-bio"><%= profileUser.bio %></p>
+              <div class="gv-profile-bio-wrap">
+                <p class="gv-profile-bio" id="profileBio"><%= profileUser.bio %></p>
+                <button type="button" class="gv-bio-more d-none" id="profileBioMore" data-bs-toggle="modal" data-bs-target="#bioModal">Zobacz więcej</button>
+              </div>
             <% } %>
           </div>
         </div>
@@ -194,7 +197,24 @@
     </div>
   <% } %>
 
+  <% if (profileUser.bio) { %>
+    <div class="modal fade" id="bioModal" tabindex="-1" aria-labelledby="bioModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content gv-modal-content">
+          <div class="modal-header gv-modal-header">
+            <h2 class="gv-auth-title mb-0" id="bioModalLabel"><i class="bi bi-card-text"></i> Opis - <%= profileUser.username %></h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+          </div>
+          <div class="modal-body">
+            <p class="gv-bio-full"><%= profileUser.bio %></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
   <%- include('../partials/footer') %>
   <script src="/js/game-picker.js"></script>
+  <script src="/js/profile-bio.js"></script>
 </body>
 </html>

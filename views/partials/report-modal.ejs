@@ -1,0 +1,68 @@
+<%
+// Okno zgłoszenia recenzji: dokładnie jeden powód + opcjonalny dopisek.
+// Adres wysyłki ustawia przycisk otwierający (data-report-url), więc jedno okno obsługuje wszystkie recenzje na stronie.
+// Dane: reportReasons i reportCommentMax (routes/games.js).
+%>
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content gv-modal-content">
+      <form method="POST" action="" id="reportForm">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="reportModalLabel"><i class="bi bi-flag-fill"></i> Zgłoś opinię</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext" id="reportIntro">Wybierz jeden powód, który najlepiej opisuje problem.</p>
+
+          <div class="gv-reason-list" role="radiogroup" aria-label="Powód zgłoszenia">
+            <% reportReasons.forEach(function(reason) { %>
+              <label class="gv-reason">
+                <input type="radio" name="reason" value="<%= reason.id %>" required>
+                <span><%= reason.label %></span>
+              </label>
+            <% }) %>
+          </div>
+
+          <label class="gv-label mt-3" for="reportComment">Dopisek dla moderatora <span class="gv-muted" id="reportCommentHint">(opcjonalnie)</span></label>
+          <textarea id="reportComment" name="comment" rows="3" maxlength="<%= reportCommentMax %>" class="form-control gv-input" placeholder="Możesz opisać, co jest nie tak..."></textarea>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="submit" class="btn gv-btn-success">Wyślij zgłoszenie</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('reportModal');
+    if (!modal) return;
+    var form = document.getElementById('reportForm');
+    var intro = document.getElementById('reportIntro');
+    var comment = document.getElementById('reportComment');
+    var hint = document.getElementById('reportCommentHint');
+
+    modal.addEventListener('show.bs.modal', function (event) {
+      var trigger = event.relatedTarget;
+      form.reset();
+      form.action = trigger ? trigger.getAttribute('data-report-url') : '';
+      var author = trigger ? trigger.getAttribute('data-report-author') : '';
+      intro.textContent = author
+        ? 'Zgłaszasz opinię użytkownika ' + author + '. Wybierz jeden powód.'
+        : 'Wybierz jeden powód, który najlepiej opisuje problem.';
+      comment.required = false;
+      hint.textContent = '(opcjonalnie)';
+    });
+
+    // Przy powodzie "Inny" opis jest obowiązkowy.
+    form.addEventListener('change', function (event) {
+      if (event.target.name !== 'reason') return;
+      var isOther = event.target.value === 'other';
+      comment.required = isOther;
+      comment.minLength = isOther ? 5 : 0;
+      hint.textContent = isOther ? '(wymagany)' : '(opcjonalnie)';
+    });
+  });
+</script>
