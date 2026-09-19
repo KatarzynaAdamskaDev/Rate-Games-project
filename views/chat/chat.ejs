@@ -311,6 +311,10 @@
             if (data.message) {
               appendMessage(data.message);
               lastTimestamp = data.message.createdAt;
+            } else if (data.error) {
+              // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
+              if (window.showToast) showToast(data.error, false);
+              input.value = text;
             }
           })
           .finally(function () {

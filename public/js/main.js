@@ -148,7 +148,12 @@ document.addEventListener('DOMContentLoaded', function () {
       postJson('/auth/signin', signInForm)
         .then(function (result) {
           if (result.ok && result.data.success) {
-            window.location.reload();
+            // Administrator z 2FA: po haśle przechodzimy do strony z kodem.
+            if (result.data.redirect) {
+              window.location.href = result.data.redirect;
+            } else {
+              window.location.reload();
+            }
           } else {
             showToast(result.data.message || 'Nie udało się zalogować.', false);
           }

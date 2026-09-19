@@ -43,10 +43,10 @@ async function buildProfileViewModel(user) {
     profileUser: getUserPublic({ ...user, points: progress.points, level: progress.level }),
     stats,
     progress,
-    allFrames: allFramesWithLockState(progress.level),
-    allBackgrounds: allBackgroundsWithLockState(progress.level),
-    allBadges: allBadgesWithLockState(stats),
-    trophy: resolveTrophy(user.activeTrophy, stats),
+    allFrames: allFramesWithLockState(progress.level, !!user.unlockAll),
+    allBackgrounds: allBackgroundsWithLockState(progress.level, !!user.unlockAll),
+    allBadges: allBadgesWithLockState(stats, !!user.unlockAll),
+    trophy: resolveTrophy(user.activeTrophy, stats, !!user.unlockAll),
     reviews,
   };
 }

@@ -7,9 +7,9 @@ Strona z opiniami o grach - Node.js + Express + EJS + Bootstrap, dane przechowyw
 ```
 gameverse/
 ├── bin/www              # skrypt startujący serwer HTTP
-├── middleware/          # auth.js, locals.js, errorHandlers.js
+├── middleware/          # auth.js, locals.js, rateLimit.js, errorHandlers.js
 ├── public/              # CSS, JS, obrazki (pliki statyczne)
-├── routes/              # index, auth, games, blog, search, profile, chat, reviews, notifications
+├── routes/              # index, auth, games, blog, search, profile, chat, reviews, notifications, admin
 ├── views/               # szablony EJS (partials, auth, games, blog)
 ├── models/              # modele Sequelize (użytkownicy, recenzje, czat, powiadomienia...)
 ├── utils/               # logika aplikacji (katalog gier IGDB, statystyki, profile, czat)
@@ -57,6 +57,27 @@ Dodawanie gier (`/games/new`) i wpisów na blogu (`/blog/new`) wymaga roli
 node create-admin.js admin@example.com admin MojeHaslo123
 ```
 
+Administrator ma w nawigacji link **ADMIN** (`/admin`): pulpit ze statystykami,
+użytkownicy (blokady, role, poziomy, "odblokuj wszystko", reset 2FA), recenzje,
+zgłoszenia, komentarze, gry własne, blog, moderacja czatu, eksport CSV i kopie
+zapasowe bazy, dziennik działań oraz ustawienia (ogłoszenie, filtr wulgaryzmów,
+antyspam, limity zapytań, wymóg 2FA).
+
+### Weryfikacja dwuetapowa (2FA) administratorów
+
+Administrator włącza 2FA w **Edytuj profil -> Konto i bezpieczeństwo** (kod QR do
+aplikacji typu Google Authenticator + jednorazowe kody awaryjne). Po włączeniu
+logowanie wymaga kodu, a w panelu **Ustawienia** można wymusić 2FA dla wszystkich
+administratorów. Zgubiony telefon: inny administrator wyłącza 2FA w
+**Użytkownicy -> Akcje**.
+
+### Limity zapytań i antyspam
+
+Limity (logowanie, rejestracja, recenzje, komentarze, czat i inne) trzymane są w
+pamięci procesu i można je wyłączyć w panelu. Za serwerem pośredniczącym
+(Azure App Service) aplikacja ufa nagłówkowi `X-Forwarded-For` tylko przy
+`NODE_ENV=production`.
+
 ## Dane
 
 Użytkownicy, recenzje, komentarze, czat, powiadomienia i pozostałe dane
@@ -85,6 +106,8 @@ zapisywane jawnie.
 - Blog (lista + pojedynczy wpis)
 - Wyszukiwarka (gry + wpisy blogowe)
 - Panel dodawania gier / wpisów na blogu dla roli `admin`
+- Edycja profilu w zakładkach (ogólne, awatar, wygląd, powiadomienia, konto) z wyborem rodzajów powiadomień
+- Panel administratora `/admin` (patrz wyżej)
 
 ## Czego brakuje / co warto dodać dalej
 

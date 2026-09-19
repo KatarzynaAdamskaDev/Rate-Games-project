@@ -102,24 +102,28 @@ const BADGE_DEFINITIONS = [
 const DEFAULT_TROPHY = { id: null, label: 'Trofeum', icon: 'bi-trophy-fill', color: '#ffb238' };
 
 /** Zwraca trofeum do banera: wybraną odznakę (jeśli wciąż odblokowana) albo domyślne. */
-function resolveTrophy(activeTrophyId, stats) {
+function resolveTrophy(activeTrophyId, stats, unlockAll = false) {
   const badge = BADGE_DEFINITIONS.find((b) => b.id === activeTrophyId);
-  if (badge && badge.check(stats)) {
+  if (badge && (unlockAll || badge.check(stats))) {
     return { id: badge.id, label: badge.label, icon: badge.icon, color: badge.color };
   }
   return DEFAULT_TROPHY;
 }
 
-function allFramesWithLockState(level) {
-  return FRAMES.map((f) => ({ ...f, locked: f.levelRequired > level }));
+/**
+ * Blokady odznak, ramek i teł. Gdy administrator włączył użytkownikowi "odblokuj wszystko"
+ * (users.unlockAll), nic nie jest zablokowane niezależnie od poziomu i aktywności.
+ */
+function allFramesWithLockState(level, unlockAll = false) {
+  return FRAMES.map((f) => ({ ...f, locked: !unlockAll && f.levelRequired > level }));
 }
 
-function allBackgroundsWithLockState(level) {
-  return BACKGROUNDS.map((b) => ({ ...b, locked: b.levelRequired > level }));
+function allBackgroundsWithLockState(level, unlockAll = false) {
+  return BACKGROUNDS.map((b) => ({ ...b, locked: !unlockAll && b.levelRequired > level }));
 }
 
-function allBadgesWithLockState(stats) {
-  return BADGE_DEFINITIONS.map((b) => ({ ...b, locked: !b.check(stats) }));
+function allBadgesWithLockState(stats, unlockAll = false) {
+  return BADGE_DEFINITIONS.map((b) => ({ ...b, locked: !unlockAll && !b.check(stats) }));
 }
 
 module.exports = {

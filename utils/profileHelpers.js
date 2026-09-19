@@ -21,8 +21,16 @@ const FavoriteGame = require('../models/FavoriteGame');
 /** Zwraca dane użytkownika bezpieczne do wyświetlenia (bez hasha i tokenów). */
 function getUserPublic(user) {
   if (!user) return null;
-  const { passwordHash, resetPasswordToken, resetPasswordExpires, ...safe } =
-    user;
+  const {
+    passwordHash,
+    resetPasswordToken,
+    resetPasswordExpires,
+    twoFactorSecret,
+    twoFactorRecovery,
+    twoFactorEnabled,
+    notificationPrefs,
+    ...safe
+  } = user;
   return safe;
 }
 

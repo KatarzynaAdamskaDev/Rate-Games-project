@@ -285,7 +285,13 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data.message && current && current.id === conv.id) appendMessage(data.message, conv.type);
+        if (data.message && current && current.id === conv.id) {
+          appendMessage(data.message, conv.type);
+        } else if (data.error) {
+          // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
+          if (window.showToast) window.showToast(data.error, false);
+          input.value = text;
+        }
       })
       .catch(function () {});
   });

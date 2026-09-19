@@ -15,6 +15,8 @@ const AdminLog = require('../models/AdminLog');
 
 const { readCollection, writeCollection } = require('../utils/dataStore');
 const { deleteUser } = require('../utils/profileHelpers');
+const { findById } = require('../utils/userHelpers');
+const { buildProfileViewModel } = require('../utils/profileViewModel');
 const { deleteReviewData } = require('../utils/reviewSocialHelpers');
 const { syncUserProgress, setUserLevel } = require('../utils/progressHelpers');
 const { clearMessages, deleteConversation } = require('../utils/chatHelpers');
@@ -27,14 +29,25 @@ const {
   setSetting,
   getDashboardStats,
 } = require('../utils/adminHelpers');
+const { getModeration, saveModeration, PROFANITY_MODES, MAX_EXTRA_WORDS_LENGTH } = require('../utils/moderationSettings');
+const { getRules, getStats: getRateLimitStats } = require('../middleware/rateLimit');
+const backup = require('../utils/backupHelpers');
 
 const PAGE_SIZE = 15;
 
 router.use(ensureAuthenticated, ensureAdmin);
 
-// Liczba oczekujących zgłoszeń - plakietka w menu bocznym panelu.
+// Wymóg 2FA dla administratorów (Ustawienia -> Bezpieczeństwo) oraz plakietka zgłoszeń w menu bocznym.
 router.use(async (req, res, next) => {
   try {
+    const me = await User.findByPk(req.session.user.id, { attributes: ['twoFactorEnabled'] });
+    res.locals.adminHasTwoFactor = !!(me && me.twoFactorEnabled);
+
+    if (getModeration().require2fa && !res.locals.adminHasTwoFactor) {
+      req.flash('error', 'Panel admina wymaga włączonej weryfikacji dwuetapowej (2FA). Skonfiguruj ją poniżej.');
+      return res.redirect('/profile/settings?tab=account');
+    }
+
     res.locals.pendingReportsCount = await ReviewReport.count({ where: { status: 'pending' } });
     next();
   } catch (err) {
@@ -225,6 +238,54 @@ router.post('/users/:id/level', async (req, res, next) => {
     const result = await setUserLevel(target.id, reset ? null : level);
     await logAdminAction(req, 'user.level', 'user', target.username, reset ? 'Reset poziomu' : `Poziom ${result.level}`);
     req.flash('success', `${target.username}: poziom ${result.level} (${result.points} PD).`);
+    res.redirect(backTo(req, '/admin/users'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/users/:id/unlock', async (req, res, next) => {
+  try {
+    const target = await User.findByPk(req.params.id);
+    if (!target) {
+      req.flash('error', 'Nie znaleziono użytkownika.');
+      return res.redirect(backTo(req, '/admin/users'));
+    }
+
+    const unlockAll = req.body.value === '1';
+    await target.update({ unlockAll });
+
+    // Po cofnięciu odblokowania zdejmujemy ramkę, tło i trofeum, do których użytkownik nie ma już dostępu.
+    if (!unlockAll) {
+      const vm = await buildProfileViewModel(await findById(target.id));
+      const lockedIds = new Set([...vm.allFrames, ...vm.allBackgrounds, ...vm.allBadges].filter((i) => i.locked).map((i) => i.id));
+      const reset = {};
+      if (lockedIds.has(target.activeFrame)) reset.activeFrame = 'frame-basic';
+      if (lockedIds.has(target.activeBackground)) reset.activeBackground = 'bg-default';
+      if (lockedIds.has(target.activeTrophy)) reset.activeTrophy = null;
+      if (Object.keys(reset).length > 0) await target.update(reset);
+    }
+    await logAdminAction(req, 'user.unlock', 'user', target.username, unlockAll ? 'Odblokowano wszystko' : 'Cofnięto odblokowanie wszystkiego');
+    req.flash(
+      'success',
+      unlockAll
+        ? `${target.username} ma teraz odblokowane wszystkie ramki, tła i odznaki.`
+        : `${target.username} wraca do odblokowań wynikających z poziomu i aktywności.`
+    );
+    res.redirect(backTo(req, '/admin/users'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/users/:id/2fa-reset', async (req, res, next) => {
+  try {
+    const target = await User.findByPk(req.params.id);
+    if (!guardTarget(req, res, target, { allowAdmin: true })) return;
+
+    await target.update({ twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecovery: null });
+    await logAdminAction(req, 'user.2fa-reset', 'user', target.username, 'Wyłączono 2FA (np. zgubiony telefon)');
+    req.flash('success', `Weryfikacja dwuetapowa dla ${target.username} została wyłączona.`);
     res.redirect(backTo(req, '/admin/users'));
   } catch (err) {
     next(err);
@@ -614,7 +675,62 @@ router.get('/log', async (req, res, next) => {
   }
 });
 
-/* ------------------------------ ustawienia (ogłoszenie) ------------------------------ */
+/* ------------------------------ dane: eksport CSV i kopie zapasowe ------------------------------ */
+
+router.get('/data', (req, res) => {
+  render(res, 'data', 'data', 'Dane i kopie zapasowe', {
+    exportsList: Object.entries(backup.EXPORTS).map(([key, spec]) => ({
+      key,
+      label: spec.label,
+      description: spec.description,
+    })),
+    canBackupSqlite: backup.canBackupSqliteFile(),
+  });
+});
+
+router.get('/export/:kind.csv', async (req, res, next) => {
+  try {
+    const result = await backup.buildCsvExport(req.params.kind);
+    if (!result) return next();
+
+    await logAdminAction(req, 'data.export', 'data', req.params.kind, `Wiersze: ${result.count}`);
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.content);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/backup/json', async (req, res, next) => {
+  try {
+    const result = await backup.buildJsonBackup();
+    const total = Object.values(result.counts).reduce((sum, n) => sum + n, 0);
+    await logAdminAction(req, 'data.backup', 'data', 'JSON', `Tabel: ${Object.keys(result.counts).length}, rekordów: ${total}`);
+    res.set('Content-Type', 'application/json; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.content);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/backup/sqlite', async (req, res, next) => {
+  try {
+    if (!backup.canBackupSqliteFile()) {
+      req.flash('error', 'Kopia pliku bazy jest dostępna tylko dla SQLite (środowisko developerskie).');
+      return res.redirect('/admin/data');
+    }
+
+    const result = await backup.buildSqliteBackup();
+    await logAdminAction(req, 'data.backup', 'data', 'SQLite', result.filename);
+    res.download(result.filePath, result.filename, () => backup.removeFile(result.filePath));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------------------ ustawienia ------------------------------ */
 
 router.get('/settings', async (req, res, next) => {
   try {
@@ -623,8 +739,12 @@ router.get('/settings', async (req, res, next) => {
       getSetting('announcement_text', ''),
       getSetting('announcement_type', 'info'),
     ]);
-    render(res, 'settings', 'settings', 'Ogłoszenie serwisowe', {
+    render(res, 'settings', 'settings', 'Ustawienia', {
       announcementForm: { enabled: enabled === '1', text, type },
+      moderation: getModeration(),
+      maxExtraWords: MAX_EXTRA_WORDS_LENGTH,
+      rules: getRules(),
+      rateStats: getRateLimitStats(),
     });
   } catch (err) {
     next(err);
@@ -644,6 +764,50 @@ router.post('/settings/announcement', async (req, res, next) => {
     ]);
     await logAdminAction(req, 'settings.announcement', 'settings', enabled === '1' ? 'włączone' : 'wyłączone', text);
     req.flash('success', enabled === '1' ? 'Ogłoszenie zostało opublikowane.' : 'Ogłoszenie jest wyłączone.');
+    res.redirect('/admin/settings');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/settings/moderation', async (req, res, next) => {
+  try {
+    const profanityMode = PROFANITY_MODES.includes(req.body.profanityMode) ? req.body.profanityMode : 'mask';
+    const patch = {
+      rateLimitEnabled: req.body.rateLimitEnabled === '1',
+      antispamEnabled: req.body.antispamEnabled === '1',
+      profanityMode,
+      profanityWords: String(req.body.profanityWords || '').trim(),
+    };
+
+    await saveModeration(patch);
+    await logAdminAction(
+      req,
+      'settings.moderation',
+      'settings',
+      `wulgaryzmy: ${profanityMode}`,
+      `limity: ${patch.rateLimitEnabled ? 'wł.' : 'wył.'}, antyspam: ${patch.antispamEnabled ? 'wł.' : 'wył.'}`
+    );
+    req.flash('success', 'Ustawienia moderacji zostały zapisane.');
+    res.redirect('/admin/settings');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/settings/security', async (req, res, next) => {
+  try {
+    const require2fa = req.body.require2fa === '1';
+
+    // Żeby nie odciąć samego siebie od panelu: wymóg można włączyć dopiero z własnym 2FA.
+    if (require2fa && !res.locals.adminHasTwoFactor) {
+      req.flash('error', 'Najpierw włącz 2FA na własnym koncie (Edytuj profil -> Konto i bezpieczeństwo).');
+      return res.redirect('/admin/settings');
+    }
+
+    await saveModeration({ require2fa });
+    await logAdminAction(req, 'settings.security', 'settings', require2fa ? 'wymagane 2FA' : '2FA opcjonalne');
+    req.flash('success', require2fa ? 'Od teraz administratorzy muszą mieć włączone 2FA.' : 'Wymóg 2FA został wyłączony.');
     res.redirect('/admin/settings');
   } catch (err) {
     next(err);

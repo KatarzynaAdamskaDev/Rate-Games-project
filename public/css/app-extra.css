@@ -3592,3 +3592,407 @@ td.gv-admin-empty {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   EDYCJA PROFILU: ZAKŁADKI, POWIADOMIENIA, 2FA
+   ========================================================================== */
+
+.gv-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 18px;
+}
+.gv-settings-head .gv-page-title {
+  margin: 0;
+}
+.gv-mini-link {
+  font-size: 12px;
+  color: var(--text-mid);
+  text-decoration: none;
+}
+.gv-mini-link:hover {
+  color: var(--accent-soft);
+}
+.gv-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 6px;
+}
+
+.gv-settings-tabs {
+  margin-bottom: 20px;
+}
+.gv-settings-tabs .gv-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.gv-settings-card h2 i {
+  color: var(--accent-soft);
+  margin-right: 8px;
+}
+.gv-settings-hint {
+  font-size: 12px;
+  color: var(--text-lo);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.gv-settings-inline {
+  margin-top: 14px;
+}
+
+.gv-settings-info {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.gv-settings-info div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 13px;
+}
+.gv-settings-info div:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.gv-settings-info dt {
+  color: var(--text-lo);
+  font-weight: 400;
+}
+.gv-settings-info dd {
+  margin: 0;
+  color: var(--text-hi);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.gv-btn-ghost-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: #ff8590;
+  background: transparent;
+  border: 1px solid rgba(255, 95, 109, 0.5);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.gv-btn-ghost-danger:hover {
+  background: rgba(255, 95, 109, 0.12);
+  color: #fff;
+}
+
+.gv-unlock-all-note {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--cyan);
+}
+
+/* przełączniki powiadomień */
+.gv-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gv-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.gv-switch-row:hover {
+  border-color: var(--accent);
+}
+.gv-switch-master {
+  border-style: dashed;
+}
+.gv-switch-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--accent-glow);
+  color: var(--accent-soft);
+  font-size: 17px;
+}
+.gv-switch-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gv-switch-text b {
+  font-size: 13px;
+  color: var(--text-hi);
+}
+.gv-switch-text small {
+  font-size: 11.5px;
+  color: var(--text-lo);
+  line-height: 1.5;
+}
+.gv-switch {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  display: flex;
+}
+.gv-switch .form-check-input {
+  width: 46px;
+  height: 24px;
+  margin: 0;
+  float: none;
+  cursor: pointer;
+  background-color: var(--bg-0);
+  border: 1px solid var(--panel-border);
+}
+.gv-switch .form-check-input:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+.gv-switch .form-check-input:focus {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* 2FA */
+.gv-status-pill {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-size: 10.5px;
+  font-weight: 400;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  color: var(--text-lo);
+  vertical-align: middle;
+}
+.gv-status-on {
+  color: var(--cyan);
+  border-color: rgba(63, 224, 197, 0.4);
+  background: rgba(63, 224, 197, 0.08);
+}
+.gv-2fa-steps {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--text-mid);
+}
+.gv-2fa-setup {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.gv-2fa-qr {
+  background: #fff;
+  padding: 8px;
+  border-radius: var(--radius-s);
+  flex-shrink: 0;
+}
+.gv-2fa-side {
+  flex: 1;
+  min-width: 240px;
+}
+.gv-2fa-secret {
+  display: block;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-0);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  color: var(--accent-soft);
+  font-size: 13px;
+  letter-spacing: 1px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.gv-2fa-actions {
+  margin-top: 12px;
+}
+.gv-recovery-box {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 178, 56, 0.5);
+  background: rgba(255, 178, 56, 0.08);
+  border-radius: var(--radius-s);
+}
+.gv-recovery-box b {
+  color: var(--amber);
+  font-size: 13px;
+}
+.gv-recovery-box p {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.6;
+}
+.gv-recovery-codes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.gv-recovery-codes li {
+  padding: 8px 10px;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--text-hi);
+  background: var(--bg-0);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  user-select: all;
+}
+
+.gv-auth-lead {
+  font-size: 12.5px;
+  color: var(--text-mid);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+/* ==========================================================================
+   PANEL ADMINA: DANE, USTAWIENIA, OSTRZEŻENIA
+   ========================================================================== */
+
+.gv-admin-alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 14px;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: rgba(255, 178, 56, 0.1);
+  border: 1px solid rgba(255, 178, 56, 0.45);
+  border-radius: var(--radius-m);
+  font-size: 12.5px;
+  color: var(--text-hi);
+}
+.gv-admin-alert > i {
+  font-size: 20px;
+  color: var(--amber);
+}
+.gv-admin-alert > span {
+  flex: 1;
+  min-width: 220px;
+  line-height: 1.6;
+}
+.gv-admin-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+}
+.gv-admin-subtitle {
+  font-size: 12.5px;
+  color: var(--text-hi);
+  margin: 18px 0 8px;
+}
+.gv-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+.gv-data-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  color: var(--text-hi);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.gv-data-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.gv-data-item > i {
+  font-size: 20px;
+  color: var(--accent-soft);
+}
+.gv-data-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.gv-data-item b {
+  font-size: 13px;
+}
+.gv-data-item small {
+  font-size: 11px;
+  color: var(--text-lo);
+  line-height: 1.5;
+}
+.gv-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .gv-settings-tabs .gv-tab {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+  }
+  .gv-switch-row {
+    padding: 12px;
+    gap: 10px;
+  }
+  .gv-recovery-codes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gv-switch .form-check-input:not(:checked),
+.gv-switch .form-check-input:not(:checked):focus {
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23b7aecb'/%3e%3c/svg%3e");
+  background-image: var(--bs-form-switch-bg);
+}
+
+.gv-admin-card .gv-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-hi);
+  cursor: pointer;
+}
+.gv-admin-card .gv-check input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.gv-admin-card .gv-check span {
+  font-size: 12.5px;
+}

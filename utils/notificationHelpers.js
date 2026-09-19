@@ -4,11 +4,14 @@
  * nieprzeczytane powiadomienie nie jest tworzone drugi raz (np. lajk-unlajk-lajk).
  */
 const Notification = require('../models/Notification');
+const { isNotificationEnabled } = require('./notificationPrefs');
 
 const MAX_PER_USER = 50;
 
 async function createNotification({ userId, type, actorId, message, link }) {
   if (!userId || userId === actorId) return null;
+  // Odbiorca mógł wyłączyć ten rodzaj powiadomień w ustawieniach profilu.
+  if (!(await isNotificationEnabled(userId, type))) return null;
 
   const duplicate = await Notification.findOne({
     where: { userId, type, actorId: actorId || null, link: link || null, isRead: false },

@@ -55,6 +55,10 @@
         fetch(baseUrl(box) + '/like', { method: 'POST', headers: JSON_HEADERS })
           .then(function (r) { return r.json(); })
           .then(function (data) {
+            if (data.error) {
+              if (window.showToast) window.showToast(data.error, false);
+              return;
+            }
             likeBtn.classList.toggle('liked', data.liked);
             var icon = likeBtn.querySelector('i');
             icon.className = 'bi ' + (data.liked ? 'bi-heart-fill' : 'bi-heart');
@@ -101,7 +105,10 @@
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            if (!data.ok) return;
+            if (!data.ok) {
+              if (data.error && window.showToast) window.showToast(data.error, false);
+              return;
+            }
             var empty = list.querySelector('.gv-rcomments-empty');
             if (empty) empty.remove();
             list.appendChild(renderComment(data.comment));

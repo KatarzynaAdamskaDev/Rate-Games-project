@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <section class="gv-auth-page">
+    <div class="container d-flex justify-content-center">
+      <div class="gv-auth-card">
+        <h1 class="gv-auth-title"><i class="bi bi-shield-lock-fill"></i> Kod 2FA</h1>
+        <p class="gv-auth-lead">Konto administratora jest chronione weryfikacją dwuetapową. Wpisz 6-cyfrowy kod z aplikacji uwierzytelniającej.</p>
+
+        <form action="/auth/2fa" method="POST" novalidate>
+          <div class="mb-3">
+            <label for="twoFactorCode" class="gv-label">Kod z aplikacji lub kod awaryjny</label>
+            <input
+              type="text"
+              id="twoFactorCode"
+              name="code"
+              class="form-control gv-input"
+              autocomplete="one-time-code"
+              inputmode="text"
+              autofocus
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn gv-btn-success w-100 w-sm-auto">Zaloguj</button>
+        </form>
+
+        <p class="gv-auth-alt-link">
+          <a href="/auth/signin">Wróć do logowania</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

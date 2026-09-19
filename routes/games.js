@@ -9,6 +9,8 @@ const User = require('../models/User');
 const { getGameById } = require('../utils/gameCatalog');
 const { syncUserProgress } = require('../utils/progressHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
+const { moderateText } = require('../utils/contentFilter');
+const { limiters } = require('../middleware/rateLimit');
 const ReviewComment = require('../models/ReviewComment');
 const { getGenres, PLATFORM_OPTIONS } = require('../utils/igdbService');
 const {
@@ -181,7 +183,7 @@ router.get('/:id', async (req, res, next) => {
 
 /* --------------------------- DODAJ OPINIĘ --------------------------- */
 
-router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
+router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
 
   const existing = await Review.findOne({
@@ -203,22 +205,33 @@ router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
     return res.redirect(`/games/${gameId}`);
   }
 
+  const checked = moderateText(text, { userId: req.session.user.id });
+  if (!checked.ok) {
+    req.flash('error', checked.error);
+    return res.redirect(`/games/${gameId}`);
+  }
+
   await Review.create({
     gameId,
     userId: req.session.user.id,
     username: req.session.user.username,
     rating: numericRating,
-    text,
+    text: checked.text,
   });
   await syncUserProgress(req.session.user.id);
 
-  req.flash('success', 'Dziękujemy za dodanie opinii!');
+  req.flash(
+    'success',
+    checked.masked
+      ? 'Dziękujemy za opinię! Niedozwolone słowa zostały w niej zamaskowane.'
+      : 'Dziękujemy za dodanie opinii!'
+  );
   res.redirect(`/games/${gameId}`);
 });
 
 /* --- RESZTA TRAS (EDYCJA, USUWANE, KOMENTARZE, LAJKI) POZOSTAJE BEZ ZMIAN --- */
 
-router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
   const review = await Review.findByPk(req.params.reviewId);
   if (!review || String(review.gameId) !== gameId) return next();
@@ -236,8 +249,14 @@ router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, async (req, res,
     return res.redirect(`/games/${gameId}`);
   }
 
+  const checked = moderateText(text, { userId: req.session.user.id, duplicates: false });
+  if (!checked.ok) {
+    req.flash('error', checked.error);
+    return res.redirect(`/games/${gameId}`);
+  }
+
   review.rating = numericRating;
-  review.text = text;
+  review.text = checked.text;
   review.editedAt = new Date();
   await review.save();
 
@@ -266,7 +285,7 @@ router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, re
   res.redirect(`/games/${gameId}`);
 });
 
-router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, async (req, res) => {
+router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, limiters.like, async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { reviewId } = req.params;
 
@@ -310,7 +329,7 @@ router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
   });
 });
 
-router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, limiters.comment, async (req, res, next) => {
   const gameId = String(req.params.id);
   const wantsJson = wantsJsonResponse(req);
 
@@ -321,11 +340,18 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, async (req, 
     return res.redirect(`/games/${gameId}`);
   }
 
+  const checked = moderateText(text.slice(0, 500), { userId: req.session.user.id });
+  if (!checked.ok) {
+    if (wantsJson) return res.status(400).json({ error: checked.error });
+    req.flash('error', checked.error);
+    return res.redirect(`/games/${gameId}#review-${req.params.reviewId}`);
+  }
+
   const created = await addComment({
     reviewId: req.params.reviewId,
     userId: req.session.user.id,
     username: req.session.user.username,
-    text: text.slice(0, 500),
+    text: checked.text,
   });
 
   const commentedReview = await Review.findByPk(req.params.reviewId);
@@ -368,7 +394,7 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/delete', ensureAuthentic
   res.redirect(`/games/${gameId}#review-${req.params.reviewId}`);
 });
 
-router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticated, async (req, res) => {
+router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticated, limiters.like, async (req, res) => {
   const wantsJson = wantsJsonResponse(req);
   const { commentId } = req.params;
 
@@ -395,7 +421,7 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticat
   res.redirect(`/games/${req.params.id}`);
 });
 
-router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/report', ensureAuthenticated, limiters.report, async (req, res, next) => {
   const gameId = String(req.params.id);
 
   await reportReview({

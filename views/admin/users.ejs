@@ -34,8 +34,16 @@
               <span><b><%= u.username %></b><small><%= u.email %></small></span>
             </a>
           </td>
-          <td><span class="gv-badge <%= u.role === 'admin' ? 'gv-badge-info' : '' %>"><%= u.role === 'admin' ? 'admin' : 'użytkownik' %></span></td>
-          <td><%= u.level %> <small class="gv-muted">(<%= u.points %> PD)</small></td>
+          <td>
+            <span class="gv-badge <%= u.role === 'admin' ? 'gv-badge-info' : '' %>"><%= u.role === 'admin' ? 'admin' : 'użytkownik' %></span>
+            <% if (u.role === 'admin') { %>
+              <span class="gv-badge <%= u.twoFactorEnabled ? 'gv-badge-ok' : 'gv-badge-warn' %>" title="Weryfikacja dwuetapowa"><%= u.twoFactorEnabled ? '2FA' : 'bez 2FA' %></span>
+            <% } %>
+          </td>
+          <td>
+            <%= u.level %> <small class="gv-muted">(<%= u.points %> PD)</small>
+            <% if (u.unlockAll) { %><br><span class="gv-badge gv-badge-info" title="Wszystkie ramki, tła i odznaki są odblokowane"><i class="bi bi-unlock-fill"></i> wszystko odblokowane</span><% } %>
+          </td>
           <td><%= u.reviewCount %></td>
           <td><%= new Date(u.createdAt).toLocaleDateString('pl-PL') %></td>
           <td>
@@ -65,6 +73,20 @@
                     <input type="hidden" name="level" value="reset">
                     <button type="submit" class="gv-mini-btn"><i class="bi bi-arrow-counterclockwise"></i> Zresetuj poziom</button>
                   </form>
+
+                  <form method="POST" action="/admin/users/<%= u.id %>/unlock">
+                    <input type="hidden" name="value" value="<%= u.unlockAll ? '0' : '1' %>">
+                    <button type="submit" class="gv-mini-btn <%= u.unlockAll ? '' : 'gv-mini-ok' %>">
+                      <i class="bi bi-<%= u.unlockAll ? 'lock-fill' : 'unlock-fill' %>"></i>
+                      <%= u.unlockAll ? 'Cofnij odblokowanie wszystkiego' : 'Odblokuj wszystko (ramki, tła, odznaki)' %>
+                    </button>
+                  </form>
+
+                  <% if (u.role === 'admin' && u.twoFactorEnabled) { %>
+                    <form method="POST" action="/admin/users/<%= u.id %>/2fa-reset" onsubmit="return confirm('Wyłączyć 2FA dla <%= u.username %>? Użyj tego, gdy administrator zgubił telefon.');">
+                      <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-shield-x"></i> Wyłącz 2FA tego admina</button>
+                    </form>
+                  <% } %>
 
                   <% if (u.isBanned) { %>
                     <form method="POST" action="/admin/users/<%= u.id %>/unban">

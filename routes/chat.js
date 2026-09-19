@@ -21,6 +21,8 @@ const {
 const { findByUsername, findById, getAllUsers } = require('../utils/userHelpers');
 const { getPopularGames } = require('../utils/igdbService');
 const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
+const { moderateText, moderateName } = require('../utils/contentFilter');
+const { limiters } = require('../middleware/rateLimit');
 
 // Cały czat wymaga zalogowania.
 router.use(ensureAuthenticated);
@@ -128,7 +130,7 @@ router.get('/friends-search', async (req, res) => {
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
 
-router.post('/start/:username', async (req, res) => {
+router.post('/start/:username', limiters.chatCreate, async (req, res) => {
   const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika o takiej nazwie.');
@@ -158,7 +160,7 @@ router.post('/start/:username', async (req, res) => {
 
 /* ------------------------------ GRUPY ------------------------------ */
 
-router.post('/groups/new', async (req, res) => {
+router.post('/groups/new', limiters.chatCreate, async (req, res) => {
   const { name } = req.body;
   let memberIds = req.body.memberIds || [];
   if (!Array.isArray(memberIds)) memberIds = [memberIds];
@@ -166,6 +168,11 @@ router.post('/groups/new', async (req, res) => {
 
   if (!name || !name.trim()) {
     req.flash('error', 'Podaj nazwę grupy.');
+    return res.redirect('/chat');
+  }
+  const nameCheck = moderateName(name);
+  if (!nameCheck.ok) {
+    req.flash('error', nameCheck.error);
     return res.redirect('/chat');
   }
   if (memberIds.length === 0) {
@@ -258,7 +265,7 @@ router.get('/:conversationId/messages', async (req, res) => {
   res.json({ messages });
 });
 
-router.post('/:conversationId/messages', async (req, res) => {
+router.post('/:conversationId/messages', limiters.chatMessage, async (req, res) => {
   const { conversationId } = req.params;
 
   if (!(await canAccessConversation(req.session.user.id, conversationId))) {
@@ -270,11 +277,16 @@ router.post('/:conversationId/messages', async (req, res) => {
     return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
   }
 
+  const checked = moderateText(text.slice(0, 1000), { userId: req.session.user.id });
+  if (!checked.ok) {
+    return res.status(400).json({ error: checked.error });
+  }
+
   const message = await addMessage({
     conversationId,
     senderId: req.session.user.id,
     senderUsername: req.session.user.username,
-    text: text.slice(0, 1000),
+    text: checked.text,
   });
   await markConversationRead(req.session.user.id, conversationId);
 

@@ -7,6 +7,7 @@ const session = require('express-session');
 const flash = require('connect-flash');
 
 const exposeLocals = require('./middleware/locals');
+const { limiters } = require('./middleware/rateLimit');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandlers');
 
 const indexRouter = require('./routes/index');
@@ -28,6 +29,10 @@ const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
+// Za serwerem pośredniczącym (Azure App Service) prawdziwy adres IP klienta jest w nagłówku
+// X-Forwarded-For - potrzebny do limitów zapytań. Lokalnie nagłówka nie ufamy (można go podszyć).
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
 /* ------------------------------ Middleware ------------------------------ */
 app.use(morgan('dev'));
 app.use(express.json());
@@ -47,6 +52,9 @@ app.use(
 );
 app.use(flash());
 app.use(exposeLocals);
+
+// Ogólny limit akcji zmieniających dane (POST) z jednego adresu IP.
+app.use((req, res, next) => (req.method === 'POST' ? limiters.writes(req, res, next) : next()));
 
 /* -------------------------------- Trasy -------------------------------- */
 app.use('/', indexRouter);
