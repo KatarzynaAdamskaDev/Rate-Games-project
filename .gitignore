@@ -1,12 +1,4 @@
-# Zależności
 node_modules/
-
-# Sekrety - NIGDY nie commituj tego pliku
-.env
-.env.local
-.env.*.local
-
-# Lokalna baza danych deweloperska (SQLite)
 data/dev.sqlite3
 data/dev.sqlite3-journal
 
