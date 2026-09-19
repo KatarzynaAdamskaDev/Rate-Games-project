@@ -14,6 +14,7 @@
 
       <div class="gv-chat-shell">
         <div class="gv-chat-list-col">
+          <div class="gv-chat-list-scroll">
 
           <form action="/chat/start/placeholder" method="POST" id="startDmForm" class="gv-chat-mini-form">
             <input type="text" id="dmUsername" name="dmUsername" list="userList" placeholder="Napisz do gracza..." autocomplete="off">
@@ -150,6 +151,9 @@
             })();
           </script>
 
+          </div>
+
+          <div class="gv-chat-rooms">
           <div class="gv-chat-group-label">Pokoje gier</div>
           <div class="gv-chat-game-rooms-scroll">
             <% conversations.filter(function(c){return c.type === 'game-room';}).forEach(function(c) { %>
@@ -167,6 +171,7 @@
                 </a>
               <% }) %>
             <% } %>
+          </div>
           </div>
 
         </div>
@@ -211,7 +216,9 @@
             <div class="gv-chat-body" id="chatBody" data-conversation="<%= active.id %>">
               <% messages.forEach(function(m) { %>
                 <div class="gv-msg <%= m.senderId === currentUser.id ? 'me' : '' %>" data-id="<%= m.id %>">
-                  <% if (m.senderId !== currentUser.id) { %><a href="/<%= m.senderUsername %>" class="gv-chat-name-link"><b><%= m.senderUsername %></b></a><% } %>
+                  <% if (m.senderId !== currentUser.id) { %>
+                    <% if (m.senderDeleted) { %><b class="gv-msg-deleted"><%= m.senderUsername %></b><% } else { %><a href="/<%= m.senderUsername %>" class="gv-chat-name-link"><b><%= m.senderUsername %></b></a><% } %>
+                  <% } %>
                   <%= m.text %>
                   <small><%= new Date(m.createdAt).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}) %></small>
                 </div>
@@ -258,7 +265,24 @@
         div.className = 'gv-msg' + (m.senderId === meId ? ' me' : '');
         div.dataset.id = m.id;
         var time = new Date(m.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-        div.innerHTML = (m.senderId === meId ? '' : '<a href="/' + m.senderUsername + '" class="gv-chat-name-link"><b>' + m.senderUsername + '</b></a>') + m.text + '<small>' + time + '</small>';
+        var name = document.createElement('b');
+        name.textContent = m.senderUsername;
+        if (m.senderId !== meId) {
+          if (m.senderDeleted) {
+            name.className = 'gv-msg-deleted';
+            div.appendChild(name);
+          } else {
+            var link = document.createElement('a');
+            link.href = '/' + encodeURIComponent(m.senderUsername);
+            link.className = 'gv-chat-name-link';
+            link.appendChild(name);
+            div.appendChild(link);
+          }
+        }
+        div.appendChild(document.createTextNode(m.text));
+        var small = document.createElement('small');
+        small.textContent = time;
+        div.appendChild(small);
         chatBody.appendChild(div);
         chatBody.scrollTop = chatBody.scrollHeight;
       }

@@ -10,7 +10,8 @@ const POINTS_PER_REVIEW = 10;
 const POINTS_PER_LEVEL = 25;
 
 function pointsFromStats(stats) {
-  return (stats.reviewCount || 0) * POINTS_PER_REVIEW;
+  const fromActivity = (stats.reviewCount || 0) * POINTS_PER_REVIEW;
+  return Math.max(0, fromActivity + (stats.bonusPoints || 0));
 }
 
 function levelFromPoints(points) {

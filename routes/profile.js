@@ -20,7 +20,11 @@ const {
 } = require('../utils/backlogHelpers');
 const { getAllGames } = require('../utils/gameHelpers');
 const { follow, unfollow } = require('../utils/socialHelpers');
-const { buildProfileViewModel, buildBacklog } = require('../utils/profileViewModel');
+const {
+  buildProfileViewModel,
+  buildBacklog,
+  buildFollowList,
+} = require('../utils/profileViewModel');
 const {
   levelProgress,
   pointsFromStats,
@@ -32,6 +36,9 @@ const User = require('../models/User');
 /* --------------------------- UPLOAD AWATARA --------------------------- */
 
 const AVATAR_DIR = path.join(__dirname, '..', 'public', 'images', 'avatars');
+// Git nie przechowuje pustych katalogów, więc na świeżym klonie projektu
+// katalog nie istnieje, a multer nie tworzy go sam (błąd ENOENT przy uploadzie).
+fs.mkdirSync(AVATAR_DIR, { recursive: true });
 
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, AVATAR_DIR),
@@ -48,7 +55,9 @@ const avatarUpload = multer({
     const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (!allowed.includes(ext)) {
-      return cb(new Error('Dozwolone są tylko pliki PNG, JPG, WEBP lub GIF.'));
+      const invalidType = new Error('Dozwolone są tylko pliki PNG, JPG, WEBP lub GIF.');
+      invalidType.userFacing = true;
+      return cb(invalidType);
     }
     cb(null, true);
   },
@@ -67,6 +76,9 @@ router.get('/', ensureAuthenticated, async (req, res) => {
   const user = await findById(req.session.user.id);
   const vm = await buildProfileViewModel(user);
   const backlogEntries = await buildBacklog(user.id);
+  const tab = req.query.tab || 'badges';
+  const followList =
+    tab === 'followers' || tab === 'following' ? await buildFollowList(user.id, tab) : [];
 
   res.render('profile/show', {
     title: 'Twój profil',
@@ -74,9 +86,10 @@ router.get('/', ensureAuthenticated, async (req, res) => {
     isOwnProfile: true,
     alreadyFollowing: false,
     backlogEntries,
+    followList,
     statusLabels: STATUS_LABELS,
     allGames: getAllGames(),
-    tab: req.query.tab || 'badges',
+    tab,
   });
 });
 
@@ -129,6 +142,12 @@ router.post('/settings/password', ensureAuthenticated, async (req, res) => {
     return res.redirect('/profile/settings');
   }
 
+  const user = await findById(req.session.user.id);
+  if (user && (await bcrypt.compare(newPassword, user.passwordHash))) {
+    req.flash('error', 'Nowe hasło nie może być takie samo jak obecne.');
+    return res.redirect('/profile/settings');
+  }
+
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await updatePassword(req.session.user.id, passwordHash);
   req.flash('success', 'Hasło zostało zmienione.');
@@ -140,7 +159,15 @@ router.post('/settings/password', ensureAuthenticated, async (req, res) => {
 router.post('/settings/avatar', ensureAuthenticated, (req, res) => {
   avatarUpload.single('avatar')(req, res, async (err) => {
     if (err) {
-      req.flash('error', err.message || 'Nie udało się wgrać zdjęcia.');
+      let message = 'Nie udało się wgrać zdjęcia. Spróbuj ponownie.';
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        message = 'Zdjęcie jest za duże (maksymalnie 2 MB).';
+      } else if (err.userFacing) {
+        message = err.message;
+      } else {
+        console.error('Błąd uploadu awatara:', err);
+      }
+      req.flash('error', message);
       return res.redirect('/profile/settings');
     }
     if (!req.file) {
@@ -153,6 +180,7 @@ router.post('/settings/avatar', ensureAuthenticated, (req, res) => {
 
     user.avatarUrl = `/images/avatars/${req.file.filename}`;
     await user.save();
+    req.session.user.avatarUrl = user.avatarUrl; // od razu odświeża awatar w navbarze
 
     // Sprzątamy poprzedni plik awatara, żeby nie zaśmiecać dysku.
     if (oldAvatarUrl && oldAvatarUrl.startsWith('/images/avatars/')) {

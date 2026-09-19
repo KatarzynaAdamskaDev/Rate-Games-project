@@ -3,6 +3,8 @@
 const app = require('../app');
 const http = require('http');
 const { sequelize } = require('../config/database');
+const { addMissingColumns } = require('../utils/schemaHelpers');
+const { syncAllUsersProgress } = require('../utils/progressHelpers');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -20,12 +22,12 @@ sequelize
     console.log(
       `Połączono z bazą danych (${process.env.NODE_ENV === 'production' ? 'Azure SQL' : 'SQLite (dev)'}).`
     );
-    // alter: true - Sequelize porównuje modele z faktyczną strukturą tabel
-    // i dopasowuje różnice (np. dodaje brakujące kolumny), zamiast tylko
-    // tworzyć tabele, których jeszcze nie ma. Bezpieczne przy rozwoju
-    // projektu, gdzie modele często się zmieniają.
     return sequelize.sync();
   })
+  // sync() nie dodaje nowych kolumn do istniejących tabel - robi to poniższy krok.
+  .then(() => addMissingColumns())
+  // Uzupełnia PD/poziom (users.points, users.level) u istniejących użytkowników.
+  .then(() => syncAllUsersProgress())
   .then(() => {
     server.listen(port);
   })

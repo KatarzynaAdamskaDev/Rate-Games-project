@@ -41,6 +41,17 @@ async function verifyRecaptcha(token) {
   return data.success === true;
 }
 
+/** Skraca adres e-mail w logach (a***@gmail.com), żeby nie zapisywać go w całości. */
+function maskEmail(email) {
+  const [name, domain] = String(email).split('@');
+  return domain ? `${name.slice(0, 1)}***@${domain}` : '***';
+}
+
+/** Jednoznaczny komunikat w terminalu: czy krok resetowania hasła się udał. */
+function logReset(ok, message) {
+  console.log(`${ok ? '✅ [reset hasła] OK:' : '❌ [reset hasła] BŁĄD:'} ${message}`);
+}
+
 /** Sprawdza, czy klient oczekuje odpowiedzi JSON (fetch) czy pełnej strony. */
 function wantsJsonResponse(req) {
   return req.xhr || (req.headers.accept || '').includes('application/json');
@@ -165,6 +176,7 @@ router.post('/signin', ensureGuest, async (req, res, next) => {
       username: user.username,
       email: user.email,
       role: user.role,
+      avatarUrl: user.avatarUrl || null,
     };
 
     if (remember) {
@@ -216,15 +228,20 @@ router.post('/reset-password', async (req, res) => {
 
   const user = await findByEmail(email);
 
-  if (user) {
+  if (!user) {
+    // Klientowi zawsze odpowiadamy tak samo (nie ujawniamy, czy konto istnieje).
+    logReset(false, `nie wysłano maila - brak konta z adresem ${maskEmail(email)}.`);
+  } else if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    logReset(false, 'nie wysłano maila - brak EMAIL_USER / EMAIL_PASS w pliku .env.');
+  } else {
     try {
       const token = crypto.randomBytes(32).toString('hex');
 
       await setResetToken(user.id, token, RESET_TOKEN_TTL_MS);
       await sendPasswordResetEmail(user.email, token);
-      console.log(`Link resetujący wysłany na: ${user.email}`);
+      logReset(true, `mail z linkiem wysłany na ${maskEmail(user.email)} (link ważny 15 min).`);
     } catch (err) {
-      console.error('Błąd podczas wysyłania maila:', err);
+      logReset(false, `nie udało się wysłać maila na ${maskEmail(user.email)}: ${err.message}`);
     }
   }
 
@@ -260,6 +277,7 @@ router.post('/reset-password/:token', async (req, res) => {
   const user = await findByResetToken(token);
 
   if (!user) {
+    logReset(false, 'ustawianie nowego hasła odrzucone - link nieprawidłowy lub wygasł.');
     const message = 'Link jest nieprawidłowy lub wygasł. Poproś o nowy.';
     if (wantsJson) {
       return res.status(400).json({ success: false, message });
@@ -275,8 +293,12 @@ router.post('/reset-password/:token', async (req, res) => {
   if (password !== password2) {
     errors.push('Podane hasła nie są identyczne.');
   }
+  if (errors.length === 0 && (await bcrypt.compare(password, user.passwordHash))) {
+    errors.push('Nowe hasło nie może być takie samo jak dotychczasowe.');
+  }
 
   if (errors.length > 0) {
+    logReset(false, `nowe hasło dla ${user.username} odrzucone: ${errors.join(' ')}`);
     const message = errors.join(' ');
     if (wantsJson) {
       return res.status(400).json({ success: false, message });
@@ -288,6 +310,7 @@ router.post('/reset-password/:token', async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10);
   await updatePassword(user.id, passwordHash);
   await clearResetToken(user.id); // token jednorazowy - unieważniamy po użyciu
+  logReset(true, `hasło zmienione dla użytkownika ${user.username}.`);
 
   const message = 'Hasło zostało zmienione. Możesz się teraz zalogować.';
 

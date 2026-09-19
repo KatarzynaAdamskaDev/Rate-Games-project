@@ -6,7 +6,9 @@ const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 const { getReviewsForGame } = require('../utils/gameHelpers');
 const { readCollection, writeCollection } = require('../utils/dataStore');
 const Review = require('../models/Review');
-const { fetchIGDBGames, formatIGDBGame } = require('../utils/igdbService');
+const { syncUserProgress } = require('../utils/progressHelpers');
+const { fetchIGDBGames, formatIGDBGame, getGenres } = require('../utils/igdbService');
+const { listGames, findGenre, buildPagerLinks } = require('../utils/gameListing');
 
 const {
   toggleLike,
@@ -29,31 +31,19 @@ function wantsJsonResponse(req) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { category, sort } = req.query;
+    const { category, sort, q, page } = req.query;
 
-    // Składnia zapytań Apicalypse IGDB
-    let query = 'fields name, cover.url, summary, genres.name, platforms.name, first_release_date; limit 20;';
-
-    if (sort === 'newest') {
-      query += ' sort first_release_date desc;';
-    } else {
-      query += ' sort name asc;';
-    }
-
-    const rawGames = await fetchIGDBGames(query);
-    let games = rawGames.map(formatIGDBGame);
-
-    if (category) {
-      games = games.filter(
-        (g) => g.category.toLowerCase() === String(category).toLowerCase()
-      );
-    }
+    const genre = await findGenre(category);
+    const result = await listGames({ q, genre, sort, page });
 
     res.render('games/list', {
       title: 'Gry',
-      games,
-      activeCategory: category || null,
-      activeSort: sort || 'title',
+      games: result.games,
+      categories: await getGenres(),
+      activeCategory: genre ? genre.slug : null,
+      activeSort: result.sort,
+      query: String(q || '').trim(),
+      pager: buildPagerLinks(req, result.page, result.hasNext),
     });
   } catch (error) {
     next(error);
@@ -183,6 +173,7 @@ router.post('/:id/reviews', ensureAuthenticated, async (req, res, next) => {
     rating: numericRating,
     text,
   });
+  await syncUserProgress(req.session.user.id);
 
   req.flash('success', 'Dziękujemy za dodanie opinii!');
   res.redirect(`/games/${gameId}`);
@@ -232,6 +223,7 @@ router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, re
 
   await deleteReviewData(review.id);
   await review.destroy();
+  await syncUserProgress(review.userId);
 
   req.flash('success', 'Opinia została usunięta.');
   res.redirect(`/games/${gameId}`);
