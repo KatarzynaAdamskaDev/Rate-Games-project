@@ -7,21 +7,23 @@ const IDEAS = [
   /* ------------------------------ bezpieczeństwo ------------------------------ */
   {
     id: 'csrf',
+    implemented: true,
     area: 'security',
     title: 'Ochrona przed CSRF',
     effort: 'średni',
     impact: 'wysoki',
     description:
-      'Formularze nie mają tokenów CSRF, więc obca strona mogłaby wysłać żądanie w imieniu zalogowanego użytkownika (np. usunąć konto). Dodajemy token w sesji sprawdzany przy każdym POST oraz ciasteczko SameSite.',
+      'Każda sesja ma losowy token, który muszą przysłać wszystkie formularze i żądania zmieniające dane (POST). Obca strona nie może więc wysłać żądania w imieniu zalogowanego użytkownika (np. usunąć konta). Ciasteczko sesji ma dodatkowo flagę SameSite.',
   },
   {
     id: 'session-store',
+    implemented: true,
     area: 'security',
     title: 'Trwałe sesje i bezpieczne ciasteczka',
     effort: 'średni',
     impact: 'wysoki',
     description:
-      'Sesje są w pamięci procesu: znikają po restarcie i nie działają przy kilku instancjach. Na produkcji: magazyn sesji w bazie lub Redis, ciasteczko z flagą secure i sameSite oraz wymuszony SESSION_SECRET (dziś jest domyślny sekret deweloperski).',
+      'Sesje są zapisywane w bazie danych, więc przeżywają restart serwera i działają przy kilku instancjach. Ciasteczko sesji ma flagi httpOnly, sameSite i secure (na produkcji), a bez ustawionego SESSION_SECRET serwer produkcyjny się nie uruchomi.',
   },
   {
     id: 'security-headers',
@@ -204,7 +206,7 @@ const AREAS = {
 };
 
 const DECISIONS = {
-  accepted: { label: 'Przyjęte do realizacji', badge: 'gv-badge-info' },
+  accepted: { label: 'Przyjęte do realizacji', badge: 'gv-badge-blue' },
   done: { label: 'Zrealizowane', badge: 'gv-badge-ok' },
   later: { label: 'Odłożone na później', badge: 'gv-badge-warn' },
   rejected: { label: 'Odrzucone', badge: 'gv-badge-danger' },

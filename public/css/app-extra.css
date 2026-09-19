@@ -5174,3 +5174,47 @@ a.gv-blog-badge:hover {
 .gv-cell-text {
   min-width: 180px;
 }
+
+/* Opis w banerze: delikatny szary odcień - odróżnia się od nazwy i przycisku "Zobacz więcej" */
+.gv-profile-bio-wrap .gv-profile-bio {
+  color: rgba(226, 222, 238, 0.74);
+}
+.gv-bio-more {
+  color: var(--text-hi);
+}
+
+/* Niebieski akcent: "Przyjmij" i status "przyjęte do realizacji" w propozycjach */
+.gv-badge-blue {
+  color: #6db3ff;
+  border-color: rgba(77, 163, 255, 0.45);
+  background: rgba(77, 163, 255, 0.1);
+}
+.gv-mini-blue:hover {
+  border-color: #4da3ff;
+  color: #6db3ff;
+  background: rgba(77, 163, 255, 0.1);
+}
+.gv-mini-blue {
+  color: #6db3ff;
+  border-color: rgba(77, 163, 255, 0.4);
+}
+
+/* Przyciski logowania, rejestracji i resetu hasła (strony i okna modalne): fioletowe jak w reszcie serwisu */
+.gv-auth-card .gv-btn-success,
+#signInModal .gv-btn-success,
+#twoFactorModal .gv-btn-success {
+  background: linear-gradient(135deg, var(--accent), #5b3df0);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+.gv-auth-card .gv-btn-success:hover,
+#signInModal .gv-btn-success:hover,
+#twoFactorModal .gv-btn-success:hover {
+  color: #fff;
+  filter: brightness(1.08);
+}

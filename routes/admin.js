@@ -72,6 +72,7 @@ router.use(async (req, res, next) => {
 
 /* ------------------------------ narzędzia ------------------------------ */
 
+const IDEA_ORDER = { pending: 0, accepted: 1, later: 2, rejected: 3, done: 4 };
 const IDEA_EFFORTS = ['mały', 'średni', 'duży'];
 const IDEA_IMPACTS = ['niski', 'średni', 'wysoki'];
 
@@ -88,7 +89,11 @@ async function loadAllIdeas() {
     AdminIdea.findAll({ order: [['createdAt', 'DESC']] }),
   ]);
   const custom = customRows.map((row) => ({ ...row.get({ plain: true }), custom: true }));
-  return [...custom, ...IDEAS].map((idea) => ({ ...idea, decision: decided.get(idea.id) || null }));
+  // Propozycje już wdrożone w kodzie (implemented) są domyślnie "Zrealizowane", chyba że administrator zdecydował inaczej.
+  return [...custom, ...IDEAS].map((idea) => ({
+    ...idea,
+    decision: decided.get(idea.id) || (idea.implemented ? 'done' : null),
+  }));
 }
 
 async function findAnyIdea(id) {
@@ -869,6 +874,8 @@ router.get('/ideas', async (req, res, next) => {
         if (filter === 'security' || filter === 'usability') return idea.area === filter;
         return idea.decision === filter;
       })
+      // Zrealizowane lądują na końcu listy; reszta w kolejności: czeka na decyzję, przyjęte, odłożone, odrzucone.
+      .sort((a, b) => IDEA_ORDER[a.decision || 'pending'] - IDEA_ORDER[b.decision || 'pending'])
       // Własną propozycję rozpatrują inni administratorzy - o ile są (przy jednym adminie decyduje on sam).
       .map((idea) => ({
         ...idea,

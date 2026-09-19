@@ -124,6 +124,8 @@ async function buildJsonBackup() {
   const counts = {};
 
   for (const model of Object.values(sequelize.models)) {
+    // Sesje zawierają dane logowanych osób i tokeny - nie należą do kopii zapasowej.
+    if (model.tableName === 'sessions') continue;
     const rows = await model.findAll({ raw: true });
     tables[model.tableName] = rows.map((row) => {
       const clean = {};

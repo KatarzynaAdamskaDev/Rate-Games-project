@@ -8,6 +8,7 @@ const router = express.Router();
 const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 const { buildPagerLinks } = require('../utils/gameListing');
 const { logAdminAction } = require('../utils/adminHelpers');
+const { checkUploadToken, verifyAfterUpload, reject, isValid } = require('../middleware/csrf');
 const {
   CATEGORIES,
   DEFAULT_CATEGORY,
@@ -38,6 +39,8 @@ const coverUpload = multer({
   }),
   limits: { fileSize: 3 * 1024 * 1024 }, // 3 MB
   fileFilter: (req, file, cb) => {
+    // Pole _csrf jest w formularzu przed plikiem - zły token nie zapisuje niczego na dysku.
+    if (!checkUploadToken(req)) return cb(new Error('csrf'));
     const ext = path.extname(file.originalname).toLowerCase();
     if (!['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) {
       const error = new Error('Okładka może być plikiem PNG, JPG, WEBP lub GIF.');
@@ -52,6 +55,8 @@ const coverUpload = multer({
 function handleCoverUpload(req, res, next) {
   coverUpload(req, res, (err) => {
     req.body = req.body || {};
+    if (err && err.message === 'csrf') return reject(req, res);
+    if (!err && !isValid(req)) return verifyAfterUpload(req, res, () => {});
     if (err) {
       req.coverError =
         err.code === 'LIMIT_FILE_SIZE'

@@ -17,6 +17,7 @@ const { moderateText, moderateName } = require('../utils/contentFilter');
 const { limiters } = require('../middleware/rateLimit');
 const { NOTIFICATION_TYPES, parsePrefs, serializePrefs } = require('../utils/notificationPrefs');
 const totp = require('../utils/totp');
+const { checkUploadToken, verifyAfterUpload, reject, isValid } = require('../middleware/csrf');
 const { MAX_FAVORITES, addFavorite, removeFavorite } = require('../utils/favoriteHelpers');
 const { follow, unfollow } = require('../utils/socialHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
@@ -67,6 +68,8 @@ const avatarUpload = multer({
   storage: avatarStorage,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
   fileFilter: (req, file, cb) => {
+    // Pole _csrf jest w formularzu przed plikiem - zły token nie zapisuje niczego na dysku.
+    if (!checkUploadToken(req)) return cb(new Error('csrf'));
     const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (!allowed.includes(ext)) {
@@ -273,6 +276,8 @@ router.post('/settings/password', ensureAuthenticated, async (req, res) => {
 
 router.post('/settings/avatar', ensureAuthenticated, limiters.upload, (req, res) => {
   avatarUpload.single('avatar')(req, res, async (err) => {
+    if (err && err.message === 'csrf') return reject(req, res);
+    if (!err && !isValid(req)) return verifyAfterUpload(req, res, () => {});
     if (err) {
       let message = 'Nie udało się wgrać zdjęcia. Spróbuj ponownie.';
       if (err.code === 'LIMIT_FILE_SIZE') {

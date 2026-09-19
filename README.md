@@ -32,7 +32,7 @@ cp .env.example .env
 
 Uzupełnij plik `.env`:
 
-- `SESSION_SECRET` - dowolny losowy ciąg znaków
+- `SESSION_SECRET` - długi, losowy ciąg znaków (na produkcji obowiązkowy - bez niego serwer się nie uruchomi)
 - `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - klucze wygenerowane na
   https://www.google.com/recaptcha/admin/create (typ **reCAPTCHA v2 "Checkbox"**).
   Jeśli zostawisz je puste, formularz rejestracji będzie działał, ale bez
