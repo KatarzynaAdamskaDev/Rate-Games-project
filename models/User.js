@@ -57,6 +57,25 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: 'bg-default',
     },
+    // Punkty doświadczenia (PD) i poziom - przechowywane w bazie, a
+    // aktualizowane przy każdej zmianie aktywności (utils/progressHelpers.js).
+    points: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    level: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+    },
+    // PD przyznane/odjęte ręcznie (np. skryptem set-level.js do testów) -
+    // dodawane do PD z aktywności. Domyślnie 0.
+    bonusPoints: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
   },
   {
     tableName: 'users',

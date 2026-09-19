@@ -1,0 +1,6 @@
+<% if (pager && (pager.prev || pager.next)) { %>
+  <nav class="gv-pager" aria-label="Strony wyników">
+    <% if (pager.prev) { %><a href="<%= pager.prev %>" class="gv-pager-btn">&larr; Poprzednia</a><% } else { %><span></span><% } %>
+    <% if (pager.next) { %><a href="<%= pager.next %>" class="gv-pager-btn">Następna &rarr;</a><% } %>
+  </nav>
+<% } %>

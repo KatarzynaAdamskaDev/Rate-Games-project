@@ -32,12 +32,29 @@ async function getAccessToken() {
   }
 }
 
-async function fetchIGDBGames(query) {
+/** Pola gry pobierane z IGDB przy listach i wyszukiwaniu. */
+const IGDB_GAME_FIELDS =
+  'fields name, cover.url, summary, genres.name, platforms.name, first_release_date, total_rating_count;';
+
+/** Filtry platform w widoku kategorii -> identyfikatory platform w IGDB. */
+const PLATFORM_FILTERS = {
+  pc: [6],
+  ps5: [167],
+  xbox: [169, 49],
+  switch: [130],
+  konsole: [167, 48, 169, 49, 130],
+  android: [34],
+  ios: [39],
+  mobile: [34, 39],
+  vr: [162, 163, 165, 384, 385, 386, 390, 471],
+};
+
+async function fetchIGDB(endpoint, query) {
   try {
     const token = await getAccessToken();
 
     const response = await axios({
-      url: 'https://api.igdb.com/v4/games',
+      url: `https://api.igdb.com/v4/${endpoint}`,
       method: 'POST',
       headers: {
         'Client-ID': process.env.TWITCH_CLIENT_ID,
@@ -52,6 +69,38 @@ async function fetchIGDBGames(query) {
     console.error('❌ Błąd API IGDB:', error.response ? error.response.data : error.message);
     return [];
   }
+}
+
+function fetchIGDBGames(query) {
+  return fetchIGDB('games', query);
+}
+
+/* ----------------------- KATEGORIE (GATUNKI Z IGDB) ----------------------- */
+
+const GENRES_TTL_MS = 12 * 60 * 60 * 1000;
+const GENRES_RETRY_MS = 30 * 1000;
+let genresCache = { list: [], fetchedAt: 0, lastAttempt: 0 };
+
+/**
+ * Zwraca listę gatunków ({ id, name, slug }) pobraną z IGDB - dokładnie tych,
+ * które mają przypisane gry. Wynik jest cache'owany, a przy błędzie API
+ * zwracana jest ostatnia znana lista.
+ */
+async function getGenres() {
+  const now = Date.now();
+  const fresh = genresCache.list.length && now - genresCache.fetchedAt < GENRES_TTL_MS;
+  if (fresh || now - genresCache.lastAttempt < GENRES_RETRY_MS) return genresCache.list;
+
+  genresCache.lastAttempt = now;
+  const rows = await fetchIGDB('genres', 'fields name, slug; sort name asc; limit 100;');
+  if (rows.length > 0) {
+    genresCache = {
+      list: rows.map(({ id, name, slug }) => ({ id, name, slug })),
+      fetchedAt: now,
+      lastAttempt: now,
+    };
+  }
+  return genresCache.list;
 }
 
 function formatIGDBGame(game) {
@@ -87,7 +136,11 @@ async function getPopularGames(limit = 6) {
 }
 
 module.exports = {
+  IGDB_GAME_FIELDS,
+  PLATFORM_FILTERS,
+  fetchIGDB,
   fetchIGDBGames,
   formatIGDBGame,
+  getGenres,
   getPopularGames,
 };

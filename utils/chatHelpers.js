@@ -127,12 +127,54 @@ async function deleteConversation(conversationId) {
   return count > 0;
 }
 
+/** Nazwa wyświetlana przy wiadomościach użytkownika, którego konto usunięto. */
+const DELETED_USER_LABEL = 'Usunięty użytkownik';
+
+/**
+ * Sprząta czaty po usunięciu konta:
+ * - rozmowy prywatne (DM) z tym użytkownikiem są usuwane razem z wiadomościami,
+ * - z grup i pokojów gier użytkownik jest usuwany z listy członków (grupa, w której
+ *   zostałaby jedna osoba, jest usuwana; właściciel przechodzi na kolejnego członka),
+ * - jego wiadomości w grupach/pokojach zostają, ale są podpisane jako "Usunięty użytkownik".
+ */
+async function removeUserFromConversations(userId) {
+  const rows = await Conversation.findAll();
+
+  for (const row of rows) {
+    const conv = serializeConversation(row);
+    if (!conv.memberIds.includes(userId)) continue;
+
+    const memberIds = conv.memberIds.filter((id) => id !== userId);
+
+    if (conv.type === 'dm' || (conv.type === 'group' && memberIds.length < 2)) {
+      await deleteConversation(conv.id);
+      continue;
+    }
+
+    const memberNames = { ...conv.memberNames };
+    delete memberNames[userId];
+
+    row.memberIds = JSON.stringify(memberIds);
+    row.memberNames = JSON.stringify(memberNames);
+    if (conv.ownerId === userId) row.ownerId = memberIds[0] || null;
+    await row.save();
+  }
+
+  await Message.update(
+    { senderUsername: DELETED_USER_LABEL },
+    { where: { senderId: userId } }
+  );
+}
+
 /* ----------------------------- WIADOMOŚCI ----------------------------- */
 
 async function getMessages(conversationId) {
   const rows = await Message.findAll({ where: { conversationId } });
   return rows
-    .map((m) => m.get({ plain: true }))
+    .map((m) => ({
+      ...m.get({ plain: true }),
+      senderDeleted: m.senderUsername === DELETED_USER_LABEL,
+    }))
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
@@ -166,4 +208,6 @@ module.exports = {
   addMessage,
   clearMessages,
   deleteConversation,
+  removeUserFromConversations,
+  DELETED_USER_LABEL,
 };

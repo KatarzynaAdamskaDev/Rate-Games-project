@@ -319,6 +319,14 @@ header.site {
   border-radius: 10px;
   background: linear-gradient(135deg, var(--cyan), var(--accent));
   flex-shrink: 0;
+  overflow: hidden;
+  display: block;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* HERO */

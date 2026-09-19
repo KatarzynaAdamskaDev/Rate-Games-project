@@ -580,23 +580,55 @@
    ========================================================================== */
 
 .gv-profile-hero {
+  color: var(--text-hi);
   background: linear-gradient(120deg, #2a2049, #3a2a5c);
   border-radius: var(--radius-l);
   border: 1px solid var(--panel-border);
-  padding: 30px;
+  padding: 26px 30px;
+  min-height: 230px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "identity xp"
+    "footer footer";
+  align-content: space-between;
+  gap: 24px 28px;
+  margin-bottom: 26px;
+}
+.gv-hero-identity {
+  grid-area: identity;
   display: flex;
   gap: 22px;
-  align-items: center;
+  align-items: flex-start;
+  min-width: 0;
+}
+.gv-hero-xp {
+  grid-area: xp;
+  align-self: center;
+}
+.gv-hero-footer {
+  grid-area: footer;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   flex-wrap: wrap;
-  margin-bottom: 26px;
+  gap: 16px 24px;
+}
+/* "Szklane" panele - czytelny tekst na każdym tle profilu */
+.gv-profile-bio,
+.gv-hero-xp,
+.gv-profile-handle {
+  background: rgba(12, 10, 20, 0.42);
+  backdrop-filter: blur(3px);
+  border-radius: 10px;
 }
 .gv-profile-avatar-wrap {
   position: relative;
   flex-shrink: 0;
 }
 .gv-profile-avatar {
-  width: 84px;
-  height: 84px;
+  width: 92px;
+  height: 92px;
   border-radius: 20px;
   background: linear-gradient(135deg, var(--cyan), var(--pink));
   border: 3px solid var(--amber);
@@ -639,23 +671,32 @@
 .gv-bg-bg-default {
   background: linear-gradient(120deg, #2a2049, #3a2a5c);
 }
-.gv-bg-bg-purple-mist {
-  background: linear-gradient(120deg, #3a2a5c, #6c4fb8);
+.gv-bg-bg-purple-mist,
+.gv-unlock-swatch.gv-swatch-bg-purple-mist {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(164, 139, 255, 0.4), transparent 55%),
+    linear-gradient(120deg, #3a2a5c, #6c4fb8);
 }
-.gv-bg-bg-cyberpunk {
-  background: linear-gradient(120deg, #1a0b2e, #ff2e88, #241c3d);
+.gv-bg-bg-cyberpunk,
+.gv-unlock-swatch.gv-swatch-bg-cyberpunk {
+  background:
+    linear-gradient(rgba(63, 224, 197, 0.1) 1px, transparent 1px) 0 0 / 26px 26px,
+    linear-gradient(90deg, rgba(63, 224, 197, 0.1) 1px, transparent 1px) 0 0 / 26px 26px,
+    linear-gradient(120deg, #1a0b2e, #ff2e88 65%, #241c3d);
 }
-.gv-bg-bg-space {
-  background: radial-gradient(circle at 20% 20%, #3a2a5c, #0c0a14 70%);
+.gv-bg-bg-space,
+.gv-unlock-swatch.gv-swatch-bg-space {
+  background:
+    radial-gradient(1.5px 1.5px at 12% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 36% 72%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 63% 22%, #fff, transparent),
+    radial-gradient(1px 1px at 80% 64%, #fff, transparent),
+    radial-gradient(1px 1px at 92% 16%, #fff, transparent),
+    radial-gradient(circle at 20% 20%, #3a2a5c, #0c0a14 70%);
 }
-.gv-bg-bg-retro-pixel {
-  background: repeating-linear-gradient(
-    45deg,
-    #2a2049,
-    #2a2049 10px,
-    #3a2a5c 10px,
-    #3a2a5c 20px
-  );
+.gv-bg-bg-retro-pixel,
+.gv-unlock-swatch.gv-swatch-bg-retro-pixel {
+  background: repeating-linear-gradient(45deg, #2a2049, #2a2049 10px, #3a2a5c 10px, #3a2a5c 20px);
 }
 
 /* ---- Miniaturowe podglądy w siatce odblokowań ---- */
@@ -665,20 +706,20 @@
   border-radius: 8px;
   margin-bottom: 10px;
 }
-.gv-swatch-frame-basic { background: var(--bg-2); border: 3px solid var(--panel-border); }
-.gv-swatch-frame-bronze { background: var(--bg-2); border: 3px solid #cd7f32; }
-.gv-swatch-frame-neon { background: var(--bg-2); border: 3px solid var(--cyan); box-shadow: 0 0 10px rgba(63, 224, 197, 0.4); }
-.gv-swatch-frame-gold { background: var(--bg-2); border: 3px solid var(--amber); box-shadow: 0 0 10px rgba(255, 178, 56, 0.4); }
-.gv-swatch-frame-cyber { background: var(--bg-2); border: 3px solid var(--accent); box-shadow: 0 0 10px rgba(63, 224, 197, 0.3); }
-.gv-swatch-frame-legend { background: linear-gradient(135deg, var(--pink), var(--amber), var(--cyan), var(--accent)); }
-
-.gv-swatch-bg-default { background: linear-gradient(120deg, #2a2049, #3a2a5c); }
-.gv-swatch-bg-purple-mist { background: linear-gradient(120deg, #3a2a5c, #6c4fb8); }
-.gv-swatch-bg-cyberpunk { background: linear-gradient(120deg, #1a0b2e, #ff2e88, #241c3d); }
-.gv-swatch-bg-space { background: radial-gradient(circle at 30% 30%, #3a2a5c, #0c0a14 70%); }
-.gv-swatch-bg-retro-pixel {
-  background: repeating-linear-gradient(45deg, #2a2049, #2a2049 6px, #3a2a5c 6px, #3a2a5c 12px);
+.gv-unlock-swatch.gv-swatch-frame-basic { background: var(--bg-2); border: 3px solid var(--panel-border); }
+.gv-unlock-swatch.gv-swatch-frame-bronze { background: var(--bg-2); border: 3px solid #cd7f32; }
+.gv-unlock-swatch.gv-swatch-frame-neon { background: var(--bg-2); border: 3px solid var(--cyan); box-shadow: 0 0 10px rgba(63, 224, 197, 0.4); }
+.gv-unlock-swatch.gv-swatch-frame-gold { background: var(--bg-2); border: 3px solid var(--amber); box-shadow: 0 0 10px rgba(255, 178, 56, 0.4); }
+.gv-unlock-swatch.gv-swatch-frame-cyber { background: var(--bg-2); border: 3px solid var(--accent); box-shadow: 0 0 10px rgba(63, 224, 197, 0.3); }
+.gv-unlock-swatch.gv-swatch-frame-legend {
+  border: 3px solid transparent;
+  background:
+    linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+    linear-gradient(135deg, var(--pink), var(--amber), var(--cyan), var(--accent)) border-box;
+  box-shadow: 0 0 12px rgba(255, 93, 162, 0.35);
 }
+
+.gv-unlock-swatch.gv-swatch-bg-default { background: linear-gradient(120deg, #2a2049, #3a2a5c); }
 
 .gv-active-tag {
   color: var(--cyan);
@@ -701,10 +742,12 @@
 }
 
 .gv-profile-bio {
-  color: var(--text-mid);
+  display: inline-block;
+  color: inherit;
   font-size: 13px;
   max-width: 480px;
-  margin: 6px 0;
+  margin: 8px 0 0;
+  padding: 6px 12px;
 }
 
 /* ---- Ustawienia: awatar ---- */
@@ -729,32 +772,52 @@
   flex: 1;
   min-width: 220px;
 }
-.gv-lvl-chip {
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-0);
-  border: 2px solid var(--amber);
-  color: var(--amber);
-  font-weight: 700;
-  font-size: 11px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
 .gv-profile-meta h1 {
-  font-size: 21px;
-  color: var(--text-hi);
+  font-size: 24px;
+  color: inherit;
   font-family: 'Space Grotesk', var(--font-body);
 }
 .gv-profile-handle {
-  color: var(--text-lo);
+  color: inherit;
   font-size: 12.5px;
-  margin-bottom: 10px;
+  padding: 8px 14px;
+}
+.gv-hero-xp {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+}
+.gv-level-trophy {
+  color: var(--amber);
+  font-size: 46px;
+  line-height: 1;
+  text-decoration: none;
+  filter: drop-shadow(0 0 10px rgba(255, 178, 56, 0.45));
+  transition: transform 0.15s ease;
+}
+.gv-level-trophy:hover {
+  color: var(--amber);
+  transform: scale(1.08);
+}
+.gv-level-info {
+  flex: 1;
+  min-width: 0;
+}
+.gv-level-label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  opacity: 0.85;
+}
+.gv-level-number {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 8px;
 }
 .gv-xp-track {
   width: 260px;
+  max-width: 100%;
   height: 8px;
   background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
@@ -767,24 +830,31 @@
 }
 .gv-xp-label {
   font-size: 11px;
-  color: var(--text-lo);
+  color: inherit;
 }
 .gv-profile-stats-inline {
   display: flex;
-  gap: 22px;
+  gap: 26px;
   margin-left: auto;
 }
-.gv-profile-stats-inline div {
+.gv-profile-stats-inline a {
   text-align: center;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+.gv-profile-stats-inline a:hover {
+  transform: translateY(-2px);
+  color: var(--accent-soft);
 }
 .gv-profile-stats-inline b {
   display: block;
-  font-size: 17px;
+  font-size: 20px;
   color: var(--text-hi);
 }
 .gv-profile-stats-inline span {
   font-size: 11px;
-  color: var(--text-lo);
+  color: inherit;
 }
 .gv-profile-actions {
   display: flex;
@@ -1021,7 +1091,11 @@
 .gv-chat-shell {
   display: grid;
   grid-template-columns: 270px 1fr;
+  grid-template-rows: minmax(0, 1fr);
   gap: 0;
+  /* Stała wysokość - okno wiadomości przewija się w środku, więc DM, grupa
+     i pokój gry mają zawsze identyczny rozmiar niezależnie od liczby wiadomości. */
+  height: min(720px, max(560px, calc(100vh - 140px)));
   min-height: 560px;
   background: var(--bg-1);
   border: 1px solid var(--panel-border);
@@ -1030,23 +1104,27 @@
 }
 /* Scrollbary chatu takie jak w sekcji trendów */
 .gv-chat-list-col,
+.gv-chat-list-scroll,
 .gv-chat-body {
   scrollbar-width: thin;
   scrollbar-color: var(--accent) var(--bg-1);
 }
 
 .gv-chat-list-col::-webkit-scrollbar,
+.gv-chat-list-scroll::-webkit-scrollbar,
 .gv-chat-body::-webkit-scrollbar {
   width: 8px;
 }
 
 .gv-chat-list-col::-webkit-scrollbar-track,
+.gv-chat-list-scroll::-webkit-scrollbar-track,
 .gv-chat-body::-webkit-scrollbar-track {
   background: var(--bg-1);
   border-radius: 999px;
 }
 
 .gv-chat-list-col::-webkit-scrollbar-thumb,
+.gv-chat-list-scroll::-webkit-scrollbar-thumb,
 .gv-chat-body::-webkit-scrollbar-thumb {
   background: var(--accent);
   border-radius: 999px;
@@ -1054,6 +1132,7 @@
 }
 
 .gv-chat-list-col::-webkit-scrollbar-thumb:hover,
+.gv-chat-list-scroll::-webkit-scrollbar-thumb:hover,
 .gv-chat-body::-webkit-scrollbar-thumb:hover {
   background: var(--accent-soft);
 }
@@ -1061,7 +1140,24 @@
   background: var(--bg-2);
   border-right: 1px solid var(--panel-border);
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Rozmowy i grupy przewijają się osobno, a "Pokoje gier" są przypięte na dole
+   (widoczne 2 pokoje + scroll), niezależnie od liczby rozmów. */
+.gv-chat-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+.gv-chat-rooms {
+  flex-shrink: 0;
+  border-top: 1px solid var(--panel-border);
+  margin-top: 8px;
+  padding-top: 4px;
 }
 .gv-chat-group-label {
   font-size: 10.5px;
@@ -1091,14 +1187,24 @@
   background: linear-gradient(135deg, var(--accent-soft), var(--pink));
   flex-shrink: 0;
 }
+.gv-chat-item > div:last-child {
+  min-width: 0;
+}
 .gv-chat-item b {
   font-size: 12.5px;
   display: block;
   color: var(--text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .gv-chat-item span {
   font-size: 10.5px;
   color: var(--text-lo);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gv-chat-mini-form {
@@ -1108,6 +1214,7 @@
 }
 .gv-chat-mini-form input {
   flex: 1;
+  min-width: 0;
   background: var(--bg-1);
   border: 1px solid var(--panel-border);
   border-radius: 8px;
@@ -1539,7 +1646,7 @@
 }
 
 .gv-chat-game-rooms-scroll {
-  max-height: 240px;
+  max-height: 150px; /* ~2 pokoje gier widoczne, reszta pod scrollem */
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--accent) var(--bg-1);
@@ -1952,8 +2059,26 @@
 
   .gv-profile-hero {
     padding: 20px;
-    flex-direction: column;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "identity"
+      "xp"
+      "footer";
     text-align: center;
+  }
+
+  .gv-hero-identity {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .gv-hero-xp {
+    align-self: stretch;
+  }
+
+  .gv-hero-footer {
+    justify-content: center;
   }
 
   .gv-profile-avatar {
@@ -2312,15 +2437,12 @@
   /* CHAT RESPONSIVE */
   .gv-chat-shell {
     grid-template-columns: 1fr;
-    min-height: 420px;
+    height: 520px;
+    min-height: 0;
   }
 
   .gv-chat-list-col {
     display: none;
-  }
-
-  .gv-chat-body {
-    max-height: 300px;
   }
 
   .gv-msg {
@@ -2375,4 +2497,84 @@
   .gv-game-card-rating {
     font-size: 11px;
   }
+}
+
+/* ==========================================================================
+   LISTY GIER: wyszukiwarka na stronie Gry i paginacja
+   ========================================================================== */
+
+.gv-games-filters .gv-select {
+  width: 260px;
+  max-width: 100%;
+}
+.gv-games-search {
+  width: min(100%, 340px);
+}
+.gv-games-search .input-group .btn {
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+}
+
+.gv-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+}
+.gv-pager-btn {
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  color: var(--text-hi);
+  font-size: 12.5px;
+  padding: 10px 18px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.gv-pager-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+/* Zakładki "Obserwujący" / "Obserwowani" na profilu */
+.gv-people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.gv-person-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-m);
+  padding: 12px 14px;
+  text-decoration: none;
+  color: var(--text-hi);
+  transition: border-color 0.15s ease;
+}
+.gv-person-card:hover {
+  border-color: var(--accent);
+}
+.gv-person-card b {
+  display: block;
+  font-size: 13px;
+}
+.gv-person-card span {
+  font-size: 10.5px;
+  color: var(--text-lo);
+}
+.gv-person-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--cyan), var(--pink));
+}
+
+/* Autor wiadomości, którego konto zostało usunięte */
+.gv-msg b.gv-msg-deleted {
+  font-style: italic;
+  color: var(--text-lo);
 }

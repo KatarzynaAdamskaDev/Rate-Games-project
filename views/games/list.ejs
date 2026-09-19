@@ -11,28 +11,36 @@
     <div class="container">
       <h1 class="gv-page-title mb-4">Gry</h1>
 
-      <form method="GET" class="gv-filters d-flex flex-wrap gap-3 mb-4">
+      <form method="GET" class="gv-filters gv-games-filters d-flex flex-wrap align-items-end gap-3 mb-4">
         <div>
           <label class="gv-label d-block">Kategoria</label>
           <select name="category" class="form-select gv-select" onchange="this.form.submit()">
             <option value="">Wszystkie</option>
             <% categories.forEach(function(cat) { %>
-              <option value="<%= cat %>" <%= activeCategory === cat ? 'selected' : '' %>><%= cat %></option>
+              <option value="<%= cat.slug %>" <%= activeCategory === cat.slug ? 'selected' : '' %>><%= cat.name %></option>
             <% }) %>
           </select>
         </div>
         <div>
           <label class="gv-label d-block">Sortuj</label>
-          <select name="sort" class="form-select gv-select" onchange="this.form.submit()">
-            <option value="title" <%= activeSort === 'title' ? 'selected' : '' %>>Alfabetycznie</option>
+          <select name="sort" class="form-select gv-select" onchange="this.form.submit()" <%= query ? 'disabled title="Wyniki wyszukiwania są sortowane wg trafności"' : '' %>>
+            <option value="popular" <%= activeSort === 'popular' ? 'selected' : '' %>>Najpopularniejsze</option>
             <option value="rating" <%= activeSort === 'rating' ? 'selected' : '' %>>Najwyżej oceniane</option>
             <option value="newest" <%= activeSort === 'newest' ? 'selected' : '' %>>Najnowsze</option>
+            <option value="title" <%= activeSort === 'title' ? 'selected' : '' %>>Alfabetycznie</option>
           </select>
+        </div>
+        <div class="gv-games-search ms-auto">
+          <label class="gv-label d-block" for="gamesSearch">Szukaj gry</label>
+          <div class="input-group">
+            <input type="search" id="gamesSearch" name="q" value="<%= query %>" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off" maxlength="100">
+            <button type="submit" class="btn gv-btn-primary" aria-label="Szukaj"><i class="bi bi-search"></i></button>
+          </div>
         </div>
       </form>
 
       <% if (games.length === 0) { %>
-        <p class="gv-empty-state">Brak gier spełniających kryteria.</p>
+        <p class="gv-empty-state"><%= query ? 'Brak gier pasujących do „' + query + '”.' : 'Brak gier spełniających kryteria.' %></p>
       <% } else { %>
         <div class="row g-4">
           <% games.forEach(function(game) { %>
@@ -41,6 +49,7 @@
             </div>
           <% }) %>
         </div>
+        <%- include('../partials/pager', { pager }) %>
       <% } %>
     </div>
   </section>
