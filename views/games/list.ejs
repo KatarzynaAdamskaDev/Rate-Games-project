@@ -7,29 +7,53 @@
   <%- include('../partials/navbar') %>
   <%- include('../partials/flash') %>
 
+  <%
+    const activeCount = [activeGenre, activePlatform, activeYear].filter(Boolean).length;
+    const baseParams = {
+      q: query,
+      category: activeGenre ? activeGenre.slug : '',
+      platform: activePlatform ? activePlatform.key : '',
+      year: activeYear || '',
+      sort: activeSort !== 'popular' ? activeSort : '',
+    };
+    const urlWithout = function (keys) {
+      const params = Object.assign({}, baseParams);
+      keys.forEach(function (k) { delete params[k]; });
+      const qs = Object.keys(params)
+        .filter(function (k) { return params[k]; })
+        .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
+        .join('&');
+      return '/games' + (qs ? '?' + qs : '');
+    };
+  %>
+
   <section class="gv-section">
     <div class="container">
       <h1 class="gv-page-title mb-4">Gry</h1>
 
-      <form method="GET" class="gv-filters gv-games-filters d-flex flex-wrap align-items-end gap-3 mb-4">
+      <form method="GET" action="/games" class="gv-games-bar mb-3">
+        <% if (activeGenre) { %><input type="hidden" name="category" value="<%= activeGenre.slug %>"><% } %>
+        <% if (activePlatform) { %><input type="hidden" name="platform" value="<%= activePlatform.key %>"><% } %>
+        <% if (activeYear) { %><input type="hidden" name="year" value="<%= activeYear %>"><% } %>
+
         <div>
-          <label class="gv-label d-block">Kategoria</label>
-          <select name="category" class="form-select gv-select" onchange="this.form.submit()">
-            <option value="">Wszystkie</option>
-            <% categories.forEach(function(cat) { %>
-              <option value="<%= cat.slug %>" <%= activeCategory === cat.slug ? 'selected' : '' %>><%= cat.name %></option>
-            <% }) %>
-          </select>
+          <label class="gv-label d-block">Filtry</label>
+          <button type="button" class="gv-btn-outline gv-filters-btn" data-bs-toggle="modal" data-bs-target="#filtersModal">
+            <i class="bi bi-sliders"></i> Filtry
+            <% if (activeCount > 0) { %><span class="gv-filters-count"><%= activeCount %></span><% } %>
+          </button>
         </div>
+
         <div>
-          <label class="gv-label d-block">Sortuj</label>
-          <select name="sort" class="form-select gv-select" onchange="this.form.submit()" <%= query ? 'disabled title="Wyniki wyszukiwania są sortowane wg trafności"' : '' %>>
+          <label class="gv-label d-block" for="gamesSort">Sortuj</label>
+          <select name="sort" id="gamesSort" class="form-select gv-select" onchange="this.form.submit()" <%= query ? 'disabled title="Wyniki wyszukiwania są sortowane wg trafności"' : '' %>>
             <option value="popular" <%= activeSort === 'popular' ? 'selected' : '' %>>Najpopularniejsze</option>
             <option value="rating" <%= activeSort === 'rating' ? 'selected' : '' %>>Najwyżej oceniane</option>
             <option value="newest" <%= activeSort === 'newest' ? 'selected' : '' %>>Najnowsze</option>
             <option value="title" <%= activeSort === 'title' ? 'selected' : '' %>>Alfabetycznie</option>
           </select>
         </div>
+
         <div class="gv-games-search ms-auto">
           <label class="gv-label d-block" for="gamesSearch">Szukaj gry</label>
           <div class="input-group">
@@ -38,6 +62,15 @@
           </div>
         </div>
       </form>
+
+      <% if (activeCount > 0) { %>
+        <div class="gv-filter-chips mb-4">
+          <% if (activeGenre) { %><a href="<%= urlWithout(['category', 'page']) %>" class="gv-filter-chip">Kategoria: <%= activeGenre.name %> <i class="bi bi-x-lg"></i></a><% } %>
+          <% if (activePlatform) { %><a href="<%= urlWithout(['platform', 'page']) %>" class="gv-filter-chip">Platforma: <%= activePlatform.label %> <i class="bi bi-x-lg"></i></a><% } %>
+          <% if (activeYear) { %><a href="<%= urlWithout(['year', 'page']) %>" class="gv-filter-chip">Rok: <%= activeYear %> <i class="bi bi-x-lg"></i></a><% } %>
+          <a href="<%= urlWithout(['category', 'platform', 'year', 'page']) %>" class="gv-filter-clear">Wyczyść filtry</a>
+        </div>
+      <% } %>
 
       <% if (games.length === 0) { %>
         <p class="gv-empty-state"><%= query ? 'Brak gier pasujących do „' + query + '”.' : 'Brak gier spełniających kryteria.' %></p>
@@ -53,6 +86,58 @@
       <% } %>
     </div>
   </section>
+
+  <!-- MODAL FILTRÓW -->
+  <div class="modal fade" id="filtersModal" tabindex="-1" aria-labelledby="filtersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="filtersModalLabel">Filtry</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <form method="GET" action="/games">
+          <div class="modal-body">
+            <% if (query) { %><input type="hidden" name="q" value="<%= query %>"><% } %>
+            <% if (activeSort !== 'popular') { %><input type="hidden" name="sort" value="<%= activeSort %>"><% } %>
+
+            <div class="mb-3">
+              <label class="gv-label d-block" for="filterCategory">Kategoria</label>
+              <select name="category" id="filterCategory" class="form-select gv-select">
+                <option value="">Wszystkie kategorie</option>
+                <% genres.forEach(function(genre) { %>
+                  <option value="<%= genre.slug %>" <%= activeGenre && activeGenre.slug === genre.slug ? 'selected' : '' %>><%= genre.name %></option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="gv-label d-block" for="filterPlatform">Platforma</label>
+              <select name="platform" id="filterPlatform" class="form-select gv-select">
+                <option value="">Wszystkie platformy</option>
+                <% platforms.forEach(function(p) { %>
+                  <option value="<%= p.key %>" <%= activePlatform && activePlatform.key === p.key ? 'selected' : '' %>><%= p.label %></option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label class="gv-label d-block" for="filterYear">Rok wydania</label>
+              <select name="year" id="filterYear" class="form-select gv-select">
+                <option value="">Wszystkie lata</option>
+                <% years.forEach(function(y) { %>
+                  <option value="<%= y %>" <%= activeYear === y ? 'selected' : '' %>><%= y %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer gv-modal-footer">
+            <a href="<%= urlWithout(['category', 'platform', 'year', 'page']) %>" class="gv-btn-outline">Wyczyść</a>
+            <button type="submit" class="btn gv-btn-success">Zastosuj</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <%- include('../partials/footer') %>
 </body>

@@ -5,6 +5,7 @@ const http = require('http');
 const { sequelize } = require('../config/database');
 const { addMissingColumns } = require('../utils/schemaHelpers');
 const { syncAllUsersProgress } = require('../utils/progressHelpers');
+const { seedConversationReads } = require('../utils/chatHelpers');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -28,6 +29,8 @@ sequelize
   .then(() => addMissingColumns())
   // Uzupełnia PD/poziom (users.points, users.level) u istniejących użytkowników.
   .then(() => syncAllUsersProgress())
+  // Istniejące rozmowy traktujemy jako przeczytane (licznik nieprzeczytanych czatu).
+  .then(() => seedConversationReads())
   .then(() => {
     server.listen(port);
   })

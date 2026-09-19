@@ -57,6 +57,11 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: 'bg-default',
     },
+    // Odznaka wyświetlana jako trofeum w banerze profilu (id odznaki; null = domyślne).
+    activeTrophy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     // Punkty doświadczenia (PD) i poziom - przechowywane w bazie, a
     // aktualizowane przy każdej zmianie aktywności (utils/progressHelpers.js).
     points: {

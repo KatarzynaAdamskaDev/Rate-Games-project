@@ -9,10 +9,11 @@ gameverse/
 ├── bin/www              # skrypt startujący serwer HTTP
 ├── middleware/          # auth.js, locals.js, errorHandlers.js
 ├── public/              # CSS, JS, obrazki (pliki statyczne)
-├── routes/              # index, auth, games, category, blog, search
+├── routes/              # index, auth, games, blog, search, profile, chat, reviews, notifications
 ├── views/               # szablony EJS (partials, auth, games, blog)
-├── utils/               # dostęp do danych JSON (dataStore, gameHelpers, userHelpers)
-├── data/                # users.json, games.json, reviews.json, blog.json
+├── models/              # modele Sequelize (użytkownicy, recenzje, czat, powiadomienia...)
+├── utils/               # logika aplikacji (katalog gier IGDB, statystyki, profile, czat)
+├── data/                # blog.json oraz lokalna baza SQLite (dev.sqlite3)
 ├── app.js               # konfiguracja aplikacji Express
 ├── create-admin.js      # skrypt CLI do utworzenia konta administratora
 └── package.json
@@ -58,13 +59,17 @@ node create-admin.js admin@example.com admin MojeHaslo123
 
 ## Dane
 
-Aplikacja **nie korzysta z bazy danych** - wszystkie dane (użytkownicy, gry,
-opinie, wpisy na blogu) są przechowywane w plikach JSON w katalogu `data/`.
-Pliki `games.json`, `reviews.json` i `blog.json` są wstępnie wypełnione
-przykładowymi danymi.
+Użytkownicy, recenzje, komentarze, czat, powiadomienia i pozostałe dane
+aplikacji są zapisywane w bazie danych (Sequelize): lokalnie w pliku SQLite
+`data/dev.sqlite3`, a na produkcji w Azure SQL. Brakujące tabele i kolumny są
+uzupełniane przy starcie serwera.
 
-Hasła użytkowników są hashowane przy pomocy `bcryptjs` - w plikach JSON nigdy
-nie są zapisywane jawne hasła.
+Gry pochodzą z API IGDB (wymagane `TWITCH_CLIENT_ID` i `TWITCH_CLIENT_SECRET`
+w `.env`); gry dodane ręcznie przez administratora trafiają do tabeli
+`custom_games`. Jedynie wpisy na blogu są nadal w pliku `data/blog.json`.
+
+Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
+zapisywane jawnie.
 
 ## Funkcje
 

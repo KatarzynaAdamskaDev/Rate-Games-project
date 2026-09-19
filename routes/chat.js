@@ -9,6 +9,8 @@ const {
   getOrCreateDM,
   createGroup,
   getOrCreateGameRoom,
+  markConversationRead,
+  getUnreadCounts,
   getMessages,
   getMessagesAfter,
   addMessage,
@@ -16,7 +18,7 @@ const {
   deleteConversation,
 } = require('../utils/chatHelpers');
 const { findByUsername, findById, getAllUsers } = require('../utils/userHelpers');
-const { getAllGames } = require('../utils/gameHelpers');
+const { getPopularGames } = require('../utils/igdbService');
 const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
 
 // Cały czat wymaga zalogowania.
@@ -42,6 +44,13 @@ router.get('/', async (req, res) => {
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
   const messages = canSeeActive ? await getMessages(active.id) : [];
 
+  // Liczniki nieprzeczytanych liczymy przed oznaczeniem aktywnej rozmowy jako przeczytanej.
+  const unread = await getUnreadCounts(me.id);
+  if (canSeeActive) {
+    await markConversationRead(me.id, active.id);
+    delete unread.byConversation[active.id];
+  }
+
   const allUsers = await getAllUsers();
   const mutualIds = new Set(await getMutualFriends(me.id));
 
@@ -50,10 +59,11 @@ router.get('/', async (req, res) => {
     conversations,
     active: canSeeActive ? active : null,
     messages,
+    unreadByConversation: unread.byConversation,
     otherUsers: allUsers
       .filter((u) => u.id !== me.id && mutualIds.has(u.id))
       .map((u) => u.username),
-    popularGames: getAllGames().slice(0, 20),
+    popularGames: await getPopularGames(20),
   });
 });
 
@@ -200,6 +210,9 @@ router.get('/:conversationId/messages', async (req, res) => {
     ? await getMessagesAfter(conversationId, req.query.after)
     : await getMessages(conversationId);
 
+  // Okno rozmowy jest otwarte, więc wszystko, co przyszło, jest już widoczne.
+  await markConversationRead(req.session.user.id, conversationId);
+
   res.json({ messages });
 });
 
@@ -221,6 +234,7 @@ router.post('/:conversationId/messages', async (req, res) => {
     senderUsername: req.session.user.username,
     text: text.slice(0, 1000),
   });
+  await markConversationRead(req.session.user.id, conversationId);
 
   res.json({ message });
 });

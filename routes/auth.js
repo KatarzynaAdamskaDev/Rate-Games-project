@@ -49,7 +49,7 @@ function maskEmail(email) {
 
 /** Jednoznaczny komunikat w terminalu: czy krok resetowania hasła się udał. */
 function logReset(ok, message) {
-  console.log(`${ok ? '✅ [reset hasła] OK:' : '❌ [reset hasła] BŁĄD:'} ${message}`);
+  console.log(`${ok ? '[reset hasła] OK:' : '[reset hasła] BŁĄD:'} ${message}`);
 }
 
 /** Sprawdza, czy klient oczekuje odpowiedzi JSON (fetch) czy pełnej strony. */

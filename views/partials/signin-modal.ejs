@@ -106,7 +106,7 @@
                 <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>" data-theme="dark"></div>
               <% } else { %>
                 <div class="gv-captcha-fallback">
-                  ⚠️ reCAPTCHA nie jest skonfigurowana (brak RECAPTCHA_SITE_KEY w .env)
+                  <i class="bi bi-exclamation-triangle-fill"></i> reCAPTCHA nie jest skonfigurowana (brak RECAPTCHA_SITE_KEY w .env)
                 </div>
               <% } %>
             </div>
@@ -123,3 +123,27 @@
     </div>
   </div>
 </div>
+
+<script>
+  // Przełączanie widoków okna logowania (logowanie / reset hasła / rejestracja) -
+  // działa na każdej stronie, na której jest ten modal.
+  document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('signInModal');
+    if (!modal) return;
+
+    var views = modal.querySelectorAll('.gv-auth-view');
+
+    function showView(name) {
+      views.forEach(function (v) {
+        v.classList.toggle('d-none', v.dataset.view !== name);
+      });
+    }
+
+    modal.querySelectorAll('[data-switch]').forEach(function (btn) {
+      btn.addEventListener('click', function () { showView(btn.dataset.switch); });
+    });
+
+    // Za każdym otwarciem okna wracamy do widoku logowania.
+    modal.addEventListener('show.bs.modal', function () { showView('signin'); });
+  });
+</script>

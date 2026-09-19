@@ -4,6 +4,7 @@
  * po stronie IGDB, więc dotyczą całej bazy gier, a nie tylko pierwszej strony.
  */
 const {
+  GAME_TYPE_FILTER,
   IGDB_GAME_FIELDS,
   PLATFORM_FILTERS,
   fetchIGDBGames,
@@ -68,7 +69,7 @@ async function listGames({ q, genre, platform, year, sort, page, pageSize = PAGE
   const activeSort = normalizeSort(sort);
   const activePage = normalizePage(page);
 
-  const where = ['version_parent = null'];
+  const where = ['version_parent = null', GAME_TYPE_FILTER];
   if (genre) where.push(`genres = (${Number(genre.id)})`);
 
   const platformIds = PLATFORM_FILTERS[String(platform || '').toLowerCase()];
@@ -100,20 +101,43 @@ async function listGames({ q, genre, platform, year, sort, page, pageSize = PAGE
     }
   }
 
+  // Wyszukiwanie: IGDB zwraca wyniki wg trafności, więc pobieramy szersze okno i sami
+  // układamy je tak, żeby tytuł zgodny z frazą i najpopularniejsze gry były na górze
+  // (np. "minecraft" -> Minecraft: Java Edition, a nie mało znane spin-offy).
+  const windowSize = search ? pageSize * 2 : pageSize + 1;
+
   const query = [
     search ? `search "${search}";` : '',
     IGDB_GAME_FIELDS,
     `where ${where.join(' & ')};`,
     order,
-    `limit ${pageSize + 1}; offset ${(activePage - 1) * pageSize};`,
+    `limit ${windowSize}; offset ${(activePage - 1) * (search ? windowSize : pageSize)};`,
   ]
     .filter(Boolean)
     .join(' ');
 
-  const raw = await fetchIGDBGames(query);
+  let raw = await fetchIGDBGames(query);
+  const hasNext = search ? raw.length >= windowSize : raw.length > pageSize;
+
+  if (search) {
+    const needle = search.toLowerCase();
+    raw = raw
+      .map((game, index) => ({ game, index }))
+      .sort((a, b) => {
+        const exactA = a.game.name.toLowerCase() === needle ? 1 : 0;
+        const exactB = b.game.name.toLowerCase() === needle ? 1 : 0;
+        return (
+          exactB - exactA ||
+          (b.game.total_rating_count || 0) - (a.game.total_rating_count || 0) ||
+          a.index - b.index
+        );
+      })
+      .map((item) => item.game);
+  }
+
   const games = await withRatings(raw.slice(0, pageSize).map(formatIGDBGame));
 
-  return { games, hasNext: raw.length > pageSize, page: activePage, sort: activeSort };
+  return { games, hasNext, page: activePage, sort: activeSort };
 }
 
 /** Linki "poprzednia / następna strona" z zachowaniem pozostałych filtrów w URL-u. */

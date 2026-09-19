@@ -29,7 +29,7 @@
         </div>
 
         <div class="gv-hero-xp">
-          <a href="?tab=badges" class="gv-level-trophy" title="Poziomy i odznaki" aria-label="Poziomy i odznaki"><i class="bi bi-trophy-fill"></i></a>
+          <span class="gv-level-trophy" style="color: <%= trophy.color %>;" title="<%= trophy.label %>"><i class="bi <%= trophy.icon %>"></i></span>
           <div class="gv-level-info">
             <div class="gv-level-label">POZIOM</div>
             <div class="gv-level-number"><%= progress.level %></div>
@@ -53,16 +53,16 @@
 
       <div class="gv-profile-actions mb-4">
         <% if (isOwnProfile) { %>
-          <a href="/profile/settings" class="gv-btn-outline">⚙️ Ustawienia konta</a>
-          <a href="/chat" class="gv-btn-outline">💬 Czat i grupy</a>
+          <a href="/profile/settings" class="gv-btn-outline"><i class="bi bi-pencil-square"></i> Edytuj profil</a>
+          <a href="/chat" class="gv-btn-outline"><i class="bi bi-chat-dots-fill"></i> Czat i grupy</a>
         <% } else if (currentUser) { %>
           <form action="/profile/<%= alreadyFollowing ? 'unfollow' : 'follow' %>/<%= profileUser.username %>" method="POST">
             <button type="submit" class="gv-follow-btn <%= alreadyFollowing ? 'following' : '' %>">
-              <%= alreadyFollowing ? '✓ Obserwujesz' : '+ Obserwuj' %>
+              <%- alreadyFollowing ? '<i class="bi bi-check-lg"></i> Obserwujesz' : '<i class="bi bi-plus-lg"></i> Obserwuj' %>
             </button>
           </form>
           <form action="/chat/start/<%= profileUser.username %>" method="POST">
-            <button type="submit" class="gv-btn-outline">💬 Napisz wiadomość</button>
+            <button type="submit" class="gv-btn-outline"><i class="bi bi-chat-dots-fill"></i> Napisz wiadomość</button>
           </form>
         <% } else { %>
           <p class="gv-empty-state" style="margin:0;">
@@ -73,12 +73,45 @@
       </div>
 
       <div class="gv-tabs">
-        <a href="?tab=badges" class="gv-tab <%= tab === 'badges' ? 'active' : '' %>">🏅 Poziomy i odznaki</a>
-        <a href="?tab=backlog" class="gv-tab <%= tab === 'backlog' ? 'active' : '' %>">📚 Backlog gier</a>
-        <a href="?tab=reviews" class="gv-tab <%= tab === 'reviews' ? 'active' : '' %>">📝 Recenzje</a>
-        <a href="?tab=followers" class="gv-tab <%= tab === 'followers' ? 'active' : '' %>">👥 Obserwujący</a>
-        <a href="?tab=following" class="gv-tab <%= tab === 'following' ? 'active' : '' %>">➡️ Obserwowani</a>
+        <a href="?tab=favorites" class="gv-tab <%= tab === 'favorites' ? 'active' : '' %>"><i class="bi bi-star-fill"></i> Ulubione gry</a>
+        <a href="?tab=reviews" class="gv-tab <%= tab === 'reviews' ? 'active' : '' %>"><i class="bi bi-journal-text"></i> Recenzje</a>
+        <a href="?tab=followers" class="gv-tab <%= tab === 'followers' ? 'active' : '' %>"><i class="bi bi-people-fill"></i> Obserwujący</a>
+        <a href="?tab=following" class="gv-tab <%= tab === 'following' ? 'active' : '' %>"><i class="bi bi-person-check-fill"></i> Obserwowani</a>
       </div>
+
+      <% if (tab === 'favorites') { %>
+        <div class="gv-fav-head">
+          <h3 class="gv-unlock-group-title" style="margin:0;">Ulubione gry</h3>
+          <span class="gv-fav-count"><%= favorites.length %> / <%= maxFavorites %></span>
+        </div>
+
+        <% if (!isOwnProfile && favorites.length === 0) { %>
+          <p class="gv-empty-state">Ten gracz nie wybrał jeszcze ulubionych gier.</p>
+        <% } else { %>
+          <div class="gv-fav-grid">
+            <% favorites.forEach(function(fav) { %>
+              <div class="gv-fav-card">
+                <a href="/games/<%= fav.gameId %>" class="gv-fav-cover" title="<%= fav.title %>">
+                  <img src="<%= fav.coverImage || '/images/game-placeholder.svg' %>" alt="<%= fav.title %>">
+                  <span class="gv-fav-title"><%= fav.title %></span>
+                </a>
+                <% if (isOwnProfile) { %>
+                  <form action="/profile/favorites/<%= encodeURIComponent(fav.gameId) %>/delete" method="POST" onsubmit="return confirm('Usunąć tę grę z ulubionych?');">
+                    <button type="submit" class="gv-fav-remove" title="Usuń z ulubionych" aria-label="Usuń z ulubionych"><i class="bi bi-x-lg"></i></button>
+                  </form>
+                <% } %>
+              </div>
+            <% }) %>
+            <% if (isOwnProfile) { %>
+              <% for (var slot = favorites.length; slot < maxFavorites; slot++) { %>
+                <button type="button" class="gv-fav-empty" data-bs-toggle="modal" data-bs-target="#addFavoriteModal">
+                  <i class="bi bi-plus-lg"></i><span>Dodaj grę</span>
+                </button>
+              <% } %>
+            <% } %>
+          </div>
+        <% } %>
+      <% } %>
 
       <% if (tab === 'followers' || tab === 'following') { %>
         <% if (followList.length === 0) { %>
@@ -102,124 +135,6 @@
         <% } %>
       <% } %>
 
-      <% if (tab === 'badges') { %>
-        <div class="gv-points-note">
-          <b>Jak działają punkty doświadczenia?</b>
-          Każda napisana recenzja to +10 PD. Punkty odblokowują kolejne poziomy, a te - nowe ramki
-          awatara, tła profilu i odznaki. Im więcej grasz i recenzujesz, tym więcej odblokowujesz.
-        </div>
-
-        <h3 class="gv-unlock-group-title">Ramki awatara</h3>
-        <div class="gv-unlock-grid">
-          <% allFrames.forEach(function(f) { %>
-            <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
-              <div class="gv-unlock-swatch gv-swatch-<%= f.id %>"></div>
-              <b><%= f.label %></b>
-              <% if (f.locked) { %>
-                <span class="gv-lock-tag">🔒 Poziom <%= f.levelRequired %></span>
-              <% } else if (isOwnProfile) { %>
-                <% if (profileUser.activeFrame === f.id) { %>
-                  <span class="gv-active-tag">✓ Aktywna</span>
-                <% } else { %>
-                  <form action="/profile/customize/frame/<%= f.id %>" method="POST">
-                    <button type="submit" class="gv-set-active-btn">Ustaw jako aktywną</button>
-                  </form>
-                <% } %>
-              <% } else { %>
-                <span>Odblokowana</span>
-              <% } %>
-            </div>
-          <% }) %>
-        </div>
-
-        <h3 class="gv-unlock-group-title">Tła profilu</h3>
-        <div class="gv-unlock-grid">
-          <% allBackgrounds.forEach(function(b) { %>
-            <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
-              <div class="gv-unlock-swatch gv-swatch-<%= b.id %>"></div>
-              <b><%= b.label %></b>
-              <% if (b.locked) { %>
-                <span class="gv-lock-tag">🔒 Poziom <%= b.levelRequired %></span>
-              <% } else if (isOwnProfile) { %>
-                <% if (profileUser.activeBackground === b.id) { %>
-                  <span class="gv-active-tag">✓ Aktywne</span>
-                <% } else { %>
-                  <form action="/profile/customize/background/<%= b.id %>" method="POST">
-                    <button type="submit" class="gv-set-active-btn">Ustaw jako aktywne</button>
-                  </form>
-                <% } %>
-              <% } else { %>
-                <span>Odblokowane</span>
-              <% } %>
-            </div>
-          <% }) %>
-        </div>
-
-        <h3 class="gv-unlock-group-title">Odznaki</h3>
-        <div class="gv-unlock-grid">
-          <% allBadges.forEach(function(b) { %>
-            <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
-              <div class="gv-unlock-swatch">🏆</div>
-              <b><%= b.label %></b>
-              <% if (b.locked) { %><span class="gv-lock-tag">🔒 <%= b.description %></span><% } else { %><span>Zdobyta</span><% } %>
-            </div>
-          <% }) %>
-        </div>
-      <% } %>
-
-      <% if (tab === 'backlog') { %>
-        <% if (isOwnProfile) { %>
-          <form action="/profile/backlog" method="POST" class="gv-backlog-add-form">
-            <div>
-              <label class="gv-label">Dodaj grę do backlogu</label>
-              <select name="gameId" class="form-select gv-select w-100" required>
-                <option value="">— wybierz grę —</option>
-                <% allGames.forEach(function(g) { %><option value="<%= g.id %>"><%= g.title %></option><% }) %>
-              </select>
-            </div>
-            <div>
-              <label class="gv-label">Status</label>
-              <select name="status" class="form-select gv-select w-100" required>
-                <% Object.keys(statusLabels).forEach(function(s) { %>
-                  <option value="<%= s %>"><%= statusLabels[s] %></option>
-                <% }) %>
-              </select>
-            </div>
-            <button type="submit" class="gv-btn-success">Dodaj</button>
-          </form>
-        <% } %>
-
-        <% if (backlogEntries.length === 0) { %>
-          <p class="gv-empty-state">Backlog jest pusty.</p>
-        <% } else { %>
-          <div class="gv-backlog-grid">
-            <% backlogEntries.forEach(function(entry) { %>
-              <% if (entry.game) { %>
-                <div class="gv-backlog-card">
-                  <div class="gv-backlog-cover" style="background-image:url('<%= entry.game.coverImage %>');">
-                    <span class="gv-status-pill gv-status-<%= entry.status %>"><%= statusLabels[entry.status] %></span>
-                  </div>
-                  <div class="gv-backlog-body">
-                    <b><a href="/games/<%= entry.game.id %>" class="text-decoration-none" style="color:inherit;"><%= entry.game.title %></a></b>
-                    <span>Aktualizacja: <%= new Date(entry.updatedAt).toLocaleDateString('pl-PL') %></span>
-                    <% if (isOwnProfile) { %>
-                      <form action="/profile/backlog" method="POST" class="gv-backlog-status-form">
-                        <input type="hidden" name="gameId" value="<%= entry.game.id %>">
-                        <select name="status" class="form-select gv-select" onchange="this.form.submit()">
-                          <% Object.keys(statusLabels).forEach(function(s) { %>
-                            <option value="<%= s %>" <%= entry.status === s ? 'selected' : '' %>><%= statusLabels[s] %></option>
-                          <% }) %>
-                        </select>
-                      </form>
-                    <% } %>
-                  </div>
-                </div>
-              <% } %>
-            <% }) %>
-          </div>
-        <% } %>
-      <% } %>
-
       <% if (tab === 'reviews') { %>
         <% if (reviews.length === 0) { %>
           <p class="gv-empty-state">Brak recenzji.</p>
@@ -230,7 +145,11 @@
                 <div class="gv-review-top">
                   <span class="gv-review-byline">Review by:
                     <a href="/<%= profileUser.username %>" class="gv-byline-link">
-                      <span class="gv-byline-avatar"></span>
+                      <% if (profileUser.avatarUrl) { %>
+                        <img src="<%= profileUser.avatarUrl %>" alt="" class="gv-byline-avatar">
+                      <% } else { %>
+                        <span class="gv-byline-avatar"></span>
+                      <% } %>
                       <span class="gv-byline-name"><%= profileUser.username %></span>
                     </a>
                   </span>
@@ -251,6 +170,31 @@
     </div>
   </section>
 
+  <% if (isOwnProfile) { %>
+    <!-- MODAL: DODAJ ULUBIONĄ GRĘ -->
+    <div class="modal fade" id="addFavoriteModal" tabindex="-1" aria-labelledby="addFavoriteLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content gv-modal-content">
+          <div class="modal-header gv-modal-header">
+            <h2 class="gv-auth-title mb-0" id="addFavoriteLabel">Dodaj ulubioną grę</h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+          </div>
+          <form action="/profile/favorites" method="POST">
+            <div class="modal-body">
+              <label class="gv-label d-block" for="favoriteSearch">Wyszukaj grę (wybierz z listy, żeby ją dodać)</label>
+              <div class="gv-game-picker" data-game-picker data-mode="submit">
+                <input type="search" id="favoriteSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off" maxlength="100">
+                <input type="hidden" name="gameId">
+                <div class="gv-picker-results"></div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
   <%- include('../partials/footer') %>
+  <script src="/js/game-picker.js"></script>
 </body>
 </html>

@@ -1,0 +1,38 @@
+<%
+// Karta "Najlepsza recenzja tygodnia". Użycie: include('partials/review-featured', { review })
+const __game = review.game;
+%>
+<div class="gv-featured-card">
+  <% if (__game) { %>
+    <a href="/games/<%= __game.id %>" class="gv-featured-cover-link"><img src="<%= __game.coverImage %>" alt="<%= __game.title %>" class="gv-featured-cover" /></a>
+  <% } else { %>
+    <img src="/images/game-placeholder.svg" alt="" class="gv-featured-cover" />
+  <% } %>
+  <div class="gv-featured-body">
+    <div class="gv-featured-eyebrow"><i class="bi bi-stars"></i> Najlepsza recenzja tygodnia</div>
+    <div class="gv-review-top" style="margin-bottom:6px;">
+      <% if (__game) { %>
+        <a href="/games/<%= __game.id %>" class="gv-featured-game"><%= __game.title %></a>
+      <% } else { %>
+        <span class="gv-featured-game">Gra niedostępna</span>
+      <% } %>
+      <span class="gv-review-rating-badge">
+        <% for (let i = 1; i <= 5; i++) { %><i class="bi <%= i <= Math.round(review.rating) ? 'bi-star-fill' : 'bi-star' %>"></i><% } %>
+      </span>
+    </div>
+    <p class="gv-featured-text">„<%= review.text.length > 320 ? review.text.slice(0, 320) + '…' : review.text %>”</p>
+    <div class="gv-featured-meta">
+      <a href="/<%= encodeURIComponent(review.username) %>" class="gv-featured-author">
+        <% if (review.author.avatarUrl) { %><img src="<%= review.author.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
+        <%= review.username %> <small>POZ. <%= review.author.level %></small>
+      </a>
+      <span><%= new Date(review.createdAt).toLocaleDateString('pl-PL') %></span>
+      <span title="Polubienia"><i class="bi bi-heart-fill"></i> <%= review.likeCount %></span>
+      <span title="Komentarze"><i class="bi bi-chat-dots"></i> <%= review.commentCount %></span>
+      <% if (__game) { %><a href="/games/<%= __game.id %>#review-<%= review.id %>" class="gv-featured-link">Zobacz recenzję →</a><% } %>
+    </div>
+    <% if (!review.fromThisWeek) { %>
+      <p class="gv-featured-note">W tym tygodniu nie pojawiły się jeszcze nowe recenzje, więc pokazujemy najlepszą z dotychczasowych.</p>
+    <% } %>
+  </div>
+</div>

@@ -24,9 +24,9 @@
           >Napisz swoją pierwszą recenzję</button>
     </div>
     <div class="hero-stats">
-      <div><b>48 200+</b><span>recenzji gier</span></div>
-      <div><b>12 900</b><span>aktywnych graczy</span></div>
-      <div><b>3 400</b><span>gier w bazie</span></div>
+      <div><b><%= stats.totalReviews %></b><span>recenzji gier</span></div>
+      <div><b><%= stats.totalUsers %></b><span>graczy</span></div>
+      <div><b><%= stats.gamesWithReviews %></b><span>gier z recenzją</span></div>
     </div>
   </div>
 </section>
@@ -46,27 +46,27 @@
       </div>
     </div>
     <div class="platform-grid">
-  <a class="platform-card" href="/category/?platform=pc">
+  <a class="platform-card" href="/games?platform=pc">
     <div class="pf-icon"><i class="bi bi-pc-display"></i></div>
     <b>Gry PC</b><span>recenzje i wymagania</span>
   </a>
-  <a class="platform-card" href="/category/?platform=ps5">
+  <a class="platform-card" href="/games?platform=ps5">
     <div class="pf-icon"><i class="bi bi-playstation"></i></div>
     <b>Gry na PS5</b><span>opinie graczy</span>
   </a>
-  <a class="platform-card" href="/category/?platform=xbox">
+  <a class="platform-card" href="/games?platform=xbox">
     <div class="pf-icon"><i class="bi bi-xbox"></i></div>
     <b>Gry na Xbox</b><span>Series X/S</span>
   </a>
-  <a class="platform-card" href="/category/?platform=switch">
+  <a class="platform-card" href="/games?platform=switch">
     <div class="pf-icon"><i class="bi bi-controller"></i></div>
     <b>Nintendo Switch</b><span>gry przygodowe</span>
   </a>
-  <a class="platform-card" href="/category/?platform=mobile">
+  <a class="platform-card" href="/games?platform=mobile">
     <div class="pf-icon"><i class="bi bi-phone"></i></div>
     <b>Gry mobilne</b><span>Android i iOS</span>
   </a>
-  <a class="platform-card" href="/category/?platform=vr">
+  <a class="platform-card" href="/games?platform=vr">
     <div class="pf-icon"><i class="bi bi-badge-vr"></i></div>
     <b>Gry VR</b><span>nowa kategoria</span>
   </a>
@@ -78,14 +78,14 @@
   <div class="wrap">
     <div class="section-head">
       <div>
-        <h2>Najczęściej recenzowane gry tego tygodnia</h2>
-        <p>Ranking gier na podstawie liczby recenzji i ocen dodanych przez społeczność w ostatnich 7 dniach.</p>
+        <h2><%= trending.title %></h2>
+        <p><%= trending.subtitle %></p>
       </div>
-      <a class="see-all" href="/games">Zobacz pełny ranking →</a>
+      <a class="see-all" href="<%= trending.linkHref %>"><%= trending.linkLabel %> →</a>
     </div>
     <div class="trend-scroll">
-      <% if (locals.games && games.length > 0) { %>
-        <% games.forEach((game, idx) => { %>
+      <% if (trending.games.length > 0) { %>
+        <% trending.games.forEach((game, idx) => { %>
           <article class="trend-card">
             <div class="trend-cover" style="background-image: url('<%= game.coverImage || '' %>');">
               <span class="rank-badge">#<%= idx + 1 %></span>
@@ -97,6 +97,7 @@
                 <% if (game.averageRating) { %>
                   <%- include('partials/star-rating', { rating: game.averageRating }) %>
                   <%= game.averageRating.toFixed(1) %>
+                  <% if (game.reviewCount) { %><span class="gv-game-card-count">(<%= game.reviewCount %>)</span><% } %>
                 <% } else { %>
                   <span class="gv-game-card-count">Brak ocen</span>
                 <% } %>
@@ -105,10 +106,7 @@
           </article>
         <% }); %>
       <% } else { %>
-        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#1</span></div><div class="trend-body"><b>Cinderfall Requiem</b><div class="meta">RPG akcji · PC, PS5</div><div class="rating">★★★★★ 4.8 (2 130 ocen)</div></div></article>
-        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#2</span></div><div class="trend-body"><b>Northreach Colony</b><div class="meta">Strategia · PC</div><div class="rating">★★★★☆ 4.4 (980 ocen)</div></div></article>
-        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#3</span></div><div class="trend-body"><b>Static Horizon</b><div class="meta">FPS · Xbox, PC</div><div class="rating">★★★★☆ 4.2 (1 450 ocen)</div></div></article>
-        <article class="trend-card"><div class="trend-cover"><span class="rank-badge">#4</span></div><div class="trend-body"><b>Wanderhome</b><div class="meta">Gra przygodowa · Switch</div><div class="rating">★★★★★ 4.9 (760 ocen)</div></div></article>
+        <p class="gv-empty-state">Nie udało się pobrać listy gier. Spróbuj ponownie za chwilę.</p>
       <% } %>
     </div>
   </div>
@@ -118,77 +116,17 @@
   <div class="wrap">
     <div class="section-head">
       <div>
-        <h2>Najnowsze recenzje graczy</h2>
-        <p>Opinie o grach dodane przez społeczność GameVerse — polub, skomentuj lub dodaj recenzenta do obserwowanych.</p>
+        <h2>Najlepsza recenzja tygodnia</h2>
+        <p>Wybieramy ją spośród opinii z ostatnich 7 dni - wygrywa ta, którą gracze najczęściej lubią i komentują.</p>
       </div>
+      <a class="see-all" href="/reviews">Wszystkie recenzje →</a>
     </div>
 
-    <div class="content-grid">
-      <div class="review-list">
-
-        <% if (locals.latestReviews && latestReviews.length > 0) { %>
-          <% latestReviews.forEach(review => { %>
-            <article class="review-card gv-review-item">
-              <div class="review-top">
-                <div class="review-cover" style="background-image: url('<%= review.gameImage || '' %>');"></div>
-                <div class="review-headline">
-                  <span class="game-title"><%= review.gameTitle %><span class="platform-tag"><%= review.platform || 'PC / PS5' %></span></span>
-                  <span class="gv-review-rating-badge mt-1">
-                    <% const rStars = Math.round(review.rating || 5); %>
-                    <% for (let i = 1; i <= 5; i++) { %>
-                      <i class="bi <%= i <= rStars ? 'bi-star-fill' : 'bi-star' %>"></i>
-                    <% } %>
-                  </span>
-                </div>
-                <button class="follow-pill">Obserwuj</button>
-              </div>
-              <div class="gv-review-meta-row">
-                <a href="/<%= review.username || '' %>" class="gv-chat-name-link gv-review-byline">Review by: <strong><%= review.username || 'Anonim' %></strong></a>
-                <span class="gv-review-date"><%= review.createdAt ? new Date(review.createdAt).toLocaleDateString('pl-PL') : 'niedawno' %></span>
-              </div>
-              <p class="review-text gv-review-text"><%= review.comment %></p>
-              <div class="tag-row">
-                <span class="tag"><%= review.category || 'Gry Akcji' %></span>
-                <span class="tag">Polecane</span>
-              </div>
-              <div class="review-actions gv-review-actions">
-                <button class="action-btn gv-icon-btn"><i class="bi bi-heart"></i><span class="gv-count"><%= review.likesCount || 0 %></span></button>
-                <button class="action-btn gv-icon-btn"><i class="bi bi-chat-dots"></i><span class="gv-count"><%= review.commentsCount || 0 %></span> komentarzy</button>
-                <button class="action-btn gv-icon-btn"><i class="bi bi-share"></i> Udostępnij</button>
-                <button class="action-btn gv-icon-btn"><i class="bi bi-star"></i> Do ulubionych</button>
-              </div>
-            </article>
-          <% }); %>
-        <% } else { %>
-          <article class="review-card gv-review-item">
-            <div class="review-top">
-              <div class="review-cover"></div>
-              <div class="review-headline">
-                <span class="game-title">Cinderfall Requiem<span class="platform-tag">PC / PS5</span></span>
-                <span class="gv-review-rating-badge mt-1"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></span>
-              </div>
-              <button class="follow-pill following">Obserwujesz</button>
-            </div>
-            <div class="gv-review-meta-row">
-              <a href="/Marta_K" class="gv-chat-name-link gv-review-byline">Review by: <strong>Marta_K</strong></a>
-              <span class="gv-review-date">3 godziny temu</span>
-            </div>
-            <p class="review-text gv-review-text">Świat gry wciąga od pierwszej minuty, a system walki nagradza eksperymentowanie z buildami postaci. Największym zaskoczeniem jest fabuła poboczna — momentami lepsza niż wątek główny.</p>
-            <div class="tag-row">
-              <span class="tag">RPG akcji</span><span class="tag">Open world</span><span class="tag">Bez mikropłatności</span>
-            </div>
-            <div class="review-actions gv-review-actions">
-              <button class="action-btn gv-icon-btn liked"><i class="bi bi-heart-fill"></i><span class="gv-count">214</span></button>
-              <button class="action-btn gv-icon-btn"><i class="bi bi-chat-dots"></i><span class="gv-count">38</span> komentarzy</button>
-              <button class="action-btn gv-icon-btn"><i class="bi bi-share"></i> Udostępnij</button>
-              <button class="action-btn gv-icon-btn"><i class="bi bi-star"></i> Do ulubionych</button>
-            </div>
-            <div class="comment-preview"><b>Tomek89:</b> Zgadzam się co do wątku pobocznego, sekcja w bagnach urwała mi łeb.</div>
-          </article>
-        <% } %>
-         <a href="/reviews" class="btn-ghost" style="display:block; width:100%; padding:14px; text-align:center; box-sizing:border-box; text-decoration:none;">Wczytaj więcej recenzji</a>
-      </div>
-    </div>
+    <% if (weeklyReview) { %>
+      <%- include('partials/review-featured', { review: weeklyReview }) %>
+    <% } else { %>
+      <p class="gv-empty-state">Nikt jeszcze nie napisał recenzji. <a href="/games" class="gv-inline-link">Wybierz grę</a> i bądź pierwszy!</p>
+    <% } %>
   </div>
 </section>
 
@@ -226,11 +164,11 @@
       <div class="feature-card">
         <div class="feature-card-header">
           <div class="feature-icon">
-            <i class="bi bi-bookmark"></i>
+            <i class="bi bi-star"></i>
           </div>
-          <h3>Prowadź swój backlog</h3>
+          <h3>Pokaż ulubione gry</h3>
         </div>
-        <p>Zarządzaj listą gier do przegrania. Śledź swoje postępy i organizuj kolekcję po statusach.</p>
+        <p>Wybierz do sześciu gier, które lubisz najbardziej, i pokaż je na swoim profilu.</p>
       </div>
 
       <div class="feature-card">
@@ -289,47 +227,5 @@
 
 <%- include('partials/footer') %>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const modal = document.getElementById('signInModal');
-    if (!modal) return;
-
-    const views = modal.querySelectorAll('.gv-auth-view');
-
-    function showView(name) {
-      views.forEach(v => {
-        v.classList.toggle('d-none', v.dataset.view !== name);
-      });
-    }
-
-    modal.querySelectorAll('[data-switch]').forEach(btn => {
-      btn.addEventListener('click', () => showView(btn.dataset.switch));
-    });
-
-    // reset do widoku logowania za każdym razem, gdy modal się otwiera
-    modal.addEventListener('show.bs.modal', () => showView('signin'));
-  });
-  document.querySelectorAll('.action-btn').forEach(btn=>{
-    const icon = btn.querySelector('.bi-heart, .bi-heart-fill');
-    const countEl = btn.querySelector('.gv-count');
-    if(icon && countEl){
-      btn.addEventListener('click',()=>{
-        const liked = btn.classList.toggle('liked');
-        icon.classList.toggle('bi-heart', !liked);
-        icon.classList.toggle('bi-heart-fill', liked);
-        const count = parseInt(countEl.textContent, 10) || 0;
-        countEl.textContent = liked ? count + 1 : count - 1;
-      });
-    }
-  });
-  document.querySelectorAll('.follow-pill, .mini-follow').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const following = btn.classList.toggle('following');
-      if(btn.classList.contains('follow-pill')){
-        btn.textContent = following ? 'Obserwujesz' : 'Obserwuj';
-      }
-    });
-  });
-</script>
 </body>
 </html>

@@ -1,8 +1,10 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-const BacklogEntry = sequelize.define(
-  'BacklogEntry',
+// Ulubione gry użytkownika (max 6). Tytuł i okładka są zapisane razem z wpisem,
+// żeby profil nie wymagał zapytań do IGDB przy każdym wyświetleniu.
+const FavoriteGame = sequelize.define(
+  'FavoriteGame',
   {
     id: {
       type: DataTypes.UUID,
@@ -17,21 +19,20 @@ const BacklogEntry = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    status: {
+    title: {
       type: DataTypes.STRING,
       allowNull: false,
     },
+    coverImage: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
   },
   {
-    tableName: 'backlog_entries',
+    tableName: 'favorite_games',
     timestamps: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['userId', 'gameId'],
-      },
-    ],
+    indexes: [{ unique: true, fields: ['userId', 'gameId'] }],
   }
 );
 
-module.exports = BacklogEntry;
+module.exports = FavoriteGame;

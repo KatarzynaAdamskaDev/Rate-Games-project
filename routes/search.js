@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
+const { Op } = require('sequelize');
 const { withRatings } = require('../utils/gameHelpers');
+const CustomGame = require('../models/CustomGame');
+const { fromCustomRow } = require('../utils/gameCatalog');
 const { readCollection } = require('../utils/dataStore');
 const { listGames } = require('../utils/gameListing');
 const { searchUsersByUsername } = require('../utils/userHelpers');
@@ -15,16 +18,13 @@ router.get('/', async (req, res) => {
   if (q) {
     const needle = q.toLowerCase();
 
-    // Gry z IGDB (wyniki wg trafności) + gry dodane ręcznie przez admina
-    // (te mają id w postaci UUID; stare numeryczne id kolidują z ID z IGDB).
-    const localMatches = (readCollection('games') || []).filter(
-      (g) =>
-        isNaN(g.id) &&
-        (g.title.toLowerCase().includes(needle) ||
-          g.category.toLowerCase().includes(needle))
-    );
+    // Gry z IGDB (wyniki wg trafności) + gry dodane ręcznie przez admina.
+    const customRows = await CustomGame.findAll({
+      where: { [Op.or]: [{ title: { [Op.like]: `%${q}%` } }, { category: { [Op.like]: `%${q}%` } }] },
+      limit: 12,
+    });
     const igdb = await listGames({ q, pageSize: 24 });
-    games = [...(await withRatings(localMatches)), ...igdb.games];
+    games = [...(await withRatings(customRows.map(fromCustomRow))), ...igdb.games];
 
     posts = readCollection('blog').filter(
       (p) =>

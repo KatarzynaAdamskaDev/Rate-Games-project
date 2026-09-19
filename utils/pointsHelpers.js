@@ -60,33 +60,55 @@ const BADGE_DEFINITIONS = [
     id: 'badge-first-review',
     label: 'Pierwsza recenzja',
     description: 'Dodaj swoją pierwszą recenzję gry.',
+    icon: 'bi-award-fill',
+    color: '#cd7f32',
     check: (stats) => stats.reviewCount >= 1,
   },
   {
     id: 'badge-5-reviews',
     label: 'Rozkręcony recenzent',
     description: 'Dodaj 5 recenzji gier.',
+    icon: 'bi-trophy-fill',
+    color: '#c0c8d8',
     check: (stats) => stats.reviewCount >= 5,
   },
   {
     id: 'badge-10-reviews',
     label: 'Aktywny recenzent',
     description: 'Dodaj 10 recenzji gier.',
+    icon: 'bi-award-fill',
+    color: '#ffb238',
     check: (stats) => stats.reviewCount >= 10,
   },
   {
     id: 'badge-25-reviews',
     label: 'Weteran recenzji',
     description: 'Dodaj 25 recenzji gier.',
+    icon: 'bi-gem',
+    color: '#3fe0c5',
     check: (stats) => stats.reviewCount >= 25,
   },
   {
     id: 'badge-social',
     label: 'Towarzyska dusza',
     description: 'Zdobądź 10 obserwujących.',
+    icon: 'bi-people-fill',
+    color: '#ff5da2',
     check: (stats) => stats.followersCount >= 10,
   },
 ];
+
+/** Trofeum widoczne w banerze, gdy użytkownik nie wybrał żadnej odznaki. */
+const DEFAULT_TROPHY = { id: null, label: 'Trofeum', icon: 'bi-trophy-fill', color: '#ffb238' };
+
+/** Zwraca trofeum do banera: wybraną odznakę (jeśli wciąż odblokowana) albo domyślne. */
+function resolveTrophy(activeTrophyId, stats) {
+  const badge = BADGE_DEFINITIONS.find((b) => b.id === activeTrophyId);
+  if (badge && badge.check(stats)) {
+    return { id: badge.id, label: badge.label, icon: badge.icon, color: badge.color };
+  }
+  return DEFAULT_TROPHY;
+}
 
 function allFramesWithLockState(level) {
   return FRAMES.map((f) => ({ ...f, locked: f.levelRequired > level }));
@@ -109,6 +131,8 @@ module.exports = {
   FRAMES,
   BACKGROUNDS,
   BADGE_DEFINITIONS,
+  DEFAULT_TROPHY,
+  resolveTrophy,
   allFramesWithLockState,
   allBackgroundsWithLockState,
   allBadgesWithLockState,

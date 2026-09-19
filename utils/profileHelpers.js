@@ -13,9 +13,10 @@ const ReviewComment = require('../models/ReviewComment');
 const ReviewReport = require('../models/ReviewReport');
 const CommentLike = require('../models/CommentLike');
 const Follow = require('../models/Follow');
-const BacklogEntry = require('../models/BacklogEntry');
 const { deleteReviewData } = require('./reviewSocialHelpers');
 const { removeUserFromConversations } = require('./chatHelpers');
+const Notification = require('../models/Notification');
+const FavoriteGame = require('../models/FavoriteGame');
 
 /** Zwraca dane użytkownika bezpieczne do wyświetlenia (bez hasha i tokenów). */
 function getUserPublic(user) {
@@ -52,7 +53,7 @@ async function updateUsername(userId, newUsername) {
 /**
  * Usuwa konto użytkownika razem z jego danymi: recenzjami (wraz z ich
  * polubieniami, komentarzami i zgłoszeniami), własnymi polubieniami i
- * komentarzami, zgłoszeniami, obserwowaniem, backlogiem oraz czatami
+ * komentarzami, zgłoszeniami, obserwowaniem, ulubionymi grami oraz czatami
  * (zob. removeUserFromConversations).
  */
 async function deleteUser(userId) {
@@ -75,7 +76,8 @@ async function deleteUser(userId) {
     CommentLike.destroy({ where: { userId } }),
     ReviewReport.destroy({ where: { reporterId: userId } }),
     Follow.destroy({ where: { [Op.or]: [{ followerId: userId }, { followingId: userId }] } }),
-    BacklogEntry.destroy({ where: { userId } }),
+    FavoriteGame.destroy({ where: { userId } }),
+    Notification.destroy({ where: { [Op.or]: [{ userId }, { actorId: userId }] } }),
   ]);
 
   await removeUserFromConversations(userId);

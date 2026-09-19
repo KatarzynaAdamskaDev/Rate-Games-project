@@ -5,13 +5,13 @@ const {
   allFramesWithLockState,
   allBackgroundsWithLockState,
   allBadgesWithLockState,
+  resolveTrophy,
 } = require('./pointsHelpers');
 const { getFollowers, getFollowing } = require('./socialHelpers');
-const { getUserBacklog } = require('./backlogHelpers');
-const { getAllGames } = require('./gameHelpers');
 const { getUserPublic } = require('./profileHelpers');
 const { saveProgress } = require('./progressHelpers');
 const { findById } = require('./userHelpers');
+const { getFavorites } = require('./favoriteHelpers');
 
 /** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
 async function buildProfileViewModel(user) {
@@ -46,6 +46,7 @@ async function buildProfileViewModel(user) {
     allFrames: allFramesWithLockState(progress.level),
     allBackgrounds: allBackgroundsWithLockState(progress.level),
     allBadges: allBadgesWithLockState(stats),
+    trophy: resolveTrophy(user.activeTrophy, stats),
     reviews,
   };
 }
@@ -64,13 +65,24 @@ async function buildFollowList(userId, kind) {
   }));
 }
 
-async function buildBacklog(userId) {
-  const games = getAllGames();
-  const entries = await getUserBacklog(userId);
-  return entries.map((entry) => ({
-    ...entry,
-    game: games.find((g) => g.id === entry.gameId) || null,
-  }));
+const PROFILE_TABS = ['favorites', 'reviews', 'followers', 'following'];
+
+function normalizeProfileTab(tab) {
+  return PROFILE_TABS.includes(tab) ? tab : 'favorites';
 }
 
-module.exports = { buildProfileViewModel, buildBacklog, buildFollowList };
+/** Dane potrzebne tylko aktywnej zakładce profilu (reszty nie pobieramy). */
+async function buildTabData(userId, tab) {
+  return {
+    favorites: tab === 'favorites' ? await getFavorites(userId) : [],
+    followList:
+      tab === 'followers' || tab === 'following' ? await buildFollowList(userId, tab) : [],
+  };
+}
+
+module.exports = {
+  buildProfileViewModel,
+  buildFollowList,
+  buildTabData,
+  normalizeProfileTab,
+};

@@ -9,8 +9,8 @@
   <%- include('../partials/flash') %>
 
   <section class="gv-section">
-    <div class="wrap" style="max-width: 640px;">
-      <h1 class="gv-page-title mb-4">Ustawienia konta</h1>
+    <div class="wrap" style="max-width: 760px;">
+      <h1 class="gv-page-title mb-4">Edytuj profil</h1>
 
       <div class="gv-settings-card">
         <h2>Zdjęcie profilowe</h2>
@@ -31,11 +31,89 @@
       <div class="gv-settings-card">
         <h2>Opis profilu</h2>
         <form action="/profile/settings/bio" method="POST">
-          <textarea name="bio" rows="3" maxlength="300" class="form-control gv-input mb-2" placeholder="Napisz coś o sobie...">
-<%= profileUser.bio || '' %>
-</textarea>
+          <textarea name="bio" rows="3" maxlength="300" class="form-control gv-input mb-2" placeholder="Napisz coś o sobie..."><%= profileUser.bio || '' %></textarea>
           <button type="submit" class="gv-btn-success">Zapisz opis</button>
         </form>
+      </div>
+
+      <div class="gv-settings-card" id="wyglad">
+        <h2>Wygląd profilu</h2>
+        <div class="gv-points-note">
+          <b>Jak działają punkty doświadczenia?</b>
+          Każda napisana recenzja to +10 PD. Punkty odblokowują kolejne poziomy, a te - nowe ramki
+          awatara, tła profilu i odznaki. Twój poziom: <b><%= progress.level %></b> (<%= progress.points %> PD).
+        </div>
+
+        <h3 class="gv-unlock-group-title">Ramka awatara</h3>
+        <div class="gv-unlock-grid">
+          <% allFrames.forEach(function(f) { %>
+            <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
+              <div class="gv-unlock-swatch gv-swatch-<%= f.id %>"></div>
+              <b><%= f.label %></b>
+              <% if (f.locked) { %>
+                <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= f.levelRequired %></span>
+              <% } else if (profileUser.activeFrame === f.id) { %>
+                <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywna</span>
+              <% } else { %>
+                <form action="/profile/customize/frame/<%= f.id %>" method="POST">
+                  <button type="submit" class="gv-set-active-btn">Ustaw jako aktywną</button>
+                </form>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+
+        <h3 class="gv-unlock-group-title">Tło profilu</h3>
+        <div class="gv-unlock-grid">
+          <% allBackgrounds.forEach(function(b) { %>
+            <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
+              <div class="gv-unlock-swatch gv-swatch-<%= b.id %>"></div>
+              <b><%= b.label %></b>
+              <% if (b.locked) { %>
+                <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= b.levelRequired %></span>
+              <% } else if (profileUser.activeBackground === b.id) { %>
+                <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywne</span>
+              <% } else { %>
+                <form action="/profile/customize/background/<%= b.id %>" method="POST">
+                  <button type="submit" class="gv-set-active-btn">Ustaw jako aktywne</button>
+                </form>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="gv-settings-card" id="trofeum">
+        <h2>Odznaki i trofeum</h2>
+        <p class="gv-section-subtitle">Wybierz odznakę, która będzie widoczna jako trofeum w banerze Twojego profilu.</p>
+        <div class="gv-unlock-grid">
+          <div class="gv-unlock-item">
+            <div class="gv-unlock-swatch gv-trophy-swatch" style="color: #ffb238;"><i class="bi bi-trophy-fill"></i></div>
+            <b>Domyślne</b>
+            <% if (!trophy.id) { %>
+              <span class="gv-active-tag"><i class="bi bi-check-lg"></i> W banerze</span>
+            <% } else { %>
+              <form action="/profile/customize/trophy/default" method="POST">
+                <button type="submit" class="gv-set-active-btn">Ustaw w banerze</button>
+              </form>
+            <% } %>
+          </div>
+          <% allBadges.forEach(function(b) { %>
+            <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
+              <div class="gv-unlock-swatch gv-trophy-swatch" style="color: <%= b.color %>;"><i class="bi <%= b.icon %>"></i></div>
+              <b><%= b.label %></b>
+              <% if (b.locked) { %>
+                <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> <%= b.description %></span>
+              <% } else if (trophy.id === b.id) { %>
+                <span class="gv-active-tag"><i class="bi bi-check-lg"></i> W banerze</span>
+              <% } else { %>
+                <form action="/profile/customize/trophy/<%= b.id %>" method="POST">
+                  <button type="submit" class="gv-set-active-btn">Ustaw w banerze</button>
+                </form>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
       </div>
 
       <div class="gv-settings-card">
@@ -71,7 +149,7 @@
       <div class="gv-danger-zone">
         <div>
           <h4>Usuń konto</h4>
-          <p>Ta operacja jest nieodwracalna - usunie Twój profil i wyloguje Cię z serwisu.</p>
+          <p>Ta operacja jest nieodwracalna - usunie Twój profil razem z recenzjami, komentarzami, obserwowaniem i rozmowami prywatnymi oraz wyloguje Cię z serwisu.</p>
         </div>
         <form action="/profile/settings/delete" method="POST" onsubmit="return confirm('Na pewno chcesz usunąć swoje konto? Tej operacji nie można cofnąć.');">
           <button type="submit" class="gv-btn-danger">Usuń moje konto</button>

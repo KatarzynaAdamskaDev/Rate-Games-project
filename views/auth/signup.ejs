@@ -48,7 +48,6 @@
                 minlength="8"
                 required
               />
-              <button type="button" class="gv-password-toggle" data-target="password" aria-label="Pokaż/ukryj hasło">👁️</button>
             </div>
           </div>
 
@@ -72,7 +71,7 @@
               <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div>
             <% } else { %>
               <div class="gv-captcha-fallback">
-                ⚠️ reCAPTCHA nie jest skonfigurowana (brak RECAPTCHA_SITE_KEY w .env)
+                <i class="bi bi-exclamation-triangle-fill"></i> reCAPTCHA nie jest skonfigurowana (brak RECAPTCHA_SITE_KEY w .env)
               </div>
             <% } %>
           </div>

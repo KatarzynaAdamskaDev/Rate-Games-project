@@ -11,19 +11,15 @@ const {
   findByUsername,
   updatePassword,
 } = require('../utils/userHelpers');
-const { getUserPublic, updateUsername, deleteUser } = require('../utils/profileHelpers');
+const { updateUsername, deleteUser } = require('../utils/profileHelpers');
 const { isReservedUsername } = require('../utils/reservedUsernames');
-const {
-  setStatus,
-  STATUSES,
-  STATUS_LABELS,
-} = require('../utils/backlogHelpers');
-const { getAllGames } = require('../utils/gameHelpers');
+const { MAX_FAVORITES, addFavorite, removeFavorite } = require('../utils/favoriteHelpers');
 const { follow, unfollow } = require('../utils/socialHelpers');
+const { createNotification } = require('../utils/notificationHelpers');
 const {
   buildProfileViewModel,
-  buildBacklog,
-  buildFollowList,
+  buildTabData,
+  normalizeProfileTab,
 } = require('../utils/profileViewModel');
 const {
   levelProgress,
@@ -75,29 +71,27 @@ async function getCurrentLevel(userId) {
 router.get('/', ensureAuthenticated, async (req, res) => {
   const user = await findById(req.session.user.id);
   const vm = await buildProfileViewModel(user);
-  const backlogEntries = await buildBacklog(user.id);
-  const tab = req.query.tab || 'badges';
-  const followList =
-    tab === 'followers' || tab === 'following' ? await buildFollowList(user.id, tab) : [];
+  const tab = normalizeProfileTab(req.query.tab);
+  const tabData = await buildTabData(user.id, tab);
 
   res.render('profile/show', {
     title: 'Twój profil',
     ...vm,
+    ...tabData,
     isOwnProfile: true,
     alreadyFollowing: false,
-    backlogEntries,
-    followList,
-    statusLabels: STATUS_LABELS,
-    allGames: getAllGames(),
+    maxFavorites: MAX_FAVORITES,
     tab,
   });
 });
 
 router.get('/settings', ensureAuthenticated, async (req, res) => {
   const user = await findById(req.session.user.id);
+  // Poziom, ramki, tła i odznaki (wcześniej zakładka na profilu) są częścią edycji profilu.
+  const vm = await buildProfileViewModel(user);
   res.render('profile/settings', {
-    title: 'Ustawienia konta',
-    profileUser: getUserPublic(user),
+    title: 'Edytuj profil',
+    ...vm,
   });
 });
 
@@ -210,18 +204,18 @@ router.post('/customize/frame/:frameId', ensureAuthenticated, async (req, res) =
 
   if (!frame) {
     req.flash('error', 'Nieznana ramka.');
-    return res.redirect('/profile?tab=badges');
+    return res.redirect('/profile/settings#wyglad');
   }
 
   const level = await getCurrentLevel(req.session.user.id);
   if (frame.levelRequired > level) {
     req.flash('error', `Ta ramka odblokowuje się na poziomie ${frame.levelRequired}.`);
-    return res.redirect('/profile?tab=badges');
+    return res.redirect('/profile/settings#wyglad');
   }
 
   await User.update({ activeFrame: frameId }, { where: { id: req.session.user.id } });
   req.flash('success', `Ustawiono ramkę: ${frame.label}.`);
-  res.redirect('/profile?tab=badges');
+  res.redirect('/profile/settings#wyglad');
 });
 
 router.post('/customize/background/:bgId', ensureAuthenticated, async (req, res) => {
@@ -230,18 +224,44 @@ router.post('/customize/background/:bgId', ensureAuthenticated, async (req, res)
 
   if (!bg) {
     req.flash('error', 'Nieznane tło.');
-    return res.redirect('/profile?tab=badges');
+    return res.redirect('/profile/settings#wyglad');
   }
 
   const level = await getCurrentLevel(req.session.user.id);
   if (bg.levelRequired > level) {
     req.flash('error', `To tło odblokowuje się na poziomie ${bg.levelRequired}.`);
-    return res.redirect('/profile?tab=badges');
+    return res.redirect('/profile/settings#wyglad');
   }
 
   await User.update({ activeBackground: bgId }, { where: { id: req.session.user.id } });
   req.flash('success', `Ustawiono tło: ${bg.label}.`);
-  res.redirect('/profile?tab=badges');
+  res.redirect('/profile/settings#wyglad');
+});
+
+router.post('/customize/trophy/:badgeId', ensureAuthenticated, async (req, res) => {
+  const { badgeId } = req.params;
+  const user = await findById(req.session.user.id);
+  const { allBadges } = await buildProfileViewModel(user);
+
+  if (badgeId === 'default') {
+    await User.update({ activeTrophy: null }, { where: { id: user.id } });
+    req.flash('success', 'Ustawiono domyślne trofeum.');
+    return res.redirect('/profile/settings#trofeum');
+  }
+
+  const badge = allBadges.find((b) => b.id === badgeId);
+  if (!badge) {
+    req.flash('error', 'Nieznana odznaka.');
+    return res.redirect('/profile/settings#trofeum');
+  }
+  if (badge.locked) {
+    req.flash('error', 'Ta odznaka nie jest jeszcze odblokowana.');
+    return res.redirect('/profile/settings#trofeum');
+  }
+
+  await User.update({ activeTrophy: badgeId }, { where: { id: user.id } });
+  req.flash('success', `Trofeum w banerze: ${badge.label}.`);
+  res.redirect('/profile/settings#trofeum');
 });
 
 router.post('/settings/delete', ensureAuthenticated, async (req, res) => {
@@ -251,19 +271,28 @@ router.post('/settings/delete', ensureAuthenticated, async (req, res) => {
   });
 });
 
-/* ----------------------------- BACKLOG ----------------------------- */
+/* ------------------------------ ULUBIONE GRY ------------------------------ */
 
-router.post('/backlog', ensureAuthenticated, async (req, res) => {
-  const { gameId, status } = req.body;
+router.post('/favorites', ensureAuthenticated, async (req, res) => {
+  const result = await addFavorite(req.session.user.id, req.body.gameId);
 
-  if (!gameId || !STATUSES.includes(status)) {
-    req.flash('error', 'Wybierz grę i prawidłowy status backlogu.');
-    return res.redirect('/profile?tab=backlog');
+  if (result.ok) {
+    req.flash('success', `Dodano do ulubionych: ${result.title}.`);
+  } else {
+    const messages = {
+      limit: `Możesz mieć maksymalnie ${MAX_FAVORITES} ulubionych gier - usuń którąś, żeby dodać nową.`,
+      duplicate: 'Ta gra jest już w Twoich ulubionych.',
+      not_found: 'Nie znaleziono takiej gry.',
+    };
+    req.flash('error', messages[result.reason] || 'Nie udało się dodać gry.');
   }
+  res.redirect('/profile?tab=favorites');
+});
 
-  await setStatus(req.session.user.id, gameId, status);
-  req.flash('success', 'Zaktualizowano status gry w Twoim backlogu.');
-  res.redirect('/profile?tab=backlog');
+router.post('/favorites/:gameId/delete', ensureAuthenticated, async (req, res) => {
+  await removeFavorite(req.session.user.id, req.params.gameId);
+  req.flash('success', 'Usunięto grę z ulubionych.');
+  res.redirect('/profile?tab=favorites');
 });
 
 /* ----------------------------- OBSERWOWANIE ----------------------------- */
@@ -274,7 +303,16 @@ router.post('/follow/:username', ensureAuthenticated, async (req, res) => {
     req.flash('error', 'Nie znaleziono użytkownika.');
     return res.redirect('/');
   }
-  await follow(req.session.user.id, target.id);
+  const started = await follow(req.session.user.id, target.id);
+  if (started) {
+    await createNotification({
+      userId: target.id,
+      type: 'follow',
+      actorId: req.session.user.id,
+      message: `Nowy obserwujący: ${req.session.user.username}`,
+      link: `/${encodeURIComponent(req.session.user.username)}`,
+    });
+  }
   res.redirect(req.get('Referer') || `/${target.username}`);
 });
 

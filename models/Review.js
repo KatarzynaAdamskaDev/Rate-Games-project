@@ -10,7 +10,7 @@ const Review = sequelize.define(
       primaryKey: true,
     },
     gameId: {
-      type: DataTypes.STRING, // id gry z games.json (nadal w JSON)
+      type: DataTypes.STRING, // id gry: numeryczne z IGDB albo UUID gry dodanej przez admina
       allowNull: false,
     },
     userId: {

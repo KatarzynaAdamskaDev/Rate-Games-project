@@ -2520,3 +2520,130 @@ section {
     font-size: 12px;
   }
 }
+
+/* ==========================================================================
+   NAVBAR: czat i powiadomienia
+   ========================================================================== */
+
+.nav-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--pink);
+  border: 2px solid var(--bg-0);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+a.icon-btn,
+button.icon-btn {
+  text-decoration: none;
+  cursor: pointer;
+}
+a.icon-btn:hover,
+button.icon-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-hi);
+}
+
+.nav-notif {
+  position: relative;
+}
+.nav-notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-m);
+  box-shadow: 0 16px 36px rgba(12, 10, 20, 0.55);
+  z-index: 200;
+  overflow: hidden;
+}
+.nav-notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 12px;
+  color: var(--text-hi);
+}
+.nav-notif-readall {
+  background: none;
+  border: none;
+  color: var(--accent-soft);
+  font-size: 10.5px;
+  cursor: pointer;
+  padding: 0;
+}
+.nav-notif-readall:hover {
+  color: var(--text-hi);
+}
+.nav-notif-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.nav-notif-item {
+  display: block;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  text-decoration: none;
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.nav-notif-item:last-child {
+  border-bottom: none;
+}
+.nav-notif-item:hover {
+  background: var(--bg-2);
+  color: var(--text-hi);
+}
+.nav-notif-item small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-lo);
+  font-size: 10px;
+}
+.nav-notif-item.unread {
+  color: var(--text-hi);
+  border-left: 3px solid var(--accent);
+  padding-left: 11px;
+}
+.nav-notif-empty {
+  padding: 22px 14px;
+  text-align: center;
+  color: var(--text-lo);
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .nav-actions {
+    gap: 8px;
+  }
+  .nav-notif-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* Telefony: dla zalogowanych ukrywamy napis przy logo, żeby zmieściły się ikony czatu i powiadomień */
+@media (max-width: 480px) {
+  header.site.has-user .logo span {
+    display: none;
+  }
+}

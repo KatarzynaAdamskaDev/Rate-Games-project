@@ -17,6 +17,7 @@ const blogRouter = require('./routes/blog');
 const searchRouter = require('./routes/search');
 const profileRouter = require('./routes/profile');
 const chatRouter = require('./routes/chat');
+const notificationsRouter = require('./routes/notifications');
 const reviewsRouter = require('./routes/reviews');
 const userProfileRouter = require('./routes/userProfile');
 
@@ -55,6 +56,7 @@ app.use('/blog', blogRouter);
 app.use('/search', searchRouter);
 app.use('/profile', profileRouter);
 app.use('/chat', chatRouter);
+app.use('/notifications', notificationsRouter);
 app.use('/reviews', reviewsRouter);
 
 // UWAGA: musi być zamontowany na samym końcu (po wszystkich innych trasach),

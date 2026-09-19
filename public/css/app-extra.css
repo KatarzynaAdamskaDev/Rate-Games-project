@@ -598,7 +598,7 @@
 .gv-hero-identity {
   grid-area: identity;
   display: flex;
-  gap: 22px;
+  gap: 26px;
   align-items: flex-start;
   min-width: 0;
 }
@@ -615,9 +615,7 @@
   gap: 16px 24px;
 }
 /* "Szklane" panele - czytelny tekst na każdym tle profilu */
-.gv-profile-bio,
-.gv-hero-xp,
-.gv-profile-handle {
+.gv-hero-xp {
   background: rgba(12, 10, 20, 0.42);
   backdrop-filter: blur(3px);
   border-radius: 10px;
@@ -627,9 +625,9 @@
   flex-shrink: 0;
 }
 .gv-profile-avatar {
-  width: 92px;
-  height: 92px;
-  border-radius: 20px;
+  width: 120px;
+  height: 120px;
+  border-radius: 26px;
   background: linear-gradient(135deg, var(--cyan), var(--pink));
   border: 3px solid var(--amber);
   box-shadow: 0 0 0 4px rgba(255, 178, 56, 0.18);
@@ -773,7 +771,9 @@
   min-width: 220px;
 }
 .gv-profile-meta h1 {
-  font-size: 24px;
+  font-size: 32px;
+  line-height: 1.15;
+  margin-top: 6px;
   color: inherit;
   font-family: 'Space Grotesk', var(--font-body);
 }
@@ -792,13 +792,7 @@
   color: var(--amber);
   font-size: 46px;
   line-height: 1;
-  text-decoration: none;
-  filter: drop-shadow(0 0 10px rgba(255, 178, 56, 0.45));
-  transition: transform 0.15s ease;
-}
-.gv-level-trophy:hover {
-  color: var(--amber);
-  transform: scale(1.08);
+  filter: drop-shadow(0 0 10px currentColor);
 }
 .gv-level-info {
   flex: 1;
@@ -957,91 +951,6 @@
   margin-top: 4px;
 }
 
-.gv-backlog-add-form {
-  background: var(--bg-1);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-m);
-  padding: 16px 18px;
-  display: flex;
-  gap: 10px;
-  align-items: end;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-.gv-backlog-add-form > div {
-  flex: 1;
-  min-width: 160px;
-}
-
-.gv-backlog-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
-}
-.gv-backlog-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 14px;
-}
-.gv-backlog-card {
-  background: var(--bg-1);
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius-m);
-  overflow: hidden;
-}
-.gv-backlog-cover {
-  height: 90px;
-  background: linear-gradient(150deg, #2a2049, #4b2f74);
-  background-size: cover;
-  background-position: center;
-  position: relative;
-}
-.gv-status-pill {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-.gv-status-gram {
-  background: rgba(63, 224, 197, 0.85);
-  color: #04231c;
-}
-.gv-status-ukonczone {
-  background: rgba(62, 207, 142, 0.85);
-  color: #04231c;
-}
-.gv-status-porzucone {
-  background: rgba(255, 95, 109, 0.85);
-  color: #2a0508;
-}
-.gv-status-lista {
-  background: rgba(255, 178, 56, 0.85);
-  color: #2a1c00;
-}
-.gv-backlog-body {
-  padding: 10px 12px 14px;
-}
-.gv-backlog-body b {
-  font-size: 12.5px;
-  display: block;
-  margin-bottom: 2px;
-  color: var(--text-hi);
-}
-.gv-backlog-body span {
-  font-size: 10.5px;
-  color: var(--text-lo);
-}
-.gv-backlog-status-form select {
-  width: 100%;
-  margin-top: 8px;
-  font-size: 11.5px;
-  padding: 6px 8px;
-}
-
 .gv-danger-zone {
   border: 1px solid #ff5f6d;
   background: rgba(255, 95, 109, 0.06);
@@ -1187,7 +1096,7 @@
   background: linear-gradient(135deg, var(--accent-soft), var(--pink));
   flex-shrink: 0;
 }
-.gv-chat-item > div:last-child {
+.gv-chat-item > div:nth-child(2) {
   min-width: 0;
 }
 .gv-chat-item b {
@@ -1324,7 +1233,6 @@
     display: none;
   }
   .gv-form-grid,
-  .gv-backlog-grid,
   .gv-unlock-grid,
   .gv-stats-bar {
     grid-template-columns: repeat(2, 1fr);
@@ -1902,7 +1810,7 @@
   transform: scale(1.1);
 }
 
-/* Gwiazdka oceny - rząd 5 ikon Bootstrap zamiast pojedynczego unicode ★ */
+/* Gwiazdka oceny - rząd 5 ikon Bootstrap zamiast pojedynczego znaku unicode */
 .gv-star-row {
   display: inline-flex;
   gap: 2px;
@@ -2082,12 +1990,12 @@
   }
 
   .gv-profile-avatar {
-    width: 70px;
-    height: 70px;
+    width: 96px;
+    height: 96px;
   }
 
   .gv-profile-meta h1 {
-    font-size: 18px;
+    font-size: 24px;
   }
 
   .gv-profile-stats-inline {
@@ -2115,15 +2023,6 @@
   .gv-settings-card h2 {
     font-size: 14px;
     margin-bottom: 12px;
-  }
-
-  .gv-backlog-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-  }
-
-  .gv-backlog-cover {
-    height: 75px;
   }
 
   .gv-unlock-grid {
@@ -2269,12 +2168,12 @@
   }
 
   .gv-profile-avatar {
-    width: 60px;
-    height: 60px;
+    width: 80px;
+    height: 80px;
   }
 
   .gv-profile-meta h1 {
-    font-size: 16px;
+    font-size: 20px;
   }
 
   .gv-profile-handle {
@@ -2314,33 +2213,6 @@
   .gv-settings-card h2 {
     font-size: 13px;
     margin-bottom: 10px;
-  }
-
-  .gv-backlog-add-form {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .gv-backlog-add-form > div {
-    width: 100%;
-    min-width: auto;
-  }
-
-  .gv-backlog-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 8px;
-  }
-
-  .gv-backlog-cover {
-    height: 60px;
-  }
-
-  .gv-backlog-body b {
-    font-size: 11px;
-  }
-
-  .gv-backlog-body span {
-    font-size: 9px;
   }
 
   .gv-unlock-grid {
@@ -2503,9 +2375,67 @@
    LISTY GIER: wyszukiwarka na stronie Gry i paginacja
    ========================================================================== */
 
-.gv-games-filters .gv-select {
+.gv-games-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.gv-games-bar .gv-select {
   width: 260px;
   max-width: 100%;
+}
+.gv-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+}
+.gv-filters-count {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 10.5px;
+  padding: 2px 7px;
+}
+.gv-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.gv-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(124, 92, 255, 0.4);
+  color: var(--accent-soft);
+  border-radius: 999px;
+  font-size: 11.5px;
+  padding: 5px 12px;
+  text-decoration: none;
+}
+.gv-filter-chip i {
+  font-size: 9px;
+}
+.gv-filter-chip:hover {
+  color: var(--text-hi);
+}
+.gv-filter-clear {
+  font-size: 11.5px;
+  color: var(--text-lo);
+  text-decoration: underline;
+}
+.gv-filter-clear:hover {
+  color: var(--text-hi);
+}
+.gv-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 1rem 1rem;
 }
 .gv-games-search {
   width: min(100%, 340px);
@@ -2577,4 +2507,371 @@
 .gv-msg b.gv-msg-deleted {
   font-style: italic;
   color: var(--text-lo);
+}
+
+/* ==========================================================================
+   RECENZJE: karta recenzji, najlepsza recenzja tygodnia, filtry
+   ========================================================================== */
+
+.gv-mini-avatar {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  object-fit: cover;
+  vertical-align: middle;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--cyan), var(--pink));
+}
+img.gv-leader-avatar {
+  object-fit: cover;
+}
+
+.gv-review-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gv-rcard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gv-rcard {
+  display: flex;
+  gap: 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-m);
+  padding: 16px 18px;
+}
+.gv-rcard-cover {
+  flex-shrink: 0;
+  width: 64px;
+  height: 86px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(150deg, #2a2049, #4b2f74);
+}
+.gv-rcard-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gv-rcard-main {
+  flex: 1;
+  min-width: 0;
+}
+.gv-rcard-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.gv-rcard-game {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-hi);
+  text-decoration: none;
+}
+a.gv-rcard-game:hover {
+  color: var(--accent-soft);
+}
+.gv-rcard-text {
+  color: var(--text-hi);
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+.gv-rcard-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.gv-rcard-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gv-rcard-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-lo);
+  font-size: 11.5px;
+}
+.gv-rcard-meta i {
+  margin-right: 3px;
+}
+.gv-rcard-open {
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+.gv-rcard-open:hover {
+  color: var(--text-hi);
+}
+
+.gv-featured-cover-link {
+  flex-shrink: 0;
+  display: block;
+}
+.gv-featured-body {
+  min-width: 0;
+  flex: 1;
+}
+.gv-featured-game {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-hi);
+  text-decoration: none;
+}
+a.gv-featured-game:hover {
+  color: var(--accent-soft);
+}
+.gv-featured-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.gv-featured-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-hi);
+  text-decoration: none;
+}
+.gv-featured-author:hover {
+  color: var(--accent-soft);
+}
+.gv-featured-author small {
+  color: var(--text-lo);
+  font-size: 10.5px;
+}
+.gv-featured-link {
+  margin-left: auto;
+}
+.gv-featured-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  color: var(--text-lo);
+}
+
+@media (max-width: 560px) {
+  .gv-rcard {
+    padding: 12px;
+    gap: 12px;
+  }
+  .gv-rcard-cover {
+    width: 52px;
+    height: 70px;
+  }
+  .gv-featured-link {
+    margin-left: 0;
+  }
+}
+
+/* ==========================================================================
+   PROFIL: ulubione gry, wyszukiwarka gier, trofeum, liczniki czatu
+   ========================================================================== */
+
+.gv-fav-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.gv-fav-count {
+  font-size: 12px;
+  color: var(--text-lo);
+}
+.gv-fav-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.gv-fav-card {
+  position: relative;
+}
+.gv-fav-cover,
+.gv-fav-empty {
+  display: block;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.gv-fav-cover {
+  background: linear-gradient(150deg, #2a2049, #4b2f74);
+  border: 1px solid var(--panel-border);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.gv-fav-cover:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+.gv-fav-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gv-fav-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 26px 12px 10px;
+  background: linear-gradient(transparent, rgba(12, 10, 20, 0.92));
+  color: var(--text-hi);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.gv-fav-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(12, 10, 20, 0.75);
+  color: var(--text-mid);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.gv-fav-remove:hover {
+  color: var(--pink);
+  border-color: var(--pink);
+}
+.gv-fav-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: 2px dashed var(--panel-border);
+  color: var(--text-lo);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.gv-fav-empty i {
+  font-size: 22px;
+}
+.gv-fav-empty:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+/* Wyszukiwarka gier w oknach i formularzach */
+.gv-game-picker {
+  position: relative;
+}
+.gv-picker-results {
+  display: none;
+  position: absolute;
+  z-index: 60;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  box-shadow: 0 12px 28px rgba(12, 10, 20, 0.5);
+}
+.gv-picker-results.open {
+  display: block;
+}
+.gv-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-hi);
+  text-align: left;
+  cursor: pointer;
+}
+.gv-picker-item:hover {
+  background: var(--bg-2);
+}
+.gv-picker-item img {
+  width: 34px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 5px;
+  flex-shrink: 0;
+  background: var(--bg-2);
+}
+.gv-picker-item b {
+  display: block;
+  font-size: 12.5px;
+}
+.gv-picker-item small {
+  color: var(--text-lo);
+  font-size: 10.5px;
+}
+.gv-picker-empty {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--text-lo);
+}
+
+/* Baner: opis i data dołączenia zlane z tłem (bez ciemnych paneli) */
+.gv-profile-bio,
+.gv-profile-handle {
+  background: none;
+  backdrop-filter: none;
+  padding: 0;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Trofeum w banerze i w ustawieniach */
+.gv-trophy-swatch {
+  font-size: 30px;
+}
+
+/* Licznik nieprzeczytanych przy rozmowie na liście czatu */
+.gv-chat-unread {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 20px;
+  text-align: center;
+  background: var(--accent);
+  color: #fff !important;
+  border-radius: 999px;
+  font-size: 10px !important;
+  padding: 3px 6px;
+}
+
+/* Odstęp między ikoną a tekstem (ikony Bootstrap w miejsce dawnych emoji) */
+.gv-tab i,
+.gv-btn-outline i,
+.gv-follow-btn i,
+.gv-section-title i,
+.gv-lock-tag i,
+.gv-active-tag i,
+.gv-featured-eyebrow i,
+.gv-captcha-fallback i {
+  margin-right: 6px;
 }

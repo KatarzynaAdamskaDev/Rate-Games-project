@@ -1,0 +1,37 @@
+<%
+// Karta recenzji z informacją o grze (lista na stronie Recenzje).
+// Użycie: include('partials/review-card', { review })
+const __game = review.game;
+%>
+<article class="gv-rcard" id="review-<%= review.id %>">
+  <% if (__game) { %>
+    <a href="/games/<%= __game.id %>" class="gv-rcard-cover"><img src="<%= __game.coverImage %>" alt="<%= __game.title %>"></a>
+  <% } else { %>
+    <span class="gv-rcard-cover"><img src="/images/game-placeholder.svg" alt=""></span>
+  <% } %>
+  <div class="gv-rcard-main">
+    <div class="gv-rcard-head">
+      <% if (__game) { %>
+        <a href="/games/<%= __game.id %>" class="gv-rcard-game"><%= __game.title %></a>
+      <% } else { %>
+        <span class="gv-rcard-game">Gra niedostępna</span>
+      <% } %>
+      <span class="gv-review-rating-badge">
+        <% for (let i = 1; i <= 5; i++) { %><i class="bi <%= i <= Math.round(review.rating) ? 'bi-star-fill' : 'bi-star' %>"></i><% } %>
+      </span>
+    </div>
+    <p class="gv-rcard-text"><%= review.text %></p>
+    <div class="gv-rcard-foot">
+      <a href="/<%= encodeURIComponent(review.username) %>" class="gv-review-byline gv-rcard-author">
+        <% if (review.author.avatarUrl) { %><img src="<%= review.author.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
+        Review by: <strong><%= review.username %></strong>
+      </a>
+      <span class="gv-rcard-meta">
+        <%= new Date(review.createdAt).toLocaleDateString('pl-PL') %>
+        <span title="Polubienia"><i class="bi bi-heart"></i> <%= review.likeCount %></span>
+        <span title="Komentarze"><i class="bi bi-chat-dots"></i> <%= review.commentCount %></span>
+        <% if (__game) { %><a href="/games/<%= __game.id %>#review-<%= review.id %>" class="gv-rcard-open">Otwórz</a><% } %>
+      </span>
+    </div>
+  </div>
+</article>
