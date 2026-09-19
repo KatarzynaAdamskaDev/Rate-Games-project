@@ -5028,3 +5028,149 @@ a.gv-blog-badge:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   POPRAWKI: "Zobacz więcej", recenzja tygodnia, karty gier, scrollbary, reakcje
+   ========================================================================== */
+
+/* "Zobacz więcej" w banerze: zlane z tłem, po najechaniu tylko zmienia kolor na fioletowy */
+.gv-bio-more,
+.gv-bio-more:hover,
+.gv-bio-more:focus {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.gv-bio-more {
+  margin-top: 4px;
+  padding: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: inherit;
+  text-shadow: inherit;
+  transition: color 0.15s ease;
+}
+.gv-bio-more:hover,
+.gv-bio-more:focus-visible {
+  color: var(--accent-soft);
+  outline: none;
+}
+
+/* Recenzja tygodnia: okładka gry stoi w miejscu, gdy pod recenzją rozwija się panel komentarzy */
+.gv-featured-card {
+  align-items: flex-start;
+}
+@media (max-width: 980px) {
+  .gv-featured-card {
+    align-items: center;
+  }
+}
+
+/* Karta gry: gwiazdki, ocena i liczba opinii w jednej osi */
+.gv-game-card-rating {
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+}
+.gv-game-card-rating .gv-star-row {
+  align-items: center;
+  gap: 1px;
+  font-size: 13px;
+  line-height: 1;
+}
+.gv-game-card-rating .gv-star-row i {
+  display: block;
+  line-height: 1;
+}
+.gv-game-card-score,
+.gv-game-card-count {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1;
+}
+.gv-game-card-score {
+  color: var(--accent-soft);
+}
+
+/* Ładne, cienkie suwaki w motywie strony (tak jak w sekcji trendów i czacie) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-1);
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--bg-1);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-soft);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.gv-table-wrap {
+  scrollbar-color: var(--accent) var(--bg-2);
+}
+.gv-table-wrap::-webkit-scrollbar-track {
+  background: var(--bg-2);
+}
+
+/* Panel admina: polubienia i komentarze zawsze obok swoich ikonek */
+.gv-reactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+}
+.gv-reactions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.gv-reactions b {
+  font-weight: 400;
+  color: var(--text-hi);
+}
+.gv-mini-btn {
+  white-space: nowrap;
+}
+.gv-table th {
+  white-space: nowrap;
+}
+.gv-table th,
+.gv-table td {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.gv-admin-note-lock {
+  padding: 8px 12px;
+  color: var(--amber);
+  background: rgba(255, 178, 56, 0.08);
+  border: 1px dashed rgba(255, 178, 56, 0.4);
+  border-radius: var(--radius-s);
+}
+.gv-admin-note-lock i {
+  margin-right: 6px;
+}
+
+.gv-table th,
+.gv-table td {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.gv-table th {
+  font-size: 9.5px;
+  letter-spacing: 0.3px;
+}
+
+.gv-cell-text {
+  min-width: 180px;
+}

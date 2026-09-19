@@ -1,5 +1,15 @@
 <%- include('partials/top') %>
 
+<% if (probationEnds) { %>
+  <div class="gv-admin-alert">
+    <i class="bi bi-hourglass-split"></i>
+    <span>
+      Jesteś nowym administratorem - do <b><%= probationEnds.toLocaleDateString('pl-PL') %></b> trwa okres próbny (<%= probationDays %> dni),
+      w którym nie możesz nadawać ani odbierać uprawnień administratora innym.
+    </span>
+  </div>
+<% } %>
+
 <form method="GET" class="gv-admin-filters">
   <input type="search" name="q" value="<%= q %>" class="form-control gv-input" placeholder="Szukaj po nazwie lub e-mailu..." maxlength="100">
   <select name="filter" class="form-select gv-select" onchange="this.form.submit()">
@@ -19,7 +29,6 @@
         <th>Rola</th>
         <th>Poziom</th>
         <th>Recenzje</th>
-        <th>Dołączył(a)</th>
         <th>Status</th>
         <th>Akcje</th>
       </tr>
@@ -31,7 +40,7 @@
           <td>
             <a href="/<%= encodeURIComponent(u.username) %>" class="gv-admin-user">
               <% if (u.avatarUrl) { %><img src="<%= u.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
-              <span><b><%= u.username %></b><small><%= u.email %></small></span>
+              <span><b><%= u.username %></b><small><%= u.email %></small><small>dołączył(a) <%= new Date(u.createdAt).toLocaleDateString('pl-PL') %></small></span>
             </a>
           </td>
           <td>
@@ -42,10 +51,9 @@
           </td>
           <td>
             <%= u.level %> <small class="gv-muted">(<%= u.points %> PD)</small>
-            <% if (u.unlockAll) { %><br><span class="gv-badge gv-badge-info" title="Wszystkie ramki, tła i odznaki są odblokowane"><i class="bi bi-unlock-fill"></i> wszystko odblokowane</span><% } %>
+            <% if (u.unlockAll) { %><br><span class="gv-badge gv-badge-info" title="Wszystkie ramki, tła i odznaki są odblokowane"><i class="bi bi-unlock-fill"></i> odblokowane</span><% } %>
           </td>
           <td><%= u.reviewCount %></td>
-          <td><%= new Date(u.createdAt).toLocaleDateString('pl-PL') %></td>
           <td>
             <% if (u.isBanned) { %>
               <span class="gv-badge gv-badge-danger" title="<%= u.banReason || '' %>">zablokowany</span>
@@ -61,7 +69,7 @@
         </tr>
       <% }) %>
       <% if (users.length === 0) { %>
-        <tr><td colspan="7" class="gv-admin-empty">Brak użytkowników spełniających kryteria.</td></tr>
+        <tr><td colspan="6" class="gv-admin-empty">Brak użytkowników spełniających kryteria.</td></tr>
       <% } %>
     </tbody>
   </table>
@@ -111,16 +119,27 @@
             <section class="gv-admin-modal-section">
               <h3><i class="bi bi-shield-lock-fill"></i> Rola i dostęp</h3>
               <div class="gv-admin-modal-row">
-                <form method="POST" action="/admin/users/<%= u.id %>/role">
-                  <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
-                  <button type="submit" class="gv-mini-btn"><i class="bi bi-shield-<%= u.role === 'admin' ? 'x' : 'plus' %>"></i> <%= u.role === 'admin' ? 'Odbierz uprawnienia admina' : 'Nadaj uprawnienia admina' %></button>
-                </form>
-                <% if (u.role === 'admin' && u.twoFactorEnabled) { %>
+                <% if (u.roleChange.ok) { %>
+                  <button type="button" class="gv-mini-btn <%= u.role === 'admin' ? 'gv-mini-warn' : '' %>"
+                          data-bs-toggle="modal" data-bs-target="#roleModal"
+                          data-user-id="<%= u.id %>" data-username="<%= u.username %>"
+                          data-new-role="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+                    <i class="bi bi-shield-<%= u.role === 'admin' ? 'x' : 'plus' %>"></i>
+                    <%= u.role === 'admin' ? 'Odbierz uprawnienia admina' : 'Nadaj uprawnienia admina' %>
+                  </button>
+                <% } %>
+                <% if (u.role === 'admin' && u.twoFactorEnabled && u.roleChange.ok) { %>
                   <form method="POST" action="/admin/users/<%= u.id %>/2fa-reset" onsubmit="return confirm('Wyłączyć 2FA dla <%= u.username %>? Użyj tego, gdy administrator zgubił telefon.');">
                     <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-shield-x"></i> Wyłącz 2FA tego admina</button>
                   </form>
                 <% } %>
               </div>
+
+              <% if (!u.roleChange.ok) { %>
+                <p class="gv-admin-note gv-admin-note-lock"><i class="bi bi-lock-fill"></i> <%= u.roleChange.reason %></p>
+              <% } else { %>
+                <p class="gv-admin-note">Zmiana uprawnień wymaga potwierdzenia nazwą użytkownika, Twoim hasłem<%= adminHasTwoFactor ? ' i kodem 2FA' : '' %>. Wszyscy administratorzy dostaną o niej powiadomienie.</p>
+              <% } %>
 
               <% if (u.isBanned) { %>
                 <p class="gv-admin-note">Konto jest zablokowane<%= u.banReason ? ': ' + u.banReason : '' %>.</p>
@@ -152,5 +171,74 @@
     </div>
   </div>
 <% }) %>
+
+<div class="modal fade" id="roleModal" tabindex="-1" aria-labelledby="roleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content gv-modal-content">
+      <form method="POST" action="" id="roleForm" autocomplete="off">
+        <input type="hidden" name="role" id="roleNewRole" value="">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="roleModalLabel"><i class="bi bi-shield-lock-fill"></i> <span id="roleTitle">Potwierdź zmianę</span></h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext" id="roleIntro"></p>
+
+          <div class="mb-3">
+            <label class="gv-label" for="roleConfirmName">Wpisz nazwę użytkownika <b id="roleTargetName"></b>, aby potwierdzić</label>
+            <input type="text" id="roleConfirmName" name="confirmName" class="form-control gv-input" autocomplete="off" required>
+          </div>
+          <div class="mb-3">
+            <label class="gv-label" for="rolePassword">Twoje hasło</label>
+            <input type="password" id="rolePassword" name="password" class="form-control gv-input" autocomplete="current-password" required>
+          </div>
+          <% if (adminHasTwoFactor) { %>
+            <div class="mb-3">
+              <label class="gv-label" for="roleCode">Kod 2FA z aplikacji</label>
+              <input type="text" id="roleCode" name="code" class="form-control gv-input" inputmode="numeric" maxlength="7" autocomplete="one-time-code" required>
+            </div>
+          <% } %>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="submit" class="btn gv-btn-success" id="roleSubmit" disabled>Potwierdź</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('roleModal');
+    var form = document.getElementById('roleForm');
+    var nameInput = document.getElementById('roleConfirmName');
+    var submit = document.getElementById('roleSubmit');
+    var wanted = '';
+
+    // Przycisk potwierdzenia odblokowuje się dopiero po wpisaniu dokładnej nazwy użytkownika.
+    function sync() {
+      submit.disabled = nameInput.value.trim().toLowerCase() !== wanted.toLowerCase();
+    }
+    nameInput.addEventListener('input', sync);
+
+    modal.addEventListener('show.bs.modal', function (event) {
+      var trigger = event.relatedTarget;
+      if (!trigger) return;
+      var granting = trigger.getAttribute('data-new-role') === 'admin';
+      wanted = trigger.getAttribute('data-username');
+
+      form.reset();
+      form.action = '/admin/users/' + trigger.getAttribute('data-user-id') + '/role';
+      document.getElementById('roleNewRole').value = trigger.getAttribute('data-new-role');
+      document.getElementById('roleTargetName').textContent = wanted;
+      document.getElementById('roleTitle').textContent = granting ? 'Nadanie uprawnień administratora' : 'Odebranie uprawnień administratora';
+      document.getElementById('roleIntro').textContent = granting
+        ? 'Administrator ma dostęp do wszystkich danych i moderacji serwisu. Nadaj uprawnienia tylko osobie, której w pełni ufasz. Nowy administrator przez ' + <%= probationDays %> + ' dni nie zmienia uprawnień innych.'
+        : 'Użytkownik straci dostęp do panelu admina, a jego weryfikacja dwuetapowa zostanie wyłączona.';
+      sync();
+    });
+  });
+</script>
 
 <%- include('partials/bottom') %>

@@ -8,8 +8,8 @@ const { isNotificationEnabled } = require('./notificationPrefs');
 
 const MAX_PER_USER = 50;
 // Komunikaty od moderatorów (np. usunięta recenzja) nie podlegają ustawieniom powiadomień użytkownika.
-const ALWAYS_DELIVERED = new Set(['moderation', 'admin-idea']);
-const NO_DEDUPE = new Set(['moderation', 'report-result', 'admin-idea']);
+const ALWAYS_DELIVERED = new Set(['moderation', 'admin-idea', 'admin-role']);
+const NO_DEDUPE = new Set(['moderation', 'report-result', 'admin-idea', 'admin-role']);
 
 async function createNotification({ userId, type, actorId, message, link }) {
   if (!userId || userId === actorId) return null;

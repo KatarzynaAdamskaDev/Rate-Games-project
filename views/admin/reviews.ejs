@@ -27,7 +27,12 @@
           <td><span class="gv-review-rating-badge"><%- include('../partials/star-rating-solid', { rating: r.rating }) %></span></td>
           <td class="gv-cell-text"><%= r.text.length > 140 ? r.text.slice(0, 140) + '…' : r.text %></td>
           <td><%= new Date(r.createdAt).toLocaleDateString('pl-PL') %></td>
-          <td><i class="bi bi-heart"></i> <%= r.likeCount %> &nbsp; <i class="bi bi-chat-dots"></i> <%= r.commentCount %></td>
+          <td>
+            <span class="gv-reactions">
+              <span title="Polubienia"><i class="bi bi-heart"></i><b><%= r.likeCount %></b></span>
+              <span title="Komentarze"><i class="bi bi-chat-dots"></i><b><%= r.commentCount %></b></span>
+            </span>
+          </td>
           <td>
             <form method="POST" action="/admin/reviews/<%= r.id %>/delete" onsubmit="return confirm('Usunąć tę recenzję na stałe?');">
               <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>

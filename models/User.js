@@ -88,6 +88,12 @@ const User = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    // Od kiedy użytkownik jest administratorem (nadane w panelu). null = konto założycielskie
+    // albo zwykły użytkownik. Potrzebne do okresu próbnego i hierarchii (utils/adminRoles.js).
+    adminSince: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     // Blokada konta przez administratora (panel /admin).
     isBanned: {
       type: DataTypes.BOOLEAN,

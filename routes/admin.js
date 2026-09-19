@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { Op, fn, col } = require('sequelize');
 const router = express.Router();
 
@@ -32,6 +33,8 @@ const {
 const { getModeration, saveModeration, PROFANITY_MODES, MAX_EXTRA_WORDS_LENGTH } = require('../utils/moderationSettings');
 const { getRules, getStats: getRateLimitStats } = require('../middleware/rateLimit');
 const backup = require('../utils/backupHelpers');
+const totp = require('../utils/totp');
+const roles = require('../utils/adminRoles');
 const SiteSetting = require('../models/SiteSetting');
 const AdminIdea = require('../models/AdminIdea');
 const { IDEAS, AREAS, DECISIONS, findIdea } = require('../utils/adminIdeas');
@@ -44,8 +47,14 @@ router.use(ensureAuthenticated, ensureAdmin);
 // Wymóg 2FA dla administratorów (Ustawienia -> Bezpieczeństwo) oraz plakietka zgłoszeń w menu bocznym.
 router.use(async (req, res, next) => {
   try {
-    const me = await User.findByPk(req.session.user.id, { attributes: ['twoFactorEnabled'] });
-    res.locals.adminHasTwoFactor = !!(me && me.twoFactorEnabled);
+    // Rolę sprawdzamy w bazie przy każdym wejściu, więc odebrane uprawnienia działają od razu (nie po minucie odświeżenia sesji).
+    const me = await User.findByPk(req.session.user.id, { attributes: ['role', 'isBanned', 'twoFactorEnabled'] });
+    if (!me || me.role !== 'admin' || me.isBanned) {
+      if (req.session.user) req.session.user.role = me ? me.role : 'user';
+      req.flash('error', 'Nie masz już uprawnień administratora.');
+      return res.redirect('/');
+    }
+    res.locals.adminHasTwoFactor = !!me.twoFactorEnabled;
 
     if (getModeration().require2fa && !res.locals.adminHasTwoFactor) {
       req.flash('error', 'Panel admina wymaga włączonej weryfikacji dwuetapowej (2FA). Skonfiguruj ją poniżej.');
@@ -194,8 +203,20 @@ router.get('/users', async (req, res, next) => {
     });
     const reviewCounts = new Map(counts.map((c) => [c.userId, Number(c.total)]));
 
+    const viewer = await User.findByPk(req.session.user.id);
+    const probation = roles.probationEndsAt(viewer);
+
     render(res, 'users', 'users', 'Użytkownicy', {
-      users: rows.map((u) => ({ ...u.get({ plain: true }), reviewCount: reviewCounts.get(u.id) || 0 })),
+      probationEnds: probation,
+      probationDays: roles.PROBATION_DAYS,
+      users: rows.map((u) => {
+        const plain = u.get({ plain: true });
+        return {
+          ...plain,
+          reviewCount: reviewCounts.get(u.id) || 0,
+          roleChange: roles.evaluateRoleChange(viewer, plain, plain.role === 'admin' ? 'user' : 'admin'),
+        };
+      }),
       q,
       filter,
       total,
@@ -210,14 +231,73 @@ router.get('/users', async (req, res, next) => {
 
 router.post('/users/:id/role', async (req, res, next) => {
   try {
+    const back = backTo(req, '/admin/users');
+    const actor = await User.findByPk(req.session.user.id);
     const target = await User.findByPk(req.params.id);
-    if (!guardTarget(req, res, target, { allowAdmin: true })) return;
+    if (!target) {
+      req.flash('error', 'Nie znaleziono użytkownika.');
+      return res.redirect(back);
+    }
 
-    const role = req.body.role === 'admin' ? 'admin' : 'user';
-    await target.update({ role });
-    await logAdminAction(req, 'user.role', 'user', target.username, `Nowa rola: ${role}`);
-    req.flash('success', `Rola użytkownika ${target.username}: ${role === 'admin' ? 'administrator' : 'użytkownik'}.`);
-    res.redirect(backTo(req, '/admin/users'));
+    const newRole = req.body.role === 'admin' ? 'admin' : 'user';
+    const rule = roles.evaluateRoleChange(actor, target, newRole);
+    if (!rule.ok) {
+      req.flash('error', rule.reason);
+      return res.redirect(back);
+    }
+
+    // Ponowne potwierdzenie: nazwa użytkownika, hasło i (przy włączonym 2FA) kod.
+    const lockedMinutes = roles.lockedFor(actor.id);
+    if (lockedMinutes > 0) {
+      req.flash('error', `Za dużo nieudanych potwierdzeń. Spróbuj za ${lockedMinutes} min.`);
+      return res.redirect(back);
+    }
+
+    const nameOk = String(req.body.confirmName || '').trim().toLowerCase() === target.username.toLowerCase();
+    const passwordOk = await bcrypt.compare(String(req.body.password || ''), actor.passwordHash);
+    const codeOk = !actor.twoFactorEnabled || totp.verifyCode(actor.twoFactorSecret, req.body.code, `role:${actor.id}`);
+
+    if (!nameOk || !passwordOk || !codeOk) {
+      roles.registerFailure(actor.id);
+      await logAdminAction(req, 'user.role-denied', 'user', target.username, 'Nieudane potwierdzenie zmiany uprawnień');
+      req.flash(
+        'error',
+        !nameOk
+          ? 'Wpisana nazwa użytkownika nie zgadza się z wybranym kontem - zmiana nie została wykonana.'
+          : 'Hasło lub kod 2FA jest nieprawidłowy - zmiana nie została wykonana.'
+      );
+      return res.redirect(back);
+    }
+    roles.clearFailures(actor.id);
+
+    if (newRole === 'admin') {
+      await target.update({ role: 'admin', adminSince: new Date() });
+    } else {
+      // Odebranie uprawnień czyści też 2FA konta administratora - nie jest już potrzebne.
+      await target.update({ role: 'user', adminSince: null, twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecovery: null });
+    }
+
+    await logAdminAction(req, 'user.role', 'user', target.username, `Nowa rola: ${newRole}`);
+
+    // Wszyscy administratorzy oraz zainteresowany dowiadują się o zmianie.
+    const verb = newRole === 'admin' ? 'nadał(a) uprawnienia administratora' : 'odebrał(a) uprawnienia administratora';
+    const admins = await User.findAll({ where: { role: 'admin', id: { [Op.ne]: actor.id } }, attributes: ['id'] });
+    const recipients = new Set(admins.map((a) => a.id));
+    recipients.add(target.id);
+    for (const userId of recipients) {
+      await createNotification({
+        userId,
+        type: 'admin-role',
+        actorId: actor.id,
+        message: userId === target.id
+          ? `${actor.username} ${verb} Twojemu kontu.`
+          : `${actor.username} ${verb} użytkownikowi ${target.username}.`,
+        link: userId === target.id && newRole === 'user' ? null : '/admin/users?filter=admin',
+      });
+    }
+
+    req.flash('success', `Rola użytkownika ${target.username}: ${newRole === 'admin' ? 'administrator' : 'użytkownik'}.`);
+    res.redirect(back);
   } catch (err) {
     next(err);
   }
@@ -314,6 +394,15 @@ router.post('/users/:id/2fa-reset', async (req, res, next) => {
   try {
     const target = await User.findByPk(req.params.id);
     if (!guardTarget(req, res, target, { allowAdmin: true })) return;
+
+    // Wyłączenie 2FA osłabia konto, więc obowiązują te same zasady co przy odbieraniu uprawnień (okres próbny, starszeństwo).
+    if (target.role === 'admin') {
+      const rule = roles.evaluateRoleChange(await User.findByPk(req.session.user.id), target, 'user');
+      if (!rule.ok) {
+        req.flash('error', rule.reason);
+        return res.redirect(backTo(req, '/admin/users'));
+      }
+    }
 
     await target.update({ twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecovery: null });
     await logAdminAction(req, 'user.2fa-reset', 'user', target.username, 'Wyłączono 2FA (np. zgubiony telefon)');
@@ -766,11 +855,12 @@ router.get('/ideas', async (req, res, next) => {
       security: all.filter((i) => i.area === 'security').length,
       usability: all.filter((i) => i.area === 'usability').length,
       accepted: all.filter((i) => i.decision === 'accepted').length,
+      done: all.filter((i) => i.decision === 'done').length,
       later: all.filter((i) => i.decision === 'later').length,
       rejected: all.filter((i) => i.decision === 'rejected').length,
     };
 
-    const allowed = ['pending', 'security', 'usability', 'accepted', 'later', 'rejected'];
+    const allowed = ['pending', 'security', 'usability', 'accepted', 'done', 'later', 'rejected'];
     const filter = allowed.includes(req.query.filter) ? req.query.filter : '';
     const ideas = all
       .filter((idea) => {

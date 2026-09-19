@@ -12,7 +12,7 @@
 </div>
 
 <div class="gv-admin-tabs gv-ideas-filters">
-  <% [['', 'Wszystkie'], ['pending', 'Czeka na decyzję'], ['security', 'Bezpieczeństwo'], ['usability', 'Użyteczność'], ['accepted', 'Przyjęte'], ['later', 'Odłożone'], ['rejected', 'Odrzucone']].forEach(function(tab) { %>
+  <% [['', 'Wszystkie'], ['pending', 'Czeka na decyzję'], ['security', 'Bezpieczeństwo'], ['usability', 'Użyteczność'], ['accepted', 'Przyjęte'], ['done', 'Zrealizowane'], ['later', 'Odłożone'], ['rejected', 'Odrzucone']].forEach(function(tab) { %>
     <a href="/admin/ideas<%= tab[0] ? '?filter=' + tab[0] : '' %>" class="<%= filter === tab[0] ? 'active' : '' %>">
       <%= tab[1] %> <small><%= counts[tab[0] || 'all'] %></small>
     </a>
@@ -54,6 +54,7 @@
         <% } else { %>
           <form method="POST" action="/admin/ideas/<%= idea.id %>" class="gv-idea-actions">
             <% if (idea.decision !== 'accepted') { %><button type="submit" name="decision" value="accepted" class="gv-mini-btn gv-mini-ok"><i class="bi bi-check2-circle"></i> Przyjmij</button><% } %>
+            <% if (idea.decision !== 'done') { %><button type="submit" name="decision" value="done" class="gv-mini-btn gv-mini-ok"><i class="bi bi-patch-check-fill"></i> Zrealizowane</button><% } %>
             <% if (idea.decision !== 'later') { %><button type="submit" name="decision" value="later" class="gv-mini-btn gv-mini-warn"><i class="bi bi-clock-history"></i> Odłóż</button><% } %>
             <% if (idea.decision !== 'rejected') { %><button type="submit" name="decision" value="rejected" class="gv-mini-btn gv-mini-danger"><i class="bi bi-x-circle"></i> Odrzuć</button><% } %>
             <% if (idea.decision) { %><button type="submit" name="decision" value="reset" class="gv-mini-btn"><i class="bi bi-arrow-counterclockwise"></i> Cofnij decyzję</button><% } %>

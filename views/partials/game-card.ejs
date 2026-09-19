@@ -1,3 +1,8 @@
+<%
+  // Polska odmiana: 1 opinia, 2-4 opinie, 5+ opinii (z wyjątkiem 12-14).
+  const __n = Number(game.reviewCount) || 0;
+  const __word = __n === 1 ? 'opinia' : ((__n % 10 >= 2 && __n % 10 <= 4 && !(__n % 100 >= 12 && __n % 100 <= 14)) ? 'opinie' : 'opinii');
+%>
 <a href="/games/<%= game.id %>" class="gv-game-card d-block text-decoration-none h-100">
   <div class="gv-game-card-img-wrap">
     <img src="<%= game.coverImage %>" alt="<%= game.title %>" class="gv-game-card-img" />
@@ -9,8 +14,8 @@
     <div class="gv-game-card-rating">
       <% if (game.averageRating) { %>
         <%- include('star-rating', { rating: game.averageRating }) %>
-        <span><%= game.averageRating %> / 5</span>
-        <span class="gv-game-card-count">(<%= game.reviewCount %> opinii)</span>
+        <span class="gv-game-card-score"><%= game.averageRating %> / 5</span>
+        <span class="gv-game-card-count">(<%= __n %> <%= __word %>)</span>
       <% } else { %>
         <span class="gv-game-card-count">Brak opinii - bądź pierwszy!</span>
       <% } %>

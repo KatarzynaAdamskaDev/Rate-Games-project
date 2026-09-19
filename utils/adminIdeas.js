@@ -204,7 +204,8 @@ const AREAS = {
 };
 
 const DECISIONS = {
-  accepted: { label: 'Przyjęte do realizacji', badge: 'gv-badge-ok' },
+  accepted: { label: 'Przyjęte do realizacji', badge: 'gv-badge-info' },
+  done: { label: 'Zrealizowane', badge: 'gv-badge-ok' },
   later: { label: 'Odłożone na później', badge: 'gv-badge-warn' },
   rejected: { label: 'Odrzucone', badge: 'gv-badge-danger' },
 };

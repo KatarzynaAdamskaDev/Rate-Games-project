@@ -63,6 +63,15 @@ zgłoszenia, komentarze, gry własne, blog, moderacja czatu, eksport CSV i kopie
 zapasowe bazy, dziennik działań oraz ustawienia (ogłoszenie, filtr wulgaryzmów,
 antyspam, limity zapytań, wymóg 2FA).
 
+### Nadawanie i odbieranie uprawnień administratora
+
+Zmiana roli wymaga potwierdzenia: wpisania nazwy użytkownika, własnego hasła i (przy
+włączonym 2FA) kodu. Nowy administrator ma 7 dni okresu próbnego, w którym nie zmienia
+uprawnień innym, a administrator nie może odebrać uprawnień komuś, kto jest nim dłużej
+(konta założycielskie, np. z `create-admin.js`, są najstarsze). Po 5 błędnych
+potwierdzeniach zmiany blokują się na 10 minut, a o każdej zmianie wszyscy administratorzy
+dostają powiadomienie i wpis w dzienniku.
+
 ### Weryfikacja dwuetapowa (2FA) administratorów
 
 Administrator włącza 2FA w **Edytuj profil -> Konto i bezpieczeństwo** (kod QR do
