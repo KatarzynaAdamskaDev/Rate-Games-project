@@ -330,3 +330,72 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+// Udostępnianie: przycisk z atrybutem data-share otwiera systemowe okno udostępniania (telefony),
+// a gdy go nie ma - kopiuje adres do schowka.
+document.addEventListener('click', function (event) {
+  var button = event.target.closest && event.target.closest('[data-share]');
+  if (!button) return;
+
+  var url = button.getAttribute('data-share-url') || window.location.href;
+  var title = button.getAttribute('data-share-title') || document.title;
+  var label = button.querySelector('[data-share-label]');
+
+  function confirmCopied() {
+    if (typeof showToast === 'function') showToast('Link skopiowany do schowka.', true);
+    if (label) {
+      var original = label.textContent;
+      label.textContent = 'Skopiowano!';
+      setTimeout(function () { label.textContent = original; }, 2000);
+    }
+  }
+
+  function copy() {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(confirmCopied, function () { window.prompt('Skopiuj adres:', url); });
+    } else {
+      window.prompt('Skopiuj adres:', url);
+    }
+  }
+
+  if (navigator.share) {
+    navigator.share({ title: title, url: url }).catch(function (err) {
+      if (err && err.name !== 'AbortError') copy();
+    });
+  } else {
+    copy();
+  }
+});
+
+
+// Powiększanie zdjęć w treści wpisów: kliknięcie w [data-zoom] otwiera obraz na pełnym ekranie (Esc lub kliknięcie zamyka).
+document.addEventListener('click', function (event) {
+  var link = event.target.closest && event.target.closest('a[data-zoom]');
+  if (!link) return;
+  event.preventDefault();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'gv-lightbox';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-label', 'Powiększone zdjęcie');
+  var image = document.createElement('img');
+  var source = link.querySelector('img');
+  image.src = link.getAttribute('href');
+  image.alt = source ? source.alt : '';
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'gv-lightbox-close';
+  close.setAttribute('aria-label', 'Zamknij');
+  close.textContent = '×';
+  overlay.appendChild(image);
+  overlay.appendChild(close);
+
+  function dismiss() {
+    document.removeEventListener('keydown', onKey);
+    overlay.remove();
+  }
+  function onKey(e) { if (e.key === 'Escape') dismiss(); }
+  overlay.addEventListener('click', dismiss);
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+});

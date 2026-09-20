@@ -17,18 +17,37 @@
     <div class="wrap gv-post-wrap">
       <a href="/blog" class="gv-post-back"><i class="bi bi-arrow-left"></i> Wszystkie wpisy</a>
 
+      <% if (post.state !== 'published') { %>
+        <div class="gv-post-status <%= post.state %>">
+          <i class="bi <%= post.state === 'draft' ? 'bi-file-earmark-text' : 'bi-calendar-event' %>"></i>
+          <span>
+            <% if (post.state === 'draft') { %>
+              <b>Szkic</b> - ten wpis widzą tylko administratorzy. Opublikujesz go w edycji wpisu.
+            <% } else { %>
+              <b>Zaplanowany</b> na <%= new Date(post.publishAt).toLocaleString('pl-PL', { dateStyle: 'long', timeStyle: 'short' }) %> - do tego czasu widzą go tylko administratorzy.
+            <% } %>
+          </span>
+        </div>
+      <% } %>
+
       <article class="gv-post">
         <header class="gv-post-head">
           <div class="gv-blog-meta">
             <a href="/blog?category=<%= encodeURIComponent(post.category) %>" class="gv-blog-badge"><%= post.category %></a>
-            <span><%= fmtDate(post.createdAt) %></span>
-            <% if (post.updatedAt) { %><span>· edytowano <%= fmtDate(post.updatedAt) %></span><% } %>
+            <time datetime="<%= new Date(post.publishedAt).toISOString() %>"><%= fmtDate(post.publishedAt) %></time>
+            <% if (post.updatedAt) { %><span>· edytowano <time datetime="<%= new Date(post.updatedAt).toISOString() %>"><%= fmtDate(post.updatedAt) %></time></span><% } %>
           </div>
           <h1 class="gv-post-title"><%= post.title %></h1>
           <div class="gv-blog-foot">
             <span><i class="bi bi-person-fill"></i> <%= post.author %></span>
             <span><i class="bi bi-clock"></i> <%= post.readMinutes %> min czytania</span>
           </div>
+
+          <% if (post.tags.length > 0) { %>
+            <div class="gv-post-tags">
+              <% post.tags.forEach(function(tag) { %><a href="/blog?tag=<%= encodeURIComponent(tag.toLowerCase()) %>">#<%= tag %></a><% }) %>
+            </div>
+          <% } %>
 
           <% if (isAdmin) { %>
             <div class="gv-post-admin">
@@ -43,7 +62,20 @@
         <div class="gv-post-cover"><img src="<%= post.coverImage %>" alt="<%= post.title %>"></div>
 
         <div class="gv-post-body"><%- contentHtml %></div>
+
+        <% if (post.state === 'published') { %>
+          <div class="gv-post-share">
+            <span><i class="bi bi-share-fill"></i> Podoba Ci się ten wpis?</span>
+            <button type="button" class="gv-mini-btn" data-share data-share-title="<%= post.title %>" data-share-url="<%= canonicalUrl %>">
+              <i class="bi bi-link-45deg"></i> <span data-share-label>Skopiuj link</span>
+            </button>
+          </div>
+        <% } %>
       </article>
+
+      <% if (post.state === 'published') { %>
+        <%- include('../partials/blog-comments') %>
+      <% } %>
 
       <% if (newer || older) { %>
         <nav class="gv-post-nav" aria-label="Sąsiednie wpisy">
@@ -74,7 +106,7 @@
                 <div class="gv-blog-tile-body">
                   <div class="gv-blog-meta">
                     <span class="gv-blog-badge"><%= item.category %></span>
-                    <span><%= fmtDate(item.createdAt) %></span>
+                    <span><%= fmtDate(item.publishedAt) %></span>
                   </div>
                   <h3 class="gv-blog-tile-title"><a href="/blog/<%= item.id %>"><%= item.title %></a></h3>
                 </div>
@@ -86,6 +118,7 @@
     </div>
   </section>
 
+  <% if (currentUser && post.state === 'published') { %><%- include('../partials/report-modal') %><% } %>
   <%- include('../partials/footer') %>
 </body>
 </html>

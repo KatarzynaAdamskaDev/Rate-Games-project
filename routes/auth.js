@@ -20,6 +20,7 @@ const { moderateName } = require('../utils/contentFilter');
 const { limiters } = require('../middleware/rateLimit');
 const User = require('../models/User');
 const totp = require('../utils/totp');
+const { isBanActive, banMessage } = require('../utils/moderationStatus');
 
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minut
@@ -194,10 +195,8 @@ router.post('/signin', ensureGuest, limiters.signin, limiters.signinAccount, asy
       });
     }
 
-    if (user.isBanned) {
-      const message = user.banReason
-        ? `Twoje konto zostało zablokowane. Powód: ${user.banReason}`
-        : 'Twoje konto zostało zablokowane przez administratora.';
+    if (isBanActive(user)) {
+      const message = banMessage(user);
       if (wantsJson) {
         return res.status(403).json({ success: false, message });
       }
@@ -281,7 +280,7 @@ router.post('/2fa', ensureGuest, limiters.twoFactor, async (req, res, next) => {
     if (!pending) return fail(400, 'Sesja logowania wygasła. Zaloguj się ponownie.', true);
 
     const user = await User.findByPk(pending.userId);
-    if (!user || user.isBanned || !user.twoFactorEnabled) {
+    if (!user || isBanActive(user) || !user.twoFactorEnabled) {
       return fail(400, 'Nie można dokończyć logowania.', true);
     }
 

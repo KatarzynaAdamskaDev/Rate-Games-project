@@ -5,7 +5,11 @@
   "description": "GameVerse - portal z opiniami o grach",
   "scripts": {
     "start": "node ./bin/www",
-    "dev": "nodemon ./bin/www"
+    "dev": "nodemon ./bin/www",
+    "setup": "node scripts/setup.js",
+    "create-admin": "node create-admin.js",
+    "set-level": "node set-level.js",
+    "blog:import": "node scripts/import-blog.js"
   },
   "dependencies": {
     "axios": "^1.20.0",
@@ -19,13 +23,18 @@
     "morgan": "^1.10.0",
     "multer": "^2.3.0",
     "nodemailer": "^10.0.9",
+    "opentype.js": "^2.0.0",
     "qrcode": "^1.5.4",
     "sequelize": "^6.37.8",
+    "sharp": "^0.35.4",
     "sqlite3": "^6.0.1",
     "tedious": "^20.0.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=20.17.0"
   }
 }

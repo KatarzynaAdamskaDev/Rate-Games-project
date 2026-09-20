@@ -25,11 +25,26 @@
         <% } %>
       </div>
 
+      <% if (activeTag) { %>
+        <p class="gv-blog-tagbar">
+          <i class="bi bi-tag-fill"></i> Wpisy z tagiem <b>#<%= activeTag %></b>
+          <a href="/blog" class="gv-blog-tagclear" aria-label="Wyczyść filtr tagu"><i class="bi bi-x-lg"></i> Wyczyść</a>
+        </p>
+      <% } %>
+
       <% if (categories.length > 1) { %>
         <nav class="gv-blog-filters" aria-label="Kategorie bloga">
           <a href="/blog" class="gv-blog-chip <%= !category ? 'active' : '' %>">Wszystkie <span><%= total %></span></a>
           <% categories.forEach(function(name) { %>
             <a href="/blog?category=<%= encodeURIComponent(name) %>" class="gv-blog-chip <%= category === name ? 'active' : '' %>"><%= name %> <span><%= counts[name] %></span></a>
+          <% }) %>
+        </nav>
+      <% } %>
+
+      <% if (tags.length > 0) { %>
+        <nav class="gv-blog-tags" aria-label="Tagi">
+          <% tags.forEach(function(item) { %>
+            <a href="/blog?tag=<%= encodeURIComponent(item.key) %>" class="gv-blog-tag <%= activeTag && activeTag.toLowerCase() === item.key ? 'active' : '' %>">#<%= item.tag %> <span><%= item.count %></span></a>
           <% }) %>
         </nav>
       <% } %>
@@ -52,8 +67,9 @@
             <p class="gv-blog-featured-excerpt"><%= featured.excerpt %></p>
             <div class="gv-blog-foot">
               <span><i class="bi bi-person-fill"></i> <%= featured.author %></span>
-              <span><i class="bi bi-calendar3"></i> <%= fmtDate(featured.createdAt) %></span>
+              <span><i class="bi bi-calendar3"></i> <%= fmtDate(featured.publishedAt) %></span>
               <span><i class="bi bi-clock"></i> <%= featured.readMinutes %> min czytania</span>
+              <% if (commentCounts.get(featured.id)) { %><span><i class="bi bi-chat-dots"></i> <%= commentCounts.get(featured.id) %></span><% } %>
             </div>
             <div class="gv-blog-featured-actions">
               <a href="/blog/<%= featured.id %>" class="btn gv-btn-success">Czytaj dalej <i class="bi bi-arrow-right"></i></a>
@@ -73,13 +89,19 @@
               <div class="gv-blog-tile-body">
                 <div class="gv-blog-meta">
                   <span class="gv-blog-badge"><%= post.category %></span>
-                  <span><%= fmtDate(post.createdAt) %></span>
+                  <span><%= fmtDate(post.publishedAt) %></span>
                 </div>
                 <h3 class="gv-blog-tile-title"><a href="/blog/<%= post.id %>"><%= post.title %></a></h3>
                 <p class="gv-blog-tile-excerpt"><%= post.excerpt %></p>
+                <% if (post.tags.length > 0) { %>
+                  <div class="gv-blog-tile-tags">
+                    <% post.tags.slice(0, 3).forEach(function(tag) { %><a href="/blog?tag=<%= encodeURIComponent(tag.toLowerCase()) %>">#<%= tag %></a><% }) %>
+                  </div>
+                <% } %>
                 <div class="gv-blog-foot">
                   <span><%= post.author %></span>
                   <span><i class="bi bi-clock"></i> <%= post.readMinutes %> min</span>
+                  <% if (commentCounts.get(post.id)) { %><span><i class="bi bi-chat-dots"></i> <%= commentCounts.get(post.id) %></span><% } %>
                 </div>
               </div>
               <% if (isAdmin) { %>

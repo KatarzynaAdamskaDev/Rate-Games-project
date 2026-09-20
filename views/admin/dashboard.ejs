@@ -18,7 +18,7 @@ const __kpis = [
   { icon: 'bi-chat-left-text-fill', value: stats.comments, label: 'komentarzy', hint: stats.likes + ' polubień recenzji', href: '/admin/comments' },
   { icon: 'bi-slash-circle-fill', value: stats.banned, label: 'zablokowanych kont', hint: stats.admins + ' administratorów', href: '/admin/users?filter=banned' },
   { icon: 'bi-controller', value: stats.customGames, label: 'gier własnych', hint: 'dodanych ręcznie', href: '/admin/games' },
-  { icon: 'bi-newspaper', value: stats.blogPosts, label: 'wpisów na blogu', hint: 'plik data/blog.json', href: '/admin/blog' },
+  { icon: 'bi-newspaper', value: stats.blogPosts, label: 'wpisów na blogu', hint: 'szkice, zaplanowane i opublikowane', href: '/admin/blog' },
   { icon: 'bi-chat-dots-fill', value: stats.conversations, label: 'rozmów na czacie', hint: stats.messages + ' wiadomości', href: '/admin/chat' },
 ];
 const __max = function (series) { return Math.max(1, ...series.map(function (d) { return d.count; })); };

@@ -1,12 +1,14 @@
 require('dotenv').config();
 
 const path = require('path');
+const storage = require('./config/storage');
 const express = require('express');
 const morgan = require('morgan');
 const session = require('express-session');
 const flash = require('connect-flash');
 
 const exposeLocals = require('./middleware/locals');
+const seoLocals = require('./middleware/seo');
 const { csrfProtection } = require('./middleware/csrf');
 const DatabaseSessionStore = require('./utils/sessionStore');
 const { limiters } = require('./middleware/rateLimit');
@@ -23,6 +25,9 @@ const chatRouter = require('./routes/chat');
 const notificationsRouter = require('./routes/notifications');
 const adminRouter = require('./routes/admin');
 const reviewsRouter = require('./routes/reviews');
+const reportsRouter = require('./routes/reports');
+const seoRouter = require('./routes/seo');
+const pagesRouter = require('./routes/pages');
 const userProfileRouter = require('./routes/userProfile');
 
 const app = express();
@@ -47,6 +52,8 @@ if (isProduction) app.set('trust proxy', 1);
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Wgrane pliki z katalogu poza aplikacją (UPLOADS_DIR) udostępniamy pod tym samym adresem /images/..., co pliki z public/.
+if (storage.isCustomRoot) app.use('/images', express.static(storage.UPLOADS_ROOT, { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(
@@ -68,6 +75,7 @@ app.use(
 app.use(flash());
 app.use(csrfProtection);
 app.use(exposeLocals);
+app.use(seoLocals);
 
 // Ogólny limit akcji zmieniających dane (POST) z jednego adresu IP.
 app.use((req, res, next) => (req.method === 'POST' ? limiters.writes(req, res, next) : next()));
@@ -84,6 +92,9 @@ app.use('/chat', chatRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/admin', adminRouter);
 app.use('/reviews', reviewsRouter);
+app.use('/reports', reportsRouter);
+app.use('/', seoRouter); // robots.txt, sitemap.xml, llms.txt, feed.xml - przed łapaczem /:username
+app.use('/', pagesRouter); // /aboutus i /help - przed łapaczem /:username
 
 // UWAGA: musi być zamontowany na samym końcu (po wszystkich innych trasach),
 // bo obsługuje /:username jako "łapacz wszystkiego" - inaczej połknąłby

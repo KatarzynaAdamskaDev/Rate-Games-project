@@ -11,9 +11,11 @@ const { syncUserProgress } = require('../utils/progressHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
 const { moderateText } = require('../utils/contentFilter');
 const { limiters } = require('../middleware/rateLimit');
-const { REPORT_REASONS, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
+const { blockIfMuted } = require('../middleware/muted');
+const { REASONS_BY_TYPE, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 const ReviewComment = require('../models/ReviewComment');
 const { getGenres, PLATFORM_OPTIONS } = require('../utils/igdbService');
+const { plainText, isoDate, breadcrumbLd } = require('../utils/seo');
 const {
   listGames,
   findGenre,
@@ -33,6 +35,11 @@ const {
   reportReview,
   deleteReviewData,
 } = require('../utils/reviewSocialHelpers');
+
+/** Ocena od 0.5 do 5 co pół gwiazdki (0.5, 1, 1.5 ... 5). */
+function isValidRating(value) {
+  return Number.isFinite(value) && value >= 0.5 && value <= 5 && Number.isInteger(value * 2);
+}
 
 function wantsJsonResponse(req) {
   return req.xhr || (req.headers.accept || '').includes('application/json');
@@ -59,6 +66,22 @@ router.get('/', async (req, res, next) => {
 
     res.render('games/list', {
       title: 'Gry',
+      seo: {
+        description: 'Katalog gier w GameVerse: filtruj po kategorii, platformie i roku, czytaj opinie graczy i wystawiaj własne oceny.',
+        // Widoki z filtrem, sortowaniem lub frazą nie konkurują z główną listą w wynikach wyszukiwania.
+        noindex: !!(category || platform || year || sort || String(q || '').trim()),
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Gry w katalogu GameVerse',
+          itemListElement: result.games.map((g, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: g.title,
+            url: `${res.locals.siteUrl}/games/${g.id}`,
+          })),
+        },
+      },
       games: result.games,
       genres: await getGenres(),
       platforms: PLATFORM_OPTIONS,
@@ -68,7 +91,7 @@ router.get('/', async (req, res, next) => {
       activeYear,
       activeSort: result.sort,
       query: String(q || '').trim(),
-      pager: buildPagerLinks(req, result.page, result.hasNext),
+      pager: buildPagerLinks(req, result.page, result.hasNext, result.totalPages),
     });
   } catch (error) {
     next(error);
@@ -77,37 +100,9 @@ router.get('/', async (req, res, next) => {
 
 /* --------------------------- DODAJ GRĘ (ADMIN) --------------------------- */
 
+// Dodawanie gier ręcznie odbywa się w panelu admina (formularz z wgrywaniem okładki i wyborem platform).
 router.get('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
-  res.render('games/form', { title: 'Dodaj grę', formData: {}, game: null });
-});
-
-router.post('/new', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
-  const { title, category, platform, releaseYear, coverImage, description } = req.body;
-
-  if (!title || !category || !description) {
-    req.flash('error', 'Tytuł, kategoria i opis są wymagane.');
-    return res.status(400).render('games/form', {
-      title: 'Dodaj grę',
-      formData: req.body,
-      game: null,
-    });
-  }
-
-  try {
-    const newGame = await CustomGame.create({
-      title,
-      category,
-      platform: platform || 'PC',
-      releaseYear: Number(releaseYear) || new Date().getFullYear(),
-      coverImage: coverImage || '/images/game-placeholder.svg',
-      description,
-    });
-
-    req.flash('success', `Gra "${title}" została dodana.`);
-    res.redirect(`/games/${newGame.id}`);
-  } catch (err) {
-    next(err);
-  }
+  res.redirect('/admin/games/new');
 });
 
 /* ------------------ WYSZUKIWANIE GIER (JSON, do formularzy) ------------------ */
@@ -166,8 +161,62 @@ router.get('/:id', async (req, res, next) => {
 
     const myReview = meId ? reviews.find((r) => r.userId === meId) : null;
 
+    const plural = (n) => (n === 1 ? 'opinia' : n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14) ? 'opinie' : 'opinii');
+    const platforms = game.platformsFull && game.platformsFull.length ? game.platformsFull.join(', ') : game.platform;
+    const ratingLine = averageRating
+      ? `Ocena graczy: ${averageRating}/5 (${reviews.length} ${plural(reviews.length)}).`
+      : 'Zostań pierwszą osobą, która oceni tę grę.';
+    const gameSummary = plainText(game.description, 150);
+    const cover = game.coverImage;
+
+    // Link do konkretnej recenzji (?review=...) ma własny podgląd: autor, ocena i początek tekstu.
+    const sharedReview = req.query.review ? reviews.find((r) => r.id === String(req.query.review)) : null;
+    const seo = sharedReview
+      ? {
+          title: `Recenzja gry ${game.title} od ${sharedReview.username} - ${Number(sharedReview.rating)}/5`,
+          description: plainText(sharedReview.text, 200),
+          type: 'article',
+          publishedTime: isoDate(sharedReview.createdAt),
+        }
+      : {
+          title: `${game.title} - opinie i oceny graczy`,
+          description: `${game.title}${game.releaseYear ? ` (${game.releaseYear})` : ''} - ${platforms}. ${ratingLine} ${gameSummary}`.trim(),
+        };
+    Object.assign(seo, {
+      image: cover,
+      imageAlt: `Okładka gry ${game.title}`,
+      card: 'summary', // okładki są pionowe - mała karta wygląda lepiej niż duża, przycinana
+      noindex: !!sharedReview, // podgląd recenzji nie ma być drugim wynikiem dla tej samej strony gry
+      jsonLd: [{
+        '@context': 'https://schema.org',
+        '@type': 'VideoGame',
+        name: game.title,
+        description: plainText(game.description, 300),
+        image: res.locals.absoluteUrl(cover),
+        genre: game.category || undefined,
+        gamePlatform: platforms || undefined,
+        datePublished: Number.isInteger(Number(game.releaseYear)) ? String(game.releaseYear) : undefined,
+        aggregateRating: averageRating
+          ? { '@type': 'AggregateRating', ratingValue: averageRating, ratingCount: reviews.length, bestRating: 5, worstRating: 0.5 }
+          : undefined,
+        review: reviews.length === 0 ? undefined : reviews.slice(0, 5).map((r) => ({
+          '@type': 'Review',
+          author: { '@type': 'Person', name: r.username },
+          datePublished: isoDate(r.createdAt),
+          reviewBody: plainText(r.text, 300),
+          reviewRating: { '@type': 'Rating', ratingValue: Number(r.rating), bestRating: 5, worstRating: 0.5 },
+        })),
+      },
+      breadcrumbLd(res.locals.siteUrl, [
+        { name: 'GameVerse', path: '/' },
+        { name: 'Gry', path: '/games' },
+        { name: game.title, path: `/games/${game.id}` },
+      ])],
+    });
+
     res.render('games/detail', {
       title: game.title,
+      seo,
       // Na stronie gry pokazujemy pełną listę platform (na kartach - skrót).
       game: {
         ...game,
@@ -176,7 +225,7 @@ router.get('/:id', async (req, res, next) => {
       reviews,
       averageRating,
       myReview,
-      reportReasons: REPORT_REASONS,
+      reportReasonSets: { review: REASONS_BY_TYPE.review, comment: REASONS_BY_TYPE.comment },
       reportCommentMax: MAX_COMMENT_LENGTH,
     });
   } catch (error) {
@@ -186,7 +235,7 @@ router.get('/:id', async (req, res, next) => {
 
 /* --------------------------- DODAJ OPINIĘ --------------------------- */
 
-router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, res, next) => {
+router.post('/:id/reviews', ensureAuthenticated, blockIfMuted, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
 
   const existing = await Review.findOne({
@@ -203,8 +252,8 @@ router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, re
   const { rating, text } = req.body;
   const numericRating = Number(rating);
 
-  if (!numericRating || numericRating < 1 || numericRating > 5 || !text) {
-    req.flash('error', 'Podaj ocenę (1-5) oraz treść opinii.');
+  if (!isValidRating(numericRating) || !text) {
+    req.flash('error', 'Podaj ocenę (0.5-5, co pół gwiazdki) oraz treść opinii.');
     return res.redirect(`/games/${gameId}`);
   }
 
@@ -234,7 +283,7 @@ router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, re
 
 /* --- RESZTA TRAS (EDYCJA, USUWANE, KOMENTARZE, LAJKI) POZOSTAJE BEZ ZMIAN --- */
 
-router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, limiters.review, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, blockIfMuted, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
   const review = await Review.findByPk(req.params.reviewId);
   if (!review || String(review.gameId) !== gameId) return next();
@@ -247,8 +296,8 @@ router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, limiters.review,
   const { rating, text } = req.body;
   const numericRating = Number(rating);
 
-  if (!numericRating || numericRating < 1 || numericRating > 5 || !text) {
-    req.flash('error', 'Podaj ocenę (1-5) oraz treść opinii.');
+  if (!isValidRating(numericRating) || !text) {
+    req.flash('error', 'Podaj ocenę (0.5-5, co pół gwiazdki) oraz treść opinii.');
     return res.redirect(`/games/${gameId}`);
   }
 
@@ -332,7 +381,7 @@ router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
   });
 });
 
-router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, limiters.comment, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, blockIfMuted, limiters.comment, async (req, res, next) => {
   const gameId = String(req.params.id);
   const wantsJson = wantsJsonResponse(req);
 

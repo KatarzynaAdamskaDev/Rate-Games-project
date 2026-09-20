@@ -167,7 +167,7 @@ const limiters = {
   }),
   comment: rateLimit({
     name: 'comment',
-    label: 'Komentarze pod recenzjami - na użytkownika',
+    label: 'Komentarze pod recenzjami i wpisami bloga - na użytkownika',
     windowMs: 5 * MINUTE,
     max: 15,
     key: 'user',

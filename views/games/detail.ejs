@@ -19,6 +19,9 @@
           <h1 class="gv-page-title mt-2"><%= game.title %></h1>
           <p class="gv-detail-meta"><%= game.platform %> · <%= game.releaseYear %></p>
           <p class="gv-detail-desc"><%= game.description %></p>
+          <button type="button" class="gv-mini-btn mb-3" data-share data-share-title="<%= game.title %>" data-share-url="<%= absoluteUrl('/games/' + game.id) %>">
+            <i class="bi bi-share-fill"></i> <span data-share-label>Udostępnij grę</span>
+          </button>
 
           <div class="gv-detail-rating">
             <% if (averageRating) { %>
@@ -38,7 +41,7 @@
         <form action="/games/<%= game.id %>/reviews" method="POST" class="gv-review-form mb-5">
           <div class="mb-3">
             <label class="gv-label d-block">Twoja ocena</label>
-            <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena">
+            <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena (kliknij lewą połowę gwiazdki, aby dać połówkę)">
               <i class="bi bi-star" data-value="1"></i>
               <i class="bi bi-star" data-value="2"></i>
               <i class="bi bi-star" data-value="3"></i>
@@ -114,6 +117,12 @@
                   <span class="gv-count"><%= review.comments.length %></span>
                 </button>
 
+                <button type="button" class="gv-icon-btn" title="Udostępnij recenzję"
+                        data-share data-share-title="Recenzja gry <%= game.title %> od <%= review.username %>"
+                        data-share-url="<%= absoluteUrl('/games/' + game.id + '?review=' + review.id) %>#review-<%= review.id %>">
+                  <i class="bi bi-share"></i>
+                </button>
+
                 <% if (currentUser && currentUser.id !== review.userId) { %>
                   <button type="button" class="gv-icon-btn gv-report-btn" title="Zgłoś"
                           data-bs-toggle="modal" data-bs-target="#reportModal"
@@ -170,6 +179,15 @@
                           <i class="bi <%= c.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
                           <span class="gv-count"><%= c.likeCount %></span>
                         </button>
+                        <% if (currentUser && currentUser.id !== c.userId) { %>
+                          <button type="button" class="gv-icon-btn gv-report-btn" title="Zgłoś komentarz"
+                                  data-bs-toggle="modal" data-bs-target="#reportModal"
+                                  data-report-type="comment"
+                                  data-report-url="/reports/comment/<%= c.id %>"
+                                  data-report-author="<%= c.username %>">
+                            <i class="bi bi-flag"></i>
+                          </button>
+                        <% } %>
                         <% if (currentUser && currentUser.id === c.userId) { %>
                           <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments/<%= c.id %>/delete" method="POST"
                                 onsubmit="return confirm('Usunąć komentarz?');" class="d-inline">
@@ -273,20 +291,38 @@
           });
         }
 
+        // Podpis obok gwiazdek: aktualna ocena i podpowiedź o połówkach.
+        var label = document.createElement('span');
+        label.className = 'gv-star-value';
+        picker.insertAdjacentElement('afterend', label);
+        input.parentNode.insertBefore(label, input);
+
+        function describe(value) {
+          label.textContent = value ? value + ' / 5' : 'Kliknij gwiazdkę (lewa połowa = pół punktu)';
+          label.classList.toggle('empty', !value);
+        }
+
         stars.forEach(function (star) {
           star.addEventListener('mousemove', function (e) {
-            paint(valueFromEvent(star, e));
+            var value = valueFromEvent(star, e);
+            paint(value);
+            describe(value);
           });
           star.addEventListener('click', function (e) {
             var value = valueFromEvent(star, e);
             picker.dataset.selected = value;
             input.value = value;
+            paint(value);
+            describe(value);
           });
         });
 
         picker.addEventListener('mouseleave', function () {
-          paint(Number(picker.dataset.selected || 0));
+          var selected = Number(picker.dataset.selected || 0);
+          paint(selected);
+          describe(selected);
         });
+        describe(Number(picker.dataset.selected || 0));
       });
 
       // Walidacja: nie pozwól wysłać opinii bez wybranej oceny gwiazdkowej

@@ -10,12 +10,20 @@
 
   <%
     const editing = !!post;
+    const publishMode = formData.publishMode || 'now';
+    const publishAtIso = formData.publishAtIso || formData.publishAt || '';
+    const alreadyPublished = editing && post.state === 'published';
     const cover = formData.coverImage || formData.coverUrl || '';
+    const hasCover = !!cover && cover !== '/images/game-placeholder.svg';
     const isUploaded = cover.indexOf('/images/blog/uploads/') === 0;
+    const currentCategory = categories.indexOf(formData.category) !== -1 ? formData.category : 'Aktualności';
+    // Po nieudanym zapisie wracamy do wyboru użytkownika (odznaczone pole nie jest wysyłane, stąd znacznik autoCoverPresent).
+    const autoCover = formData.autoCoverPresent === '1' ? formData.autoCover === '1' : autoCoverDefault;
+    const coverVariant = parseInt(formData.coverVariant, 10) || 0;
   %>
 
   <section class="gv-section">
-    <div class="wrap gv-blogform-wrap">
+    <div class="wrap gv-blogedit-wrap">
       <a href="<%= editing ? '/blog/' + post.id : '/blog' %>" class="gv-post-back"><i class="bi bi-arrow-left"></i> <%= editing ? 'Wróć do wpisu' : 'Wróć do bloga' %></a>
       <h1 class="gv-page-title mb-4"><%= editing ? 'Edytuj wpis' : 'Nowy wpis na blogu' %></h1>
 
@@ -23,79 +31,1480 @@
         <div class="gv-blogform-error"><i class="bi bi-exclamation-triangle-fill"></i> <%= formError %></div>
       <% } %>
 
-      <form action="<%= editing ? '/blog/' + post.id + '/edit' : '/blog/new' %>" method="POST" enctype="multipart/form-data" class="gv-blogform">
-        <div class="gv-blogform-main">
-          <div class="gv-edit-field">
-            <label class="gv-edit-label" for="blogTitle">Tytuł</label>
-            <input type="text" id="blogTitle" name="title" class="form-control gv-input" maxlength="120" value="<%= formData.title || '' %>" required>
-          </div>
+      <div class="gv-draft-banner d-none" id="draftBanner" role="status">
+        <i class="bi bi-clock-history"></i>
+        <span>Znaleziono niezapisany szkic z <b id="draftBannerTime"></b>. Chcesz go przywrócić?</span>
+        <button type="button" class="gv-mini-btn" id="draftRestore"><i class="bi bi-arrow-counterclockwise"></i> Przywróć</button>
+        <button type="button" class="gv-mini-btn" id="draftDiscard">Odrzuć</button>
+      </div>
 
-          <div class="gv-edit-field">
-            <label class="gv-edit-label" for="blogExcerpt">Krótki opis (widoczny na liście)</label>
-            <input type="text" id="blogExcerpt" name="excerpt" class="form-control gv-input" maxlength="200" value="<%= formData.excerpt || '' %>" placeholder="Jedno-dwa zdania o wpisie. Zostaw puste, a powstanie z początku treści.">
-          </div>
+      <form action="<%= editing ? '/blog/' + post.id + '/edit' : '/blog/new' %>" method="POST" enctype="multipart/form-data" class="gv-gameform gv-blogedit" id="blogForm"
+            data-draft-key="<%= editing ? post.id : 'new' %>" data-author="<%= currentUser.username %>" data-max-tags="<%= maxTags %>" data-max-tag-length="<%= maxTagLength %>">
+        <div class="gv-gameform-main">
 
-          <div class="gv-edit-field">
-            <label class="gv-edit-label" for="blogContent">Treść wpisu</label>
-            <textarea id="blogContent" name="content" rows="16" class="form-control gv-input" required><%= formData.content || '' %></textarea>
-            <div class="gv-edit-hint">
-              Pusta linia rozdziela akapity. Formatowanie: <code>## Śródtytuł</code>, <code>- punkt listy</code>, <code>1. punkt</code>,
-              <code>&gt; cytat</code>, <code>**pogrubienie**</code>, <code>*kursywa*</code>, <code>[tekst](https://adres)</code>.
+          <section class="gv-admin-card">
+            <h2><i class="bi bi-1-circle-fill"></i> Podstawowe informacje</h2>
+
+            <label class="gv-label" for="blogTitle">Tytuł wpisu <span class="gv-counter" id="titleCount">0/<%= maxTitle %></span></label>
+            <input type="text" id="blogTitle" name="title" class="form-control gv-input gv-blogedit-title" maxlength="<%= maxTitle %>" value="<%= formData.title || '' %>" placeholder="np. Top 5 gier RPG" required autocomplete="off">
+
+            <span class="gv-label mt-3 d-block">Kategoria</span>
+            <div class="gv-chip-check-row" role="radiogroup" aria-label="Kategoria wpisu">
+              <% categories.forEach(function(name) { %>
+                <label class="gv-chip-check">
+                  <input type="radio" name="category" value="<%= name %>" <%= currentCategory === name ? 'checked' : '' %>>
+                  <span><%= name %></span>
+                </label>
+              <% }) %>
             </div>
+
+            <label class="gv-label mt-3" for="tagInput">Tagi <span class="gv-counter" id="tagCount">0/<%= maxTags %></span></label>
+            <div class="gv-taginput" id="tagBox">
+              <span class="gv-taginput-chips" id="tagChips"></span>
+              <input type="text" id="tagInput" maxlength="<%= maxTagLength %>" placeholder="Dodaj tag i Enter" autocomplete="off" aria-label="Nowy tag">
+            </div>
+            <input type="hidden" name="tags" id="tagsValue" value="<%= formData.tags || '' %>">
+            <div class="gv-tagauto d-none" id="tagAuto" aria-live="polite">
+              <span class="gv-tagauto-label"><i class="bi bi-stars"></i> Propozycje z treści:</span>
+              <span class="gv-tagauto-list" id="tagAutoList"></span>
+              <button type="button" class="gv-linkbtn" id="tagAutoAll">Dodaj wszystkie</button>
+            </div>
+            <% if (suggestedTags.length > 0) { %>
+              <div class="gv-taginput-suggest" id="tagSuggest">
+                <small>Popularne:</small>
+                <% suggestedTags.forEach(function(tag) { %><button type="button" class="gv-taginput-suggestion" data-tag="<%= tag %>">#<%= tag %></button><% }) %>
+              </div>
+            <% } %>
+            <div class="gv-edit-hint">Enter lub przecinek dodaje tag. Czytelnicy znajdą Twój wpis po tagach.</div>
+          </section>
+
+          <section class="gv-admin-card">
+            <h2><i class="bi bi-2-circle-fill"></i> Treść</h2>
+
+            <div class="gv-blogedit-bar">
+              <div class="gv-blogedit-tabs" role="tablist">
+                <button type="button" class="active" role="tab" aria-selected="true" data-tab="write"><i class="bi bi-pencil"></i> Pisz</button>
+                <button type="button" role="tab" aria-selected="false" data-tab="preview"><i class="bi bi-eye"></i> Podgląd</button>
+              </div>
+              <span class="gv-blogedit-stats" id="contentStats" aria-live="polite"></span>
+            </div>
+
+            <div class="gv-blogedit-toolbar" id="toolbar" role="toolbar" aria-label="Formatowanie">
+              <button type="button" data-cmd="h2" title="Śródtytuł"><i class="bi bi-type-h2"></i></button>
+              <button type="button" data-cmd="bold" title="Pogrubienie (Ctrl+B)"><i class="bi bi-type-bold"></i></button>
+              <button type="button" data-cmd="italic" title="Kursywa (Ctrl+I)"><i class="bi bi-type-italic"></i></button>
+              <span class="gv-blogedit-sep"></span>
+              <button type="button" data-cmd="ul" title="Lista punktowana"><i class="bi bi-list-ul"></i></button>
+              <button type="button" data-cmd="ol" title="Lista numerowana"><i class="bi bi-list-ol"></i></button>
+              <button type="button" data-cmd="quote" title="Cytat"><i class="bi bi-quote"></i></button>
+              <span class="gv-blogedit-sep"></span>
+              <button type="button" data-cmd="link" title="Link (Ctrl+K)"><i class="bi bi-link-45deg"></i></button>
+              <button type="button" data-cmd="image" title="Zdjęcie lub infografika (z tekstem alternatywnym)"><i class="bi bi-image"></i></button>
+              <button type="button" data-cmd="game" title="Karta gry z katalogu"><i class="bi bi-controller"></i></button>
+              <button type="button" data-cmd="video" title="Film z YouTube"><i class="bi bi-youtube"></i></button>
+              <span class="gv-blogedit-sep"></span>
+              <button type="button" data-cmd="info" title="Ramka: Warto wiedzieć"><i class="bi bi-info-circle"></i></button>
+              <button type="button" data-cmd="tip" title="Ramka: Wskazówka"><i class="bi bi-lightbulb"></i></button>
+              <button type="button" data-cmd="warning" title="Ramka: Uwaga"><i class="bi bi-exclamation-triangle"></i></button>
+              <button type="button" data-cmd="hr" title="Linia pozioma"><i class="bi bi-hr"></i></button>
+              <button type="button" data-cmd="seo" class="gv-blogedit-seobtn" title="Pogrubi najważniejsze frazy, doda linki do gier z katalogu oraz uporządkuje listy i nagłówki"><i class="bi bi-magic"></i> Formatuj pod SEO</button>
+            </div>
+
+            <textarea id="blogContent" name="content" rows="18" maxlength="<%= maxContent %>" class="form-control gv-input gv-blogedit-textarea" placeholder="Zacznij pisać... Zaznacz tekst i użyj przycisków powyżej, żeby go sformatować." required><%= formData.content || '' %></textarea>
+            <div class="gv-post-body gv-blogedit-preview d-none" id="contentPreview" aria-live="polite"></div>
+            <div class="gv-blogedit-formatnote d-none" id="formatNote" role="status"></div>
+
+            <details class="gv-blogedit-help">
+              <summary><i class="bi bi-question-circle"></i> Ściąga formatowania</summary>
+              <p>
+                Pusta linia rozdziela akapity. <code>## Śródtytuł</code> · <code>- punkt listy</code> · <code>1. punkt</code> ·
+                <code>&gt; cytat</code> · <code>**pogrubienie**</code> · <code>*kursywa*</code> · <code>[tekst](https://adres)</code>
+              </p>
+            </details>
+          </section>
+
+          <section class="gv-admin-card">
+            <h2><i class="bi bi-3-circle-fill"></i> Okładka i zajawka</h2>
+
+            <div class="gv-autocover" id="autoCoverPanel">
+              <label class="gv-switch">
+                <input type="checkbox" name="autoCover" value="1" id="autoCover" <%= autoCover ? 'checked' : '' %>>
+                <input type="hidden" name="autoCoverPresent" value="1">
+                <span class="gv-switch-track"></span>
+                <span class="gv-switch-text"><b><i class="bi bi-stars"></i> Utwórz okładkę automatycznie</b><small>Grafika 1200×630 powstanie z tytułu, kategorii i tagów - nic nie musisz wgrywać. Sprawdza się też jako podgląd linku.</small></span>
+              </label>
+              <input type="hidden" name="coverVariant" id="coverVariant" value="<%= coverVariant %>">
+              <div class="gv-autocover-body <%= autoCover ? '' : 'd-none' %>" id="autoCoverBody">
+                <div class="gv-autocover-frame">
+                  <img id="autoCoverImg" src="/images/game-placeholder.svg" alt="Podgląd automatycznej okładki">
+                  <span class="gv-autocover-hint" id="autoCoverHint">Wpisz tytuł, a okładka powstanie sama.</span>
+                </div>
+                <div class="gv-autocover-actions">
+                  <button type="button" class="gv-btn-outline" id="autoCoverShuffle"><i class="bi bi-shuffle"></i> Inny wariant</button>
+                  <small>Zapisze się razem z wpisem. Kolory zależą od kategorii, wzór - od tytułu.</small>
+                </div>
+              </div>
+            </div>
+
+            <p class="gv-blogedit-or"><span>albo własna okładka</span></p>
+
+            <label class="gv-dropzone" for="blogCover" id="blogDropzone">
+              <i class="bi bi-cloud-arrow-up-fill"></i>
+              <b>Przeciągnij zdjęcie tutaj albo kliknij, aby wybrać</b>
+              <small>PNG, JPG, WEBP lub GIF, do 3 MB. Obraz zostanie sprawdzony i zmniejszony automatycznie.</small>
+              <span class="gv-dropzone-file" id="blogFileName"></span>
+            </label>
+            <input type="file" id="blogCover" name="cover" accept="image/png,image/jpeg,image/webp,image/gif" class="gv-visually-hidden">
+
+            <div class="gv-blogedit-coverrow">
+              <button type="button" class="gv-linkbtn" id="coverUrlToggle"><i class="bi bi-link-45deg"></i> Użyj adresu obrazka zamiast pliku</button>
+              <% if (editing && hasCover) { %>
+                <label class="gv-check">
+                  <input type="checkbox" name="removeCover" value="1" id="blogRemoveCover">
+                  <span>Usuń okładkę (użyj domyślnej)</span>
+                </label>
+              <% } %>
+            </div>
+            <% const showUrl = !isUploaded && hasCover; %>
+            <div class="<%= showUrl ? '' : 'd-none' %>" id="coverUrlBox">
+              <input type="text" id="blogCoverUrl" name="coverUrl" class="form-control gv-input" placeholder="https://..." value="<%= showUrl ? cover : '' %>">
+            </div>
+
+            <hr class="gv-blogedit-hr">
+
+            <label class="gv-label" for="blogExcerpt">Krótki opis <span class="gv-counter" id="excerptCount">0/<%= maxExcerpt %></span></label>
+            <div class="gv-blogedit-excerptrow">
+              <input type="text" id="blogExcerpt" name="excerpt" class="form-control gv-input" maxlength="<%= maxExcerpt %>" value="<%= formData.excerpt || '' %>" placeholder="Jedno-dwa zdania" autocomplete="off">
+              <button type="button" class="gv-btn-outline" id="excerptAuto" title="Utwórz opis z początku treści"><i class="bi bi-magic"></i> Z treści</button>
+            </div>
+            <div class="gv-edit-hint">Widoczny na liście i w podglądzie linku. Zostaw puste, a powstanie z początku treści.</div>
+          </section>
+
+          <section class="gv-admin-card">
+            <h2><i class="bi bi-4-circle-fill"></i> Publikacja</h2>
+
+            <div class="gv-publish-options gv-publish-grid" role="radiogroup" aria-label="Publikacja wpisu">
+              <label class="gv-publish-option">
+                <input type="radio" name="publishMode" value="now" <%= publishMode === 'now' ? 'checked' : '' %>>
+                <span>
+                  <b><i class="bi bi-broadcast"></i> <%= alreadyPublished ? 'Opublikowany' : 'Opublikuj od razu' %></b>
+                  <small><%= alreadyPublished ? 'Wpis jest widoczny dla wszystkich.' : 'Wpis pojawi się na blogu natychmiast.' %></small>
+                </span>
+              </label>
+              <label class="gv-publish-option">
+                <input type="radio" name="publishMode" value="draft" <%= publishMode === 'draft' ? 'checked' : '' %>>
+                <span>
+                  <b><i class="bi bi-file-earmark-text"></i> Szkic</b>
+                  <small>Zapisz bez publikowania - widzą go tylko administratorzy.</small>
+                </span>
+              </label>
+              <label class="gv-publish-option">
+                <input type="radio" name="publishMode" value="schedule" <%= publishMode === 'schedule' ? 'checked' : '' %>>
+                <span>
+                  <b><i class="bi bi-calendar-event"></i> Zaplanuj publikację</b>
+                  <small>Wpis pojawi się sam o wybranej porze.</small>
+                </span>
+              </label>
+            </div>
+
+            <div class="gv-publish-schedule <%= publishMode === 'schedule' ? '' : 'd-none' %>" id="scheduleBox">
+              <label class="gv-label" for="publishAtLocal">Data i godzina publikacji</label>
+              <div class="gv-blogedit-schedulerow">
+                <input type="datetime-local" id="publishAtLocal" name="publishAtLocal" class="form-control gv-input" data-iso="<%= publishAtIso %>">
+                <button type="button" class="gv-btn-outline" data-quick="hour">Za godzinę</button>
+                <button type="button" class="gv-btn-outline" data-quick="tomorrow">Jutro 9:00</button>
+                <button type="button" class="gv-btn-outline" data-quick="week">Za tydzień 9:00</button>
+              </div>
+              <input type="hidden" name="publishAt" id="publishAtIso" value="<%= publishAtIso %>">
+              <div class="gv-edit-hint">Godzina w Twojej strefie czasowej. Wpis staje się publiczny automatycznie, bez dodatkowych kroków.</div>
+            </div>
+          </section>
+
+          <div class="gv-admin-form-actions">
+            <button type="submit" class="btn gv-btn-success" id="blogSubmit" data-editing="<%= alreadyPublished ? '1' : '' %>"><i class="bi bi-check-lg"></i> <span id="blogSubmitLabel"><%= editing ? 'Zapisz zmiany' : 'Opublikuj' %></span></button>
+            <a href="<%= editing ? '/blog/' + post.id : '/blog' %>" class="gv-btn-outline" id="blogCancel">Anuluj</a>
           </div>
         </div>
 
-        <aside class="gv-blogform-side">
-          <div class="gv-edit-field">
-            <label class="gv-edit-label" for="blogCategory">Kategoria</label>
-            <select id="blogCategory" name="category" class="form-select gv-select">
-              <% categories.forEach(function(name) { %>
-                <option value="<%= name %>" <%= (formData.category || 'Aktualności') === name ? 'selected' : '' %>><%= name %></option>
-              <% }) %>
-            </select>
-          </div>
+        <aside class="gv-gameform-side">
+          <div class="gv-gameform-preview">
+            <span class="gv-label">Podgląd na liście bloga</span>
+            <article class="gv-blog-tile gv-blogedit-tile">
+              <div class="gv-blog-tile-img"><img id="pvCover" src="<%= hasCover ? cover : '/images/game-placeholder.svg' %>" alt=""></div>
+              <div class="gv-blog-tile-body">
+                <div class="gv-blog-meta">
+                  <span class="gv-blog-badge" id="pvCategory"><%= currentCategory %></span>
+                  <span id="pvDate"></span>
+                </div>
+                <h3 class="gv-blog-tile-title" id="pvTitle">Tytuł wpisu</h3>
+                <p class="gv-blog-tile-excerpt" id="pvExcerpt"></p>
+                <div class="gv-blog-tile-tags" id="pvTags"></div>
+                <div class="gv-blog-foot">
+                  <span id="pvAuthor"></span>
+                  <span><i class="bi bi-clock"></i> <span id="pvRead">1</span> min</span>
+                </div>
+              </div>
+            </article>
 
-          <div class="gv-edit-field">
-            <span class="gv-edit-label">Okładka</span>
-            <div class="gv-blogform-cover">
-              <img id="blogCoverPreview" src="<%= cover || '/images/game-placeholder.svg' %>" alt="Podgląd okładki">
+            <ul class="gv-blogedit-checks" id="checklist" aria-label="Lista kontrolna">
+              <li data-check="title"><i class="bi bi-circle"></i> <span>Tytuł</span></li>
+              <li data-check="content"><i class="bi bi-circle"></i> <span>Treść</span></li>
+              <li data-check="cover"><i class="bi bi-circle"></i> <span>Okładka</span></li>
+              <li data-check="tags"><i class="bi bi-circle"></i> <span>Tagi</span></li>
+            </ul>
+
+            <div class="gv-seo-panel" id="seoPanel">
+              <div class="gv-seo-head">
+                <b><i class="bi bi-graph-up-arrow"></i> Ocena SEO</b>
+                <span class="gv-seo-score" id="seoScore">-</span>
+              </div>
+              <div class="gv-seo-bar"><span id="seoBar"></span></div>
+              <p class="gv-seo-primary d-none" id="seoPrimary"></p>
+              <ul class="gv-seo-checks" id="seoChecks"></ul>
             </div>
-            <input type="file" id="blogCover" name="cover" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control gv-input mt-2">
-            <div class="gv-edit-hint">Plik PNG, JPG, WEBP lub GIF, do 3 MB.</div>
-
-            <label class="gv-edit-label mt-3" for="blogCoverUrl">albo adres obrazka</label>
-            <input type="text" id="blogCoverUrl" name="coverUrl" class="form-control gv-input" placeholder="https://... lub /images/..." value="<%= (!isUploaded && cover && cover !== '/images/game-placeholder.svg') ? cover : '' %>">
-
-            <% if (editing && cover && cover !== '/images/game-placeholder.svg') { %>
-              <label class="gv-check mt-3">
-                <input type="checkbox" name="removeCover" value="1">
-                <span>Usuń okładkę (użyj domyślnej)</span>
-              </label>
-            <% } %>
-          </div>
-
-          <div class="gv-blogform-actions">
-            <button type="submit" class="btn gv-btn-success"><%= editing ? 'Zapisz zmiany' : 'Opublikuj' %></button>
-            <a href="<%= editing ? '/blog/' + post.id : '/blog' %>" class="gv-btn-ghost">Anuluj</a>
           </div>
         </aside>
       </form>
     </div>
   </section>
 
+  <!-- Okna edytora: zdjęcia i infografiki, linki, karty gier i filmy -->
+  <div class="modal fade" id="mediaModal" tabindex="-1" aria-labelledby="mediaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="mediaModalLabel"><i class="bi bi-image"></i> Wstaw zdjęcie lub infografikę</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <div id="mediaStepPick">
+            <div class="gv-blogedit-tabs mb-3" role="tablist">
+              <button type="button" class="active" data-media-tab="upload"><i class="bi bi-cloud-arrow-up"></i> Wgraj</button>
+              <button type="button" data-media-tab="library"><i class="bi bi-images"></i> Biblioteka</button>
+              <button type="button" data-media-tab="url"><i class="bi bi-link-45deg"></i> Adres URL</button>
+            </div>
+
+            <div id="mediaPaneUpload">
+              <label class="gv-dropzone" for="mediaFile" id="mediaDropzone">
+                <i class="bi bi-cloud-arrow-up-fill"></i>
+                <b>Przeciągnij zdjęcie lub infografikę albo kliknij, aby wybrać</b>
+                <small>PNG, JPG, WEBP lub GIF, do 8 MB. Obraz zostanie sprawdzony i zoptymalizowany (WebP). Możesz też wkleić obraz ze schowka bezpośrednio w treść wpisu.</small>
+              </label>
+              <input type="file" id="mediaFile" accept="image/png,image/jpeg,image/webp,image/gif" class="gv-visually-hidden">
+            </div>
+
+            <div id="mediaPaneLibrary" class="d-none">
+              <div class="gv-media-grid" id="mediaGrid"></div>
+              <p class="gv-muted gv-media-empty d-none" id="mediaEmpty">Biblioteka jest jeszcze pusta - wgraj pierwsze zdjęcie.</p>
+            </div>
+
+            <div id="mediaPaneUrl" class="d-none">
+              <label class="gv-label" for="mediaUrl">Adres obrazka (https://... albo /images/...)</label>
+              <div class="gv-blogedit-excerptrow">
+                <input type="text" id="mediaUrl" class="form-control gv-input" placeholder="https://..." autocomplete="off">
+                <button type="button" class="gv-btn-outline" id="mediaUrlUse">Użyj</button>
+              </div>
+              <div class="gv-edit-hint">Zdjęcie z cudzej strony może zniknąć albo być chronione prawem autorskim - najlepiej wgraj własny plik.</div>
+            </div>
+
+            <div class="gv-media-status d-none" id="mediaStatus" role="status"></div>
+          </div>
+
+          <div id="mediaStepDetails" class="d-none">
+            <div class="gv-media-details">
+              <div class="gv-media-preview"><img id="mediaPreview" alt="Podgląd wstawianego zdjęcia"></div>
+              <div class="gv-media-fields">
+                <label class="gv-label" for="mediaAlt">Tekst alternatywny (opis zdjęcia) <span class="gv-counter" id="mediaAltCount">0/200</span></label>
+                <input type="text" id="mediaAlt" class="form-control gv-input" maxlength="200" placeholder="np. Mapa Limgrave z zaznaczonymi lokacjami bossów" autocomplete="off">
+                <div class="gv-edit-hint">Opisz, co widać na zdjęciu. Czytają to wyszukiwarki i czytniki ekranu, a zdjęcie bez opisu słabiej działa w SEO.
+                  <button type="button" class="gv-linkbtn" id="mediaAltSuggest">Podpowiedz z tytułu wpisu</button></div>
+
+                <label class="gv-label mt-3" for="mediaCaption">Podpis pod zdjęciem (opcjonalnie)</label>
+                <input type="text" id="mediaCaption" class="form-control gv-input" maxlength="200" placeholder="np. Źródło: własny zrzut ekranu" autocomplete="off">
+
+                <label class="gv-label mt-3" for="mediaLayout">Układ</label>
+                <select id="mediaLayout" class="form-select gv-select">
+                  <option value="">Standardowy (na środku)</option>
+                  <option value="wide">Szeroki - pełna szerokość (dobry dla infografik)</option>
+                  <option value="small">Mały (połowa szerokości)</option>
+                  <option value="left">Do lewej, tekst opływa</option>
+                  <option value="right">Do prawej, tekst opływa</option>
+                </select>
+                <div class="gv-media-error d-none" id="mediaError" role="alert"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost d-none" id="mediaBack"><i class="bi bi-arrow-left"></i> Wróć</button>
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-success d-none" id="mediaInsert"><i class="bi bi-check-lg"></i> Wstaw do treści</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="linkModal" tabindex="-1" aria-labelledby="linkModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="linkModalLabel"><i class="bi bi-link-45deg"></i> Wstaw link</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <label class="gv-label" for="linkText">Tekst linku</label>
+          <input type="text" id="linkText" class="form-control gv-input" placeholder="np. oficjalna strona gry" autocomplete="off">
+          <label class="gv-label mt-3" for="linkUrl">Adres</label>
+          <input type="text" id="linkUrl" class="form-control gv-input" placeholder="https://... albo /games/123" autocomplete="off">
+          <div class="gv-edit-hint">Link zewnętrzny otworzy się w nowej karcie, link do gry z katalogu - w tej samej.</div>
+
+          <label class="gv-label mt-3" for="linkGameSearch">albo znajdź grę w katalogu GameVerse</label>
+          <input type="search" id="linkGameSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off">
+          <ul class="gv-gamepick" id="linkGameList"></ul>
+          <div class="gv-media-error d-none" id="linkError" role="alert"></div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-success" id="linkInsert"><i class="bi bi-check-lg"></i> Wstaw link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="embedModal" tabindex="-1" aria-labelledby="embedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="embedModalLabel"><i class="bi bi-plus-square"></i> Wstaw element</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <div class="gv-blogedit-tabs mb-3" role="tablist">
+            <button type="button" class="active" data-embed-tab="game"><i class="bi bi-controller"></i> Karta gry</button>
+            <button type="button" data-embed-tab="video"><i class="bi bi-youtube"></i> Film YouTube</button>
+          </div>
+
+          <div id="embedPaneGame">
+            <label class="gv-label" for="embedGameSearch">Wyszukaj grę w katalogu</label>
+            <input type="search" id="embedGameSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off">
+            <ul class="gv-gamepick" id="embedGameList"></ul>
+            <div class="gv-edit-hint">Karta pokazuje okładkę, platformy, rok i średnią ocenę graczy, a kliknięcie prowadzi do strony gry w katalogu (dobry link wewnętrzny).</div>
+          </div>
+
+          <div id="embedPaneVideo" class="d-none">
+            <label class="gv-label" for="embedVideoUrl">Adres filmu z YouTube</label>
+            <input type="text" id="embedVideoUrl" class="form-control gv-input" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+            <div class="gv-media-status d-none" id="embedVideoPreview"></div>
+            <div class="gv-edit-hint">Film osadzamy w trybie prywatności (youtube-nocookie) - bez śledzenia, dopóki czytelnik go nie odtworzy.</div>
+            <div class="gv-media-error d-none" id="embedVideoError" role="alert"></div>
+          </div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-success d-none" id="embedVideoInsert"><i class="bi bi-check-lg"></i> Wstaw film</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      var fileInput = document.getElementById('blogCover');
-      var urlInput = document.getElementById('blogCoverUrl');
-      var preview = document.getElementById('blogCoverPreview');
-      if (!preview) return;
+      var form = document.getElementById('blogForm');
+      var $ = function (id) { return document.getElementById(id); };
+      var title = $('blogTitle');
+      var content = $('blogContent');
+      var excerpt = $('blogExcerpt');
+      var maxTags = parseInt(form.dataset.maxTags, 10) || 8;
+      var maxTagLength = parseInt(form.dataset.maxTagLength, 10) || 24;
+      var dirty = false;
+      var submitting = false;
+      var coverPresent = false;
 
-      fileInput.addEventListener('change', function () {
-        if (fileInput.files && fileInput.files[0]) preview.src = URL.createObjectURL(fileInput.files[0]);
+      function pad(n) { return String(n).padStart(2, '0'); }
+      function toLocalValue(date) {
+        return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+      }
+      // Zwykły tekst z Markdownu: bez zdjęć, filmów, kart gier i znaczników formatowania.
+      function plainText(text) {
+        return String(text || '')
+          .replace(/^\s*(?:!\[[^\]]*\]\([^)]*\)(?:\{[a-z]+\})?|@\[youtube\]\([^)]*\)|\[\[game:[^\]]*\]\]|-{3,})\s*$/gm, ' ')
+          .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+          .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+          .replace(/^\s*>\s*\[![A-Z]+\]\s*/gm, '')
+          .replace(/^\s*(?:#{1,6}|>|[-*]|\d+\.)\s+/gm, '')
+          .replace(/[*_`]+/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      function plain(text, max) {
+        var clean = plainText(text);
+        if (clean.length <= max) return clean;
+        var cut = clean.slice(0, max - 1);
+        var space = cut.lastIndexOf(' ');
+        return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:!-]+$/, '') + '…';
+      }
+      // Krótki opis z pełnych zdań (do ok. 140 znaków) - krótszy niż sztywne obcięcie tekstu.
+      function excerptFrom(text) {
+        var clean = plainText(text);
+        var max = 140;
+        if (clean.length <= max) return clean;
+        var sentences = clean.split(/(?<=[.!?…])\s+(?=[\p{Lu}"„(\d])/u);
+        var result = '';
+        for (var i = 0; i < sentences.length; i += 1) {
+          var next = result ? result + ' ' + sentences[i] : sentences[i];
+          if (next.length > max) break;
+          result = next;
+        }
+        return result.length >= 60 ? result : plain(clean, max);
+      }
+      function words(text) { return (String(text).match(/\S+/g) || []).length; }
+      function selectedCategory() {
+        var checked = form.querySelector('input[name="category"]:checked');
+        return checked ? checked.value : '';
+      }
+      function mode() {
+        var checked = form.querySelector('input[name="publishMode"]:checked');
+        return checked ? checked.value : 'now';
+      }
+
+      /* ---------------------------- tagi (chipy) ---------------------------- */
+      var tagsValue = $('tagsValue');
+      var tagInput = $('tagInput');
+      var tagChips = $('tagChips');
+      var tags = [];
+
+      function readTags(text) {
+        return String(text || '').split(/[,;\n]+/).map(cleanTag).filter(Boolean);
+      }
+      function cleanTag(raw) {
+        return String(raw).replace(/^#+/, '').replace(/\s+/g, ' ').trim().slice(0, maxTagLength);
+      }
+      function hasTag(tag) {
+        return tags.some(function (t) { return t.toLowerCase() === tag.toLowerCase(); });
+      }
+      function renderTags() {
+        tagChips.innerHTML = '';
+        tags.forEach(function (tag) {
+          var chip = document.createElement('span');
+          chip.className = 'gv-taginput-chip';
+          chip.appendChild(document.createTextNode('#' + tag));
+          var remove = document.createElement('button');
+          remove.type = 'button';
+          remove.setAttribute('aria-label', 'Usuń tag ' + tag);
+          remove.innerHTML = '<i class="bi bi-x"></i>';
+          remove.addEventListener('click', function () {
+            tags = tags.filter(function (t) { return t !== tag; });
+            renderTags();
+            touched();
+          });
+          chip.appendChild(remove);
+          tagChips.appendChild(chip);
+        });
+        tagsValue.value = tags.join(', ');
+        $('tagCount').textContent = tags.length + '/' + maxTags;
+        $('tagCount').classList.toggle('full', tags.length >= maxTags);
+        tagInput.disabled = tags.length >= maxTags;
+        tagInput.placeholder = tags.length >= maxTags ? 'Limit tagów' : 'Dodaj tag i Enter';
+        // Podpowiedzi (popularne tagi bloga oraz propozycje z treści) znikają, gdy tag jest już dodany.
+        [['#tagSuggest', $('tagSuggest')], ['#tagAutoList', $('tagAuto')]].forEach(function (group) {
+          var box = group[1];
+          if (!box) return;
+          var buttons = box.querySelectorAll('.gv-taginput-suggestion[data-tag]');
+          buttons.forEach(function (button) {
+            button.classList.toggle('d-none', hasTag(button.dataset.tag) || tags.length >= maxTags);
+          });
+          box.classList.toggle('d-none', box.querySelectorAll('.gv-taginput-suggestion[data-tag]:not(.d-none)').length === 0);
+        });
+        refreshPreview();
+        scheduleAutoCover();
+      }
+      function addTag(raw) {
+        readTags(raw).forEach(function (tag) {
+          if (tags.length < maxTags && !hasTag(tag)) tags.push(tag);
+        });
+        renderTags();
+        touched();
+      }
+      tags = readTags(tagsValue.value).filter(function (tag, i, list) {
+        return list.findIndex(function (t) { return t.toLowerCase() === tag.toLowerCase(); }) === i;
+      }).slice(0, maxTags);
+
+      tagInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ',' || event.key === ';') {
+          event.preventDefault();
+          if (tagInput.value.trim()) addTag(tagInput.value);
+          tagInput.value = '';
+        } else if (event.key === 'Backspace' && !tagInput.value && tags.length) {
+          tags.pop();
+          renderTags();
+          touched();
+        }
       });
-      urlInput.addEventListener('change', function () {
-        if (urlInput.value.trim()) preview.src = urlInput.value.trim();
+      tagInput.addEventListener('input', function () {
+        if (/[,;]/.test(tagInput.value)) {
+          addTag(tagInput.value);
+          tagInput.value = '';
+        }
       });
+      tagInput.addEventListener('blur', function () {
+        if (tagInput.value.trim()) addTag(tagInput.value);
+        tagInput.value = '';
+      });
+      $('tagBox').addEventListener('click', function () { tagInput.focus(); });
+      document.querySelectorAll('#tagSuggest .gv-taginput-suggestion').forEach(function (button) {
+        button.addEventListener('click', function () { addTag(button.dataset.tag); });
+      });
+
+      /* ------------------- pasek formatowania i skróty ------------------- */
+      function fire() { content.dispatchEvent(new Event('input', { bubbles: true })); }
+
+      function wrapInline(before, after, placeholder) {
+        var start = content.selectionStart;
+        var end = content.selectionEnd;
+        var text = content.value.slice(start, end) || placeholder;
+        content.focus();
+        content.setRangeText(before + text + after, start, end, 'end');
+        content.setSelectionRange(start + before.length, start + before.length + text.length);
+        fire();
+      }
+
+      var BLOCK_PREFIX = /^(?:#{2}\s+|[-*]\s+|\d+\.\s+|>\s?)/;
+      function blockFormat(kind) {
+        var value = content.value;
+        var start = content.selectionStart;
+        var end = content.selectionEnd;
+        var lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        var endIndex = value.indexOf('\n', end);
+        var lineEnd = endIndex === -1 ? value.length : endIndex;
+        var lines = value.slice(lineStart, lineEnd).split('\n');
+        var placeholder = { h2: 'Śródtytuł', ul: 'Punkt listy', ol: 'Punkt listy', quote: 'Cytat' }[kind];
+        if (lines.length === 1 && !lines[0].trim()) lines = [placeholder];
+
+        var marks = {
+          h2: /^##\s+/, ul: /^[-*]\s+/, ol: /^\d+\.\s+/, quote: /^>\s?/
+        };
+        var already = lines.every(function (line) { return marks[kind].test(line); });
+        var bare = lines.map(function (line) { return line.replace(BLOCK_PREFIX, ''); });
+
+        var out;
+        if (already) out = bare;
+        else if (kind === 'h2') out = ['## ' + bare.join(' ').trim()];
+        else if (kind === 'ul') out = bare.map(function (line) { return '- ' + line; });
+        else if (kind === 'ol') out = bare.map(function (line, i) { return (i + 1) + '. ' + line; });
+        else out = bare.map(function (line) { return '> ' + line; });
+
+        // Bloki oddzielamy pustą linią (tak rozpoznaje je renderer wpisu).
+        var before = lineStart > 1 && value.charAt(lineStart - 2) !== '\n' && !already ? '\n' : '';
+        var after = lineEnd < value.length - 1 && value.charAt(lineEnd + 1) !== '\n' && !already ? '\n' : '';
+        var text = before + out.join('\n') + after;
+        content.focus();
+        content.setRangeText(text, lineStart, lineEnd, 'end');
+        var selStart = lineStart + before.length;
+        content.setSelectionRange(selStart, selStart + out.join('\n').length);
+        fire();
+      }
+
+      var commands = {
+        h2: function () { blockFormat('h2'); },
+        bold: function () { wrapInline('**', '**', 'pogrubienie'); },
+        italic: function () { wrapInline('*', '*', 'kursywa'); },
+        ul: function () { blockFormat('ul'); },
+        ol: function () { blockFormat('ol'); },
+        quote: function () { blockFormat('quote'); },
+        link: function () { openLinkDialog(); },
+        image: function () { openMediaDialog(); },
+        game: function () { openEmbedDialog('game'); },
+        video: function () { openEmbedDialog('video'); },
+        info: function () { insertBlock('> [!INFO] Wpisz treść ramki', 'Wpisz treść ramki'); },
+        tip: function () { insertBlock('> [!TIP] Wpisz treść wskazówki', 'Wpisz treść wskazówki'); },
+        warning: function () { insertBlock('> [!WARNING] Wpisz treść ostrzeżenia', 'Wpisz treść ostrzeżenia'); },
+        hr: function () { insertBlock('---'); }
+      };
+      $('toolbar').addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-cmd]');
+        if (button && commands[button.dataset.cmd]) commands[button.dataset.cmd]();
+      });
+      content.addEventListener('keydown', function (event) {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+        var key = event.key.toLowerCase();
+        if (key === 'b') { event.preventDefault(); commands.bold(); }
+        else if (key === 'i') { event.preventDefault(); commands.italic(); }
+        else if (key === 'k') { event.preventDefault(); commands.link(); }
+      });
+
+      /* --------------------------- zakładki: pisz / podgląd --------------------------- */
+      var preview = $('contentPreview');
+      var toolbar = $('toolbar');
+      var previewTimer = null;
+      function showTab(name) {
+        form.querySelectorAll('.gv-blogedit-tabs button').forEach(function (tab) {
+          var active = tab.dataset.tab === name;
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        var isPreview = name === 'preview';
+        content.classList.toggle('d-none', isPreview);
+        toolbar.classList.toggle('disabled', isPreview);
+        preview.classList.toggle('d-none', !isPreview);
+        if (isPreview) loadPreview();
+      }
+      function loadPreview() {
+        if (!content.value.trim()) {
+          preview.innerHTML = '<p class="gv-muted">Nie ma jeszcze czego pokazać - wpisz treść w zakładce „Pisz”.</p>';
+          return;
+        }
+        preview.innerHTML = '<p class="gv-muted"><i class="bi bi-arrow-repeat gv-spin"></i> Renderuję podgląd...</p>';
+        fetch('/blog/preview', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ content: content.value }) })
+          .then(function (response) { return response.json(); })
+          .then(function (data) { preview.innerHTML = data.html || ''; })
+          .catch(function () { preview.innerHTML = '<p class="gv-muted">Nie udało się wyrenderować podglądu.</p>'; });
+      }
+      form.querySelectorAll('.gv-blogedit-tabs button').forEach(function (tab) {
+        tab.addEventListener('click', function () { showTab(tab.dataset.tab); });
+      });
+
+      /* ------------------------------ okładka ------------------------------ */
+      var cover = $('blogCover');
+      var coverUrl = $('blogCoverUrl');
+      var removeCover = $('blogRemoveCover');
+      var dropzone = $('blogDropzone');
+      var pvCover = $('pvCover');
+      var originalCover = pvCover.getAttribute('src');
+      var placeholder = '/images/game-placeholder.svg';
+
+      /* Okładka automatyczna: podgląd tworzy serwer (ta sama funkcja, co przy zapisie wpisu). */
+      var autoCover = $('autoCover');
+      var autoBody = $('autoCoverBody');
+      var autoImg = $('autoCoverImg');
+      var autoHint = $('autoCoverHint');
+      var variant = $('coverVariant');
+      var autoUrl = '';
+      var autoKey = '';
+      var autoTimer = null;
+      var autoRequest = 0;
+
+      function autoSpec() {
+        return JSON.stringify([title.value.trim(), selectedCategory(), tags.join(','), variant.value]);
+      }
+      function loadAutoCover() {
+        if (!autoCover.checked) return;
+        var name = title.value.trim();
+        if (!name) {
+          autoUrl = '';
+          autoKey = '';
+          autoImg.src = placeholder;
+          autoHint.classList.remove('d-none');
+          refreshCover();
+          return;
+        }
+        var key = autoSpec();
+        if (key === autoKey && autoUrl) return;
+        autoKey = key;
+        var mine = ++autoRequest;
+        autoBody.classList.add('loading');
+        fetch('/blog/cover-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: name, category: selectedCategory(), tags: tags.join(','), variant: variant.value })
+        })
+          .then(function (response) { if (!response.ok) throw new Error('bad'); return response.blob(); })
+          .then(function (blob) {
+            if (mine !== autoRequest) return;
+            if (autoUrl) URL.revokeObjectURL(autoUrl);
+            autoUrl = URL.createObjectURL(blob);
+            autoImg.src = autoUrl;
+            autoHint.classList.add('d-none');
+            refreshCover();
+          })
+          .catch(function () { if (mine === autoRequest) autoHint.textContent = 'Nie udało się utworzyć podglądu okładki.'; })
+          .then(function () { if (mine === autoRequest) autoBody.classList.remove('loading'); });
+      }
+      function scheduleAutoCover() {
+        if (!autoCover || !autoCover.checked) return;
+        clearTimeout(autoTimer);
+        autoTimer = setTimeout(loadAutoCover, 450);
+      }
+      function setAuto(on) {
+        autoCover.checked = on;
+        autoBody.classList.toggle('d-none', !on);
+        if (on) {
+          cover.value = '';
+          coverUrl.value = '';
+          if (removeCover) removeCover.checked = false;
+          loadAutoCover();
+        }
+        refreshCover();
+      }
+      autoCover.addEventListener('change', function () { setAuto(autoCover.checked); touched(); });
+      $('autoCoverShuffle').addEventListener('click', function () {
+        variant.value = String((parseInt(variant.value, 10) || 0) + 1);
+        autoKey = '';
+        loadAutoCover();
+        touched();
+      });
+      form.addEventListener('input', scheduleAutoCover);
+      form.addEventListener('change', scheduleAutoCover);
+
+      function currentCoverSrc() {
+        if (removeCover && removeCover.checked) return placeholder;
+        if (cover.files && cover.files[0]) return URL.createObjectURL(cover.files[0]);
+        if (coverUrl.value.trim()) return coverUrl.value.trim();
+        if (autoCover.checked && autoUrl) return autoUrl;
+        return originalCover;
+      }
+      function refreshCover() {
+        pvCover.src = currentCoverSrc();
+        var file = cover.files && cover.files[0];
+        $('blogFileName').textContent = file ? file.name : '';
+        refreshPreview();
+      }
+      function useFile(files) {
+        if (!files || !files[0]) return;
+        cover.files = files;
+        coverUrl.value = '';
+        if (removeCover) removeCover.checked = false;
+        autoCover.checked = false;
+        autoBody.classList.add('d-none');
+        refreshCover();
+        touched();
+      }
+      cover.addEventListener('change', function () { useFile(cover.files); });
+      ['dragenter', 'dragover'].forEach(function (name) {
+        dropzone.addEventListener(name, function (event) { event.preventDefault(); dropzone.classList.add('dragging'); });
+      });
+      ['dragleave', 'drop'].forEach(function (name) {
+        dropzone.addEventListener(name, function (event) { event.preventDefault(); dropzone.classList.remove('dragging'); });
+      });
+      dropzone.addEventListener('drop', function (event) {
+        if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) useFile(event.dataTransfer.files);
+      });
+      $('coverUrlToggle').addEventListener('click', function () {
+        var box = $('coverUrlBox');
+        box.classList.toggle('d-none');
+        if (!box.classList.contains('d-none')) coverUrl.focus();
+      });
+      coverUrl.addEventListener('input', function () {
+        if (coverUrl.value.trim()) {
+          cover.value = '';
+          if (removeCover) removeCover.checked = false;
+          autoCover.checked = false;
+          autoBody.classList.add('d-none');
+        }
+        refreshCover();
+      });
+      if (removeCover) {
+        removeCover.addEventListener('change', function () {
+          if (removeCover.checked) {
+            cover.value = '';
+            coverUrl.value = '';
+            autoCover.checked = false;
+            autoBody.classList.add('d-none');
+          }
+          refreshCover();
+        });
+      }
+
+      /* ------------------------------ krótki opis ------------------------------ */
+      $('excerptAuto').addEventListener('click', function () {
+        excerpt.value = excerptFrom(content.value);
+        excerpt.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      /* ------------------------------ publikacja ------------------------------ */
+      var scheduleBox = $('scheduleBox');
+      var local = $('publishAtLocal');
+      var iso = $('publishAtIso');
+      var submit = $('blogSubmit');
+      var submitLabel = $('blogSubmitLabel');
+      var labels = { now: submit.dataset.editing ? 'Zapisz zmiany' : 'Opublikuj', draft: 'Zapisz szkic', schedule: 'Zaplanuj publikację' };
+
+      local.min = toLocalValue(new Date());
+      if (local.dataset.iso) {
+        var existing = new Date(local.dataset.iso);
+        if (!isNaN(existing.getTime())) local.value = toLocalValue(existing);
+      }
+      form.querySelectorAll('input[name="publishMode"]').forEach(function (radio) {
+        radio.addEventListener('change', function () { refreshMode(); touched(); });
+      });
+      function refreshMode() {
+        var current = mode();
+        scheduleBox.classList.toggle('d-none', current !== 'schedule');
+        local.required = current === 'schedule';
+        submitLabel.textContent = labels[current];
+        refreshPreview();
+      }
+      form.querySelectorAll('[data-quick]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var date = new Date();
+          if (button.dataset.quick === 'hour') date.setHours(date.getHours() + 1);
+          else {
+            date.setDate(date.getDate() + (button.dataset.quick === 'week' ? 7 : 1));
+            date.setHours(9, 0, 0, 0);
+          }
+          local.value = toLocalValue(date);
+          local.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      });
+
+      /* ----------------------- podgląd karty, liczniki, lista ----------------------- */
+      function fmtDate(date) {
+        return date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+      function refreshPreview() {
+        var text = content.value;
+        var wordCount = words(text);
+        var minutes = Math.max(1, Math.round(wordCount / 200));
+        var max = parseInt(excerpt.getAttribute('maxlength'), 10) || 200;
+        var auto = excerptFrom(text);
+
+        $('titleCount').textContent = title.value.length + '/' + title.getAttribute('maxlength');
+        $('excerptCount').textContent = excerpt.value.length + '/' + max;
+        $('contentStats').textContent = wordCount + ' ' + (wordCount === 1 ? 'słowo' : 'słów') + ' · ok. ' + minutes + ' min czytania';
+
+        $('pvTitle').textContent = title.value.trim() || 'Tytuł wpisu';
+        $('pvCategory').textContent = selectedCategory();
+        $('pvAuthor').textContent = form.dataset.author;
+        $('pvRead').textContent = minutes;
+        var pvExcerpt = $('pvExcerpt');
+        pvExcerpt.textContent = excerpt.value.trim() || auto || 'Krótki opis pojawi się tutaj.';
+        pvExcerpt.classList.toggle('gv-muted', !excerpt.value.trim());
+
+        var current = mode();
+        var dateText = fmtDate(new Date());
+        if (current === 'draft') dateText = 'Szkic';
+        else if (current === 'schedule' && local.value) dateText = fmtDate(new Date(local.value));
+        $('pvDate').textContent = dateText;
+
+        var pvTags = $('pvTags');
+        pvTags.innerHTML = '';
+        tags.slice(0, 3).forEach(function (tag) {
+          var span = document.createElement('a');
+          span.textContent = '#' + tag;
+          pvTags.appendChild(span);
+        });
+
+        var hasCover = !!(cover.files && cover.files[0]) || !!coverUrl.value.trim() || (autoCover.checked && !!title.value.trim()) || (originalCover !== placeholder && !(removeCover && removeCover.checked));
+        setCheck('title', title.value.trim().length >= 5, title.value.trim().length >= 5 ? 'Tytuł' : 'Tytuł (min. 5 znaków)');
+        setCheck('content', wordCount >= 50, wordCount >= 50 ? 'Treść (' + wordCount + ' słów)' : 'Treść (' + wordCount + ' słów - dobrze mieć 50+)');
+        setCheck('cover', hasCover, hasCover ? (autoCover.checked && !(cover.files && cover.files[0]) && !coverUrl.value.trim() ? 'Okładka (automatyczna)' : 'Okładka') : 'Okładka (opcjonalnie)');
+        setCheck('tags', tags.length > 0, tags.length > 0 ? 'Tagi (' + tags.length + ')' : 'Tagi (opcjonalnie)');
+        coverPresent = hasCover;
+        scheduleAssist();
+      }
+      function setCheck(name, done, label) {
+        var item = document.querySelector('#checklist [data-check="' + name + '"]');
+        item.classList.toggle('done', done);
+        item.querySelector('i').className = 'bi ' + (done ? 'bi-check-circle-fill' : 'bi-circle');
+        item.querySelector('span').textContent = label;
+      }
+
+      /* ------------- automatyczny zapis kopii roboczej w przeglądarce ------------- */
+      var draftKey = 'gv-blog-draft:' + form.dataset.draftKey;
+      function snapshot() {
+        return { title: title.value, excerpt: excerpt.value, content: content.value, category: selectedCategory(), tags: tags.join(', ') };
+      }
+      function apply(data) {
+        title.value = data.title || '';
+        excerpt.value = data.excerpt || '';
+        content.value = data.content || '';
+        var radio = form.querySelector('input[name="category"][value="' + (data.category || '') + '"]');
+        if (radio) radio.checked = true;
+        tags = readTags(data.tags).slice(0, maxTags);
+        renderTags();
+        refreshPreview();
+      }
+      function readDraft() {
+        try { return JSON.parse(localStorage.getItem(draftKey) || 'null'); } catch (err) { return null; }
+      }
+      function clearDraft() {
+        try { localStorage.removeItem(draftKey); } catch (err) { /* brak dostępu do pamięci przeglądarki */ }
+      }
+      var initial = JSON.stringify(snapshot());
+      var stored = readDraft();
+      if (stored && stored.data && JSON.stringify(stored.data) !== initial && (stored.data.title || stored.data.content)) {
+        $('draftBannerTime').textContent = new Date(stored.savedAt).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' });
+        $('draftBanner').classList.remove('d-none');
+        $('draftRestore').addEventListener('click', function () {
+          apply(stored.data);
+          $('draftBanner').classList.add('d-none');
+          touched();
+        });
+        $('draftDiscard').addEventListener('click', function () {
+          clearDraft();
+          $('draftBanner').classList.add('d-none');
+        });
+      }
+      var saveTimer = null;
+      function touched() {
+        dirty = true;
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+          var data = snapshot();
+          if (JSON.stringify(data) === initial) return clearDraft();
+          try { localStorage.setItem(draftKey, JSON.stringify({ savedAt: Date.now(), data: data })); } catch (err) { /* pełna pamięć lub tryb prywatny */ }
+        }, 800);
+      }
+
+      form.addEventListener('input', function (event) {
+        if (event.target.matches('#tagInput')) return;
+        refreshPreview();
+        touched();
+      });
+      form.addEventListener('change', function () { refreshPreview(); touched(); });
+
+      window.addEventListener('beforeunload', function (event) {
+        if (dirty && !submitting) {
+          event.preventDefault();
+          event.returnValue = '';
+        }
+      });
+
+      // Wysłanie z zakładki "Podgląd": wracamy do pisania, żeby przeglądarka mogła wskazać puste pole treści.
+      submit.addEventListener('click', function () {
+        if (content.classList.contains('d-none')) showTab('write');
+      });
+
+      form.addEventListener('submit', function (event) {
+        if (tagInput.value.trim()) addTag(tagInput.value);
+        tagInput.value = '';
+        if (!title.value.trim() || !content.value.trim()) {
+          event.preventDefault();
+          (title.value.trim() ? content : title).focus();
+          return;
+        }
+        if (mode() === 'schedule' && local.value) {
+          var picked = new Date(local.value);
+          if (!isNaN(picked.getTime())) iso.value = picked.toISOString();
+        } else {
+          iso.value = '';
+        }
+        submitting = true;
+        clearDraft();
+        submit.disabled = true;
+      });
+
+      /* ------------------- mini CMS: zdjęcia, linki, karty gier, filmy ------------------- */
+      var bootstrapApi = window.bootstrap;
+      function modal(id) { return bootstrapApi.Modal.getOrCreateInstance($(id)); }
+      var savedRange = null;
+      function rememberSelection() { savedRange = { start: content.selectionStart, end: content.selectionEnd }; }
+      function show(el, visible) { el.classList.toggle('d-none', !visible); }
+
+      /** Wstawia blok (zdjęcie, film, ramkę...) jako osobny akapit - z pustymi liniami wokół. */
+      function insertBlock(markdown, selectText) {
+        var range = savedRange || { start: content.selectionStart, end: content.selectionEnd };
+        savedRange = null;
+        var value = content.value;
+        var before = value.slice(0, range.start);
+        var after = value.slice(range.end);
+        var prefix = before && !/\n\n$/.test(before) ? (/\n$/.test(before) ? '\n' : '\n\n') : '';
+        var suffix = !after || /^\n\n/.test(after) ? '\n\n' : (/^\n/.test(after) ? '\n' : '\n\n');
+        var text = prefix + markdown + suffix;
+        content.focus();
+        content.setRangeText(text, range.start, range.end, 'end');
+        if (selectText) {
+          var at = range.start + prefix.length + markdown.indexOf(selectText);
+          content.setSelectionRange(at, at + selectText.length);
+        }
+        fire();
+      }
+
+      /** Wyszukiwarka gier w katalogu (ta sama, której używa okno ulubionej gry na profilu). */
+      function bindGameSearch(input, list, onPick) {
+        var timer = null;
+        var seq = 0;
+        input.addEventListener('input', function () {
+          clearTimeout(timer);
+          var q = input.value.trim();
+          if (q.length < 2) { list.innerHTML = ''; return; }
+          timer = setTimeout(function () {
+            var mine = ++seq;
+            list.innerHTML = '<li class="gv-gamepick-note"><i class="bi bi-arrow-repeat gv-spin"></i> Szukam...</li>';
+            fetch('/games/search-json?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } })
+              .then(function (response) { return response.json(); })
+              .then(function (data) {
+                if (mine !== seq) return;
+                list.innerHTML = '';
+                if (!data.games || !data.games.length) { list.innerHTML = '<li class="gv-gamepick-note">Nie znaleziono takiej gry w katalogu.</li>'; return; }
+                data.games.forEach(function (game) {
+                  var item = document.createElement('li');
+                  var button = document.createElement('button');
+                  button.type = 'button';
+                  var image = document.createElement('img');
+                  image.src = game.coverImage;
+                  image.alt = '';
+                  image.loading = 'lazy';
+                  var text = document.createElement('span');
+                  var name = document.createElement('b');
+                  name.textContent = game.title;
+                  var meta = document.createElement('small');
+                  meta.textContent = [game.releaseYear, game.platform].filter(Boolean).join(' · ');
+                  text.appendChild(name);
+                  text.appendChild(meta);
+                  button.appendChild(image);
+                  button.appendChild(text);
+                  button.addEventListener('click', function () { onPick(game); });
+                  item.appendChild(button);
+                  list.appendChild(item);
+                });
+              })
+              .catch(function () { if (mine === seq) list.innerHTML = '<li class="gv-gamepick-note">Nie udało się wyszukać gier.</li>'; });
+          }, 350);
+        });
+      }
+
+      /* --- link --- */
+      var linkText = $('linkText');
+      var linkUrl = $('linkUrl');
+      var linkError = $('linkError');
+      function openLinkDialog() {
+        rememberSelection();
+        linkText.value = content.value.slice(savedRange.start, savedRange.end);
+        linkUrl.value = '';
+        $('linkGameSearch').value = '';
+        $('linkGameList').innerHTML = '';
+        show(linkError, false);
+        modal('linkModal').show();
+      }
+      $('linkModal').addEventListener('shown.bs.modal', function () { (linkText.value ? linkUrl : linkText).focus(); });
+      bindGameSearch($('linkGameSearch'), $('linkGameList'), function (game) {
+        linkUrl.value = '/games/' + game.id;
+        if (!linkText.value.trim()) linkText.value = game.title;
+        $('linkGameList').innerHTML = '';
+        $('linkGameSearch').value = game.title;
+      });
+      $('linkInsert').addEventListener('click', function () {
+        var url = linkUrl.value.trim();
+        var label = linkText.value.trim();
+        if (url && !/^(?:https?:\/\/|\/(?!\/))/i.test(url) && /^[^\s\/]+\.[a-z]{2,}(?:\/\S*)?$/i.test(url)) url = 'https://' + url;
+        if (!/^(?:https?:\/\/[^\s)]+|\/(?!\/)[^\s)]*)$/i.test(url)) {
+          linkError.textContent = 'Podaj poprawny adres: https://... albo /games/123.';
+          show(linkError, true);
+          return;
+        }
+        if (!label) {
+          try { label = url.charAt(0) === '/' ? 'zobacz więcej' : new URL(url).hostname.replace(/^www\./, ''); } catch (err) { label = url; }
+        }
+        var range = savedRange || { start: content.selectionStart, end: content.selectionEnd };
+        savedRange = null;
+        var snippet = '[' + label.replace(/[\[\]]/g, '') + '](' + url + ')';
+        content.focus();
+        content.setRangeText(snippet, range.start, range.end, 'end');
+        modal('linkModal').hide();
+        fire();
+      });
+
+      /* --- zdjęcia i infografiki --- */
+      var media = { id: null, url: '', alt: '', caption: '' };
+      var mediaLoaded = false;
+      var mediaAlt = $('mediaAlt');
+      var mediaCaption = $('mediaCaption');
+      var mediaStatus = $('mediaStatus');
+      var mediaError = $('mediaError');
+
+      function mediaTab(name) {
+        document.querySelectorAll('[data-media-tab]').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.mediaTab === name); });
+        show($('mediaPaneUpload'), name === 'upload');
+        show($('mediaPaneLibrary'), name === 'library');
+        show($('mediaPaneUrl'), name === 'url');
+        if (name === 'library' && !mediaLoaded) loadLibrary();
+      }
+      function mediaSays(text, isError) {
+        mediaStatus.textContent = text || '';
+        mediaStatus.classList.toggle('error', !!isError);
+        show(mediaStatus, !!text);
+      }
+      function mediaStep(details) {
+        show($('mediaStepPick'), !details);
+        show($('mediaStepDetails'), details);
+        show($('mediaBack'), details);
+        show($('mediaInsert'), details);
+      }
+      function openMediaDialog(file) {
+        rememberSelection();
+        mediaStep(false);
+        mediaTab('upload');
+        mediaSays('');
+        $('mediaFile').value = '';
+        modal('mediaModal').show();
+        if (file) uploadMedia(file);
+      }
+      function showMediaDetails(item) {
+        media = { id: item.id || null, url: item.url, alt: item.alt || '', caption: item.caption || '' };
+        $('mediaPreview').src = item.url;
+        mediaAlt.value = media.alt;
+        mediaCaption.value = media.caption;
+        $('mediaLayout').value = '';
+        show(mediaError, false);
+        updateAltCount();
+        mediaStep(true);
+        setTimeout(function () { mediaAlt.focus(); }, 150);
+      }
+      function updateAltCount() { $('mediaAltCount').textContent = mediaAlt.value.length + '/200'; }
+      mediaAlt.addEventListener('input', updateAltCount);
+
+      function uploadMedia(file) {
+        if (!/^image\//.test(file.type)) { mediaSays('To nie jest obraz - wybierz plik PNG, JPG, WEBP lub GIF.', true); return; }
+        mediaSays('Wgrywam i sprawdzam obraz...');
+        var data = new FormData();
+        data.append('image', file);
+        fetch('/blog/media', { method: 'POST', headers: { Accept: 'application/json' }, body: data })
+          .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
+          .then(function (result) {
+            if (!result.ok) { mediaSays(result.body.error || 'Nie udało się wgrać obrazu.', true); return; }
+            mediaLoaded = false;
+            mediaSays('');
+            showMediaDetails(result.body.media);
+          })
+          .catch(function () { mediaSays('Nie udało się wgrać obrazu. Spróbuj ponownie.', true); });
+      }
+      $('mediaFile').addEventListener('change', function () { if (this.files && this.files[0]) uploadMedia(this.files[0]); });
+      var mediaDrop = $('mediaDropzone');
+      ['dragenter', 'dragover'].forEach(function (name) {
+        mediaDrop.addEventListener(name, function (event) { event.preventDefault(); mediaDrop.classList.add('dragging'); });
+      });
+      ['dragleave', 'drop'].forEach(function (name) {
+        mediaDrop.addEventListener(name, function (event) { event.preventDefault(); mediaDrop.classList.remove('dragging'); });
+      });
+      mediaDrop.addEventListener('drop', function (event) {
+        if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) uploadMedia(event.dataTransfer.files[0]);
+      });
+
+      function loadLibrary() {
+        var grid = $('mediaGrid');
+        grid.innerHTML = '<p class="gv-muted"><i class="bi bi-arrow-repeat gv-spin"></i> Wczytuję bibliotekę...</p>';
+        fetch('/blog/media', { headers: { Accept: 'application/json' } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            mediaLoaded = true;
+            grid.innerHTML = '';
+            show($('mediaEmpty'), !data.media.length);
+            data.media.forEach(function (item) {
+              var cell = document.createElement('div');
+              cell.className = 'gv-media-item';
+              var pick = document.createElement('button');
+              pick.type = 'button';
+              pick.title = item.alt || item.originalName || 'Wybierz zdjęcie';
+              var image = document.createElement('img');
+              image.src = item.url;
+              image.alt = item.alt || '';
+              image.loading = 'lazy';
+              pick.appendChild(image);
+              pick.addEventListener('click', function () { showMediaDetails(item); });
+              var remove = document.createElement('button');
+              remove.type = 'button';
+              remove.className = 'gv-media-remove';
+              remove.title = 'Usuń z biblioteki';
+              remove.innerHTML = '<i class="bi bi-trash3-fill"></i>';
+              remove.addEventListener('click', function () {
+                if (!window.confirm('Usunąć to zdjęcie z biblioteki?')) return;
+                post('/blog/media/' + item.id + '/delete', {})
+                  .then(function () { cell.remove(); show($('mediaEmpty'), !grid.children.length); })
+                  .catch(function () { mediaSays('Nie można usunąć - zdjęcie jest użyte we wpisie.', true); mediaTab('library'); });
+              });
+              cell.appendChild(pick);
+              cell.appendChild(remove);
+              grid.appendChild(cell);
+            });
+          })
+          .catch(function () { grid.innerHTML = '<p class="gv-muted">Nie udało się wczytać biblioteki.</p>'; });
+      }
+      document.querySelectorAll('[data-media-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () { mediaSays(''); mediaTab(tab.dataset.mediaTab); });
+      });
+      $('mediaUrlUse').addEventListener('click', function () {
+        var url = $('mediaUrl').value.trim();
+        if (!/^(?:https:\/\/[^\s)]+|\/(?!\/)[^\s)]*)$/.test(url)) { mediaSays('Podaj adres zaczynający się od https:// albo /images/...', true); return; }
+        mediaSays('');
+        showMediaDetails({ url: url, alt: '', caption: '' });
+      });
+      $('mediaBack').addEventListener('click', function () { mediaStep(false); });
+      $('mediaAltSuggest').addEventListener('click', function () {
+        var base = title.value.trim() || 'Ilustracja do wpisu';
+        mediaAlt.value = (mediaCaption.value.trim() || base).slice(0, 200);
+        updateAltCount();
+      });
+      $('mediaInsert').addEventListener('click', function () {
+        var alt = mediaAlt.value.replace(/[\[\]\n]/g, ' ').replace(/\s+/g, ' ').trim();
+        var caption = mediaCaption.value.replace(/"/g, "'").replace(/\s+/g, ' ').trim();
+        if (alt.length < 3) {
+          mediaError.textContent = 'Opisz zdjęcie (tekst alternatywny) - to ważne dla SEO i osób korzystających z czytników ekranu.';
+          show(mediaError, true);
+          mediaAlt.focus();
+          return;
+        }
+        var layout = $('mediaLayout').value;
+        var markdown = '![' + alt + '](' + media.url + (caption ? ' "' + caption + '"' : '') + ')' + (layout ? '{' + layout + '}' : '');
+        // Opis i podpis zapamiętujemy w bibliotece - przy kolejnym użyciu obrazu będą podpowiedziane.
+        if (media.id && (alt !== media.alt || caption !== media.caption)) {
+          post('/blog/media/' + media.id, { alt: alt, caption: caption }).catch(function () {});
+          mediaLoaded = false;
+        }
+        modal('mediaModal').hide();
+        insertBlock(markdown);
+      });
+
+      // Wklejenie lub upuszczenie obrazu w treść wpisu otwiera okno wstawiania (z wgraniem pliku).
+      function imageFrom(files) {
+        for (var i = 0; files && i < files.length; i += 1) if (/^image\//.test(files[i].type)) return files[i];
+        return null;
+      }
+      content.addEventListener('paste', function (event) {
+        var file = imageFrom(event.clipboardData && event.clipboardData.files);
+        if (!file) return;
+        event.preventDefault();
+        openMediaDialog(file);
+      });
+      content.addEventListener('dragover', function (event) {
+        if (event.dataTransfer && Array.prototype.some.call(event.dataTransfer.types || [], function (t) { return t === 'Files'; })) event.preventDefault();
+      });
+      content.addEventListener('drop', function (event) {
+        var file = imageFrom(event.dataTransfer && event.dataTransfer.files);
+        if (!file) return;
+        event.preventDefault();
+        openMediaDialog(file);
+      });
+
+      /* --- karta gry i film YouTube --- */
+      var embedVideoId = '';
+      function embedTab(name) {
+        document.querySelectorAll('[data-embed-tab]').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.embedTab === name); });
+        show($('embedPaneGame'), name === 'game');
+        show($('embedPaneVideo'), name === 'video');
+        show($('embedVideoInsert'), name === 'video' && !!embedVideoId);
+        setTimeout(function () { (name === 'game' ? $('embedGameSearch') : $('embedVideoUrl')).focus(); }, 200);
+      }
+      function openEmbedDialog(tab) {
+        rememberSelection();
+        $('embedGameSearch').value = '';
+        $('embedGameList').innerHTML = '';
+        $('embedVideoUrl').value = '';
+        embedVideoId = '';
+        show($('embedVideoPreview'), false);
+        show($('embedVideoError'), false);
+        embedTab(tab);
+        modal('embedModal').show();
+      }
+      document.querySelectorAll('[data-embed-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () { embedTab(tab.dataset.embedTab); });
+      });
+      bindGameSearch($('embedGameSearch'), $('embedGameList'), function (game) {
+        modal('embedModal').hide();
+        insertBlock('[[game:' + game.id + ']]');
+      });
+      function youtubeId(text) {
+        var value = String(text || '').trim();
+        if (/^[A-Za-z0-9_-]{11}$/.test(value)) return value;
+        var match = value.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+        return match ? match[1] : '';
+      }
+      $('embedVideoUrl').addEventListener('input', function () {
+        embedVideoId = youtubeId(this.value);
+        var preview = $('embedVideoPreview');
+        show($('embedVideoError'), !!this.value.trim() && !embedVideoId);
+        $('embedVideoError').textContent = 'Nie rozpoznaję tego adresu - wklej link do filmu z YouTube.';
+        preview.innerHTML = '';
+        if (embedVideoId) {
+          var image = document.createElement('img');
+          image.src = 'https://img.youtube.com/vi/' + embedVideoId + '/hqdefault.jpg';
+          image.alt = 'Miniatura filmu';
+          preview.appendChild(image);
+        }
+        show(preview, !!embedVideoId);
+        show($('embedVideoInsert'), !!embedVideoId);
+      });
+      $('embedVideoInsert').addEventListener('click', function () {
+        if (!embedVideoId) return;
+        modal('embedModal').hide();
+        insertBlock('@[youtube](' + embedVideoId + ')');
+      });
+
+      /* ----------------- asystent SEO: propozycje tagów, ocena, formatowanie ----------------- */
+      var assistTimer = null;
+      var assistSeq = 0;
+      var assistKey = '';
+      var suggestions = [];
+
+      function post(url, payload) {
+        return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) })
+          .then(function (response) { if (!response.ok) throw new Error('bad'); return response.json(); });
+      }
+      function scheduleAssist() {
+        clearTimeout(assistTimer);
+        assistTimer = setTimeout(runAssist, 900);
+      }
+      function runAssist() {
+        var payload = { title: title.value, excerpt: excerpt.value, content: content.value, tags: tags.join(', '), hasCover: coverPresent };
+        var key = JSON.stringify(payload);
+        if (key === assistKey) return;
+        assistKey = key;
+        var mine = ++assistSeq;
+        post('/blog/assist', payload)
+          .then(function (data) {
+            if (mine !== assistSeq) return;
+            renderSuggestions(data.tags || []);
+            renderSeo(data);
+          })
+          .catch(function () { assistKey = ''; });
+      }
+
+      function renderSuggestions(list) {
+        var box = $('tagAuto');
+        var holder = $('tagAutoList');
+        holder.innerHTML = '';
+        suggestions = list.filter(function (item) { return !hasTag(item.tag); });
+        if (!suggestions.length || tags.length >= maxTags) { box.classList.add('d-none'); return; }
+        suggestions.forEach(function (item) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'gv-taginput-suggestion gv-tagauto-chip';
+          button.dataset.tag = item.tag;
+          button.textContent = '+ #' + item.tag;
+          button.title = item.why || '';
+          button.addEventListener('click', function () { addTag(item.tag); });
+          holder.appendChild(button);
+        });
+        box.classList.remove('d-none');
+      }
+      $('tagAutoAll').addEventListener('click', function () {
+        suggestions.slice().forEach(function (item) { addTag(item.tag); });
+      });
+
+      function renderSeo(data) {
+        var analysis = data.analysis;
+        if (!analysis) return;
+        var score = analysis.score;
+        $('seoScore').textContent = score + '/100';
+        var bar = $('seoBar');
+        bar.style.width = score + '%';
+        bar.className = score >= 75 ? 'good' : score >= 50 ? 'mid' : 'low';
+
+        var primary = $('seoPrimary');
+        if (data.keywords && data.keywords.length) {
+          primary.textContent = 'Główne słowo kluczowe: ' + data.keywords[0].text;
+          primary.classList.remove('d-none');
+        } else {
+          primary.classList.add('d-none');
+        }
+
+        // Najpierw to, co do poprawy (z podpowiedziami); spełnione punkty zwinięte pod spodem.
+        var list = $('seoChecks');
+        list.innerHTML = '';
+        var passed = [];
+        analysis.checks.forEach(function (check) {
+          if (check.ok) { passed.push(check); return; }
+          var item = document.createElement('li');
+          item.className = 'bad';
+          var icon = document.createElement('i');
+          icon.className = 'bi bi-exclamation-circle';
+          var text = document.createElement('span');
+          text.textContent = check.label;
+          var hint = document.createElement('small');
+          hint.textContent = check.hint;
+          text.appendChild(hint);
+          item.appendChild(icon);
+          item.appendChild(text);
+          list.appendChild(item);
+        });
+        if (passed.length) {
+          var wrap = document.createElement('li');
+          wrap.className = 'passed';
+          var details = document.createElement('details');
+          var summary = document.createElement('summary');
+          summary.textContent = 'Spełnione (' + passed.length + ')';
+          details.appendChild(summary);
+          var inner = document.createElement('ul');
+          passed.forEach(function (check) {
+            var item = document.createElement('li');
+            item.className = 'ok';
+            var icon = document.createElement('i');
+            icon.className = 'bi bi-check-circle-fill';
+            var text = document.createElement('span');
+            text.textContent = check.label;
+            item.appendChild(icon);
+            item.appendChild(text);
+            inner.appendChild(item);
+          });
+          details.appendChild(inner);
+          wrap.appendChild(details);
+          list.appendChild(wrap);
+        }
+      }
+
+      var formatNote = $('formatNote');
+      var undoContent = null;
+      function noteList(title, lines) {
+        var block = document.createElement('div');
+        var head = document.createElement('b');
+        head.textContent = title;
+        block.appendChild(head);
+        var ul = document.createElement('ul');
+        lines.forEach(function (line) { var li = document.createElement('li'); li.textContent = line; ul.appendChild(li); });
+        block.appendChild(ul);
+        return block;
+      }
+      /** Wynik formatowania: zmiany (z "Cofnij") i uwagi do ręcznej poprawy. */
+      function showFormatNote(data) {
+        formatNote.innerHTML = '';
+        var applied = !!(data.changes && data.changes.length && data.changed);
+        var icon = document.createElement('i');
+        icon.className = 'bi ' + (applied ? 'bi-magic' : 'bi-info-circle');
+        formatNote.appendChild(icon);
+        var body = document.createElement('div');
+        if (applied) body.appendChild(noteList('Sformatowano pod SEO', data.changes.map(function (change) { return change.label; })));
+        else {
+          var head = document.createElement('b');
+          head.textContent = data.message || 'Nie znalazłem w tekście nic do automatycznego poprawienia.';
+          body.appendChild(head);
+        }
+        if (data.notes && data.notes.length) {
+          var extra = noteList('Do poprawy ręcznie', data.notes);
+          extra.className = 'gv-formatnote-manual';
+          body.appendChild(extra);
+        }
+        formatNote.appendChild(body);
+        if (applied) {
+          var undo = document.createElement('button');
+          undo.type = 'button';
+          undo.className = 'gv-mini-btn';
+          undo.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Cofnij';
+          undo.addEventListener('click', function () {
+            content.value = undoContent;
+            formatNote.classList.add('d-none');
+            fire();
+            if (!preview.classList.contains('d-none')) loadPreview();
+          });
+          formatNote.appendChild(undo);
+        }
+        formatNote.classList.remove('d-none');
+      }
+      function runAutoFormat() {
+        var button = toolbar.querySelector('[data-cmd="seo"]');
+        if (!content.value.trim()) { showFormatNote({ message: 'Najpierw napisz treść wpisu.' }); return; }
+        button.disabled = true;
+        post('/blog/autoformat', { title: title.value, content: content.value, tags: tags.join(', ') })
+          .then(function (data) {
+            if (data.changed) {
+              undoContent = content.value;
+              content.value = data.content;
+              fire();
+              if (!preview.classList.contains('d-none')) loadPreview();
+            } else {
+              data.message = 'Tekst jest już dobrze sformatowany - nie ma czego zmieniać automatycznie.';
+            }
+            showFormatNote(data);
+          })
+          .catch(function () { showFormatNote({ message: 'Nie udało się sformatować tekstu. Spróbuj ponownie.' }); })
+          .then(function () { button.disabled = false; });
+      }
+      commands.seo = runAutoFormat;
+
+      renderTags();
+      refreshMode();
+      refreshCover();
+      refreshPreview();
+      loadAutoCover();
+      runAssist();
     });
   </script>
 

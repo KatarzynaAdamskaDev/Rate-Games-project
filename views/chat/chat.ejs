@@ -224,6 +224,13 @@
                   <% } %>
                   <%= m.text %>
                   <small><%= new Date(m.createdAt).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}) %></small>
+                  <% if (m.senderId !== currentUser.id && !m.senderDeleted) { %>
+                    <button type="button" class="gv-msg-report" title="Zgłoś wiadomość"
+                            data-bs-toggle="modal" data-bs-target="#reportModal"
+                            data-report-type="message"
+                            data-report-url="/reports/message/<%= m.id %>"
+                            data-report-author="<%= m.senderUsername %>"><i class="bi bi-flag"></i></button>
+                  <% } %>
                 </div>
               <% }) %>
             </div>
@@ -238,6 +245,7 @@
     </div>
   </section>
 
+  <%- include('../partials/report-modal') %>
   <%- include('../partials/footer') %>
 
   <% if (active) { %>
@@ -286,6 +294,20 @@
         var small = document.createElement('small');
         small.textContent = time;
         div.appendChild(small);
+        if (m.senderId !== meId && !m.senderDeleted) {
+          // Zgłoszenie wiadomości otwiera wspólne okno (partials/report-modal.ejs).
+          var flag = document.createElement('button');
+          flag.type = 'button';
+          flag.className = 'gv-msg-report';
+          flag.title = 'Zgłoś wiadomość';
+          flag.setAttribute('data-bs-toggle', 'modal');
+          flag.setAttribute('data-bs-target', '#reportModal');
+          flag.setAttribute('data-report-type', 'message');
+          flag.setAttribute('data-report-url', '/reports/message/' + encodeURIComponent(m.id));
+          flag.setAttribute('data-report-author', m.senderUsername);
+          flag.innerHTML = '<i class="bi bi-flag"></i>';
+          div.appendChild(flag);
+        }
         chatBody.appendChild(div);
         chatBody.scrollTop = chatBody.scrollHeight;
       }

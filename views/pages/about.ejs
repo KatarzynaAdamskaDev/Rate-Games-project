@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <main class="gv-section">
+    <div class="wrap gv-page-wrap">
+      <nav class="gv-breadcrumbs" aria-label="Okruszki"><a href="/">GameVerse</a> <i class="bi bi-chevron-right"></i> <span>O GameVerse</span></nav>
+
+      <header class="gv-about-hero">
+        <h1 class="gv-page-title">O GameVerse</h1>
+        <p class="gv-about-lead"><strong><%= site.name %></strong> - <%= site.summary %></p>
+        <p><%= site.description %></p>
+        <p class="gv-about-audience"><i class="bi bi-controller"></i> <b>Dla kogo?</b> <%= site.audience %></p>
+      </header>
+
+      <section aria-labelledby="featuresHeading">
+        <h2 id="featuresHeading" class="gv-page-h2">Co znajdziesz w GameVerse</h2>
+        <div class="gv-about-grid">
+          <% features.forEach(function(feature) { %>
+            <article class="gv-about-card">
+              <h3><i class="bi <%= feature.icon %>"></i> <%= feature.title %></h3>
+              <p><%= feature.text %></p>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+
+      <section aria-labelledby="howHeading">
+        <h2 id="howHeading" class="gv-page-h2">Jak to działa</h2>
+        <ol class="gv-about-steps">
+          <li><b>Znajdź grę.</b> Wyszukaj tytuł (także skrótem, np. CS2) albo przeglądaj katalog z filtrami <a href="/games">na stronie Gry</a>.</li>
+          <li><b>Oceń i napisz recenzję.</b> Wybierz od 0,5 do 5 gwiazdek i podziel się opinią - inni zobaczą ją przy grze i na stronie <a href="/reviews">Recenzje</a>.</li>
+          <li><b>Rozwijaj profil.</b> Za aktywność zdobywasz poziomy, odznaki, ramki i motywy, a ulubione gry możesz pokazać na profilu.</li>
+          <li><b>Rozmawiaj.</b> Komentuj recenzje i <a href="/blog">wpisy na blogu</a>, obserwuj innych graczy i pisz na czacie.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="numbersHeading">
+        <h2 id="numbersHeading" class="gv-page-h2">GameVerse w liczbach</h2>
+        <dl class="gv-about-stats">
+          <div><dt>Użytkownicy</dt><dd><%= stats.users.toLocaleString('pl-PL') %></dd></div>
+          <div><dt>Recenzje graczy</dt><dd><%= stats.reviews.toLocaleString('pl-PL') %></dd></div>
+          <div><dt>Ocenione gry</dt><dd><%= stats.ratedGames.toLocaleString('pl-PL') %></dd></div>
+          <div><dt>Wpisy na blogu</dt><dd><%= stats.blogPosts.toLocaleString('pl-PL') %></dd></div>
+          <div><dt>Gry w katalogu</dt><dd>300 000+</dd></div>
+        </dl>
+        <p class="gv-about-note">Dane o grach pochodzą z <a href="https://www.igdb.com" target="_blank" rel="noopener">IGDB</a>, a oceny i recenzje od użytkowników GameVerse. Liczby aktualizują się na bieżąco.</p>
+      </section>
+
+      <section class="gv-about-links" aria-label="Dalsze kroki">
+        <a href="/games" class="btn gv-btn-primary"><i class="bi bi-collection-play"></i> Przeglądaj gry</a>
+        <a href="/help" class="btn gv-btn-outline"><i class="bi bi-question-circle"></i> Najczęstsze pytania</a>
+        <a href="/blog" class="btn gv-btn-outline"><i class="bi bi-journal-text"></i> Blog</a>
+      </section>
+    </div>
+  </main>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

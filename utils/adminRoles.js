@@ -7,6 +7,8 @@
  *    (konta założycielskie, czyli bez daty adminSince, są najstarsze),
  *  - nieudane potwierdzenia są limitowane.
  */
+const { isBanActive } = require('./moderationStatus');
+
 const PROBATION_DAYS = 7;
 const PROBATION_MS = PROBATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -43,7 +45,7 @@ function evaluateRoleChange(actor, target, newRole) {
 
   if (newRole === 'admin') {
     if (target.role === 'admin') return { ok: false, reason: 'Ten użytkownik jest już administratorem.' };
-    if (target.isBanned) return { ok: false, reason: 'Konto jest zablokowane - najpierw je odblokuj.' };
+    if (isBanActive(target)) return { ok: false, reason: 'Konto jest zablokowane - najpierw je odblokuj.' };
     return { ok: true };
   }
 

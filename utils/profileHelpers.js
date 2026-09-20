@@ -10,6 +10,7 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const ReviewLike = require('../models/ReviewLike');
 const ReviewComment = require('../models/ReviewComment');
+const BlogComment = require('../models/BlogComment');
 const ReviewReport = require('../models/ReviewReport');
 const CommentLike = require('../models/CommentLike');
 const Follow = require('../models/Follow');
@@ -17,6 +18,8 @@ const { deleteReviewData } = require('./reviewSocialHelpers');
 const { removeUserFromConversations } = require('./chatHelpers');
 const Notification = require('../models/Notification');
 const FavoriteGame = require('../models/FavoriteGame');
+const ContentReport = require('../models/ContentReport');
+const UserBlock = require('../models/UserBlock');
 
 /** Zwraca dane użytkownika bezpieczne do wyświetlenia (bez hasha i tokenów). */
 function getUserPublic(user) {
@@ -75,11 +78,14 @@ async function purgeUserData(userId) {
   const ownCommentIds = ownComments.map((c) => c.id);
   if (ownCommentIds.length) await CommentLike.destroy({ where: { commentId: ownCommentIds } });
   await ReviewComment.destroy({ where: { userId } });
+  await BlogComment.destroy({ where: { userId } });
 
   await Promise.all([
     ReviewLike.destroy({ where: { userId } }),
     CommentLike.destroy({ where: { userId } }),
     ReviewReport.destroy({ where: { reporterId: userId } }),
+    ContentReport.destroy({ where: { [Op.or]: [{ reporterId: userId }, { targetUserId: userId }] } }),
+    UserBlock.destroy({ where: { [Op.or]: [{ blockerId: userId }, { blockedId: userId }] } }),
     Follow.destroy({ where: { [Op.or]: [{ followerId: userId }, { followingId: userId }] } }),
     FavoriteGame.destroy({ where: { userId } }),
     Notification.destroy({ where: { [Op.or]: [{ userId }, { actorId: userId }] } }),

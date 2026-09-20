@@ -8,6 +8,9 @@ const { syncAllUsersProgress } = require('../utils/progressHelpers');
 const { seedConversationReads } = require('../utils/chatHelpers');
 const { purgeOrphanedData } = require('../utils/cleanupHelpers');
 const { startModerationSettings } = require('../utils/moderationSettings');
+const { startModerationCleanup } = require('../utils/moderationStatus');
+const { warmPopularPool } = require('../utils/gamePopularity');
+const { seedBlogIfEmpty } = require('../utils/blogImport');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -29,6 +32,8 @@ sequelize
   })
   // sync() nie dodaje nowych kolumn do istniejących tabel - robi to poniższy krok.
   .then(() => addMissingColumns())
+  // Wpisy bloga są w bazie; przy pierwszym starcie wczytujemy je z pliku JSON (dawny magazyn albo wpisy startowe).
+  .then(() => seedBlogIfEmpty())
   // Usuwa dane kont, których już nie ma (recenzje, wiadomości, obserwowania...).
   .then(() => purgeOrphanedData())
   .then((count) => {
@@ -40,8 +45,12 @@ sequelize
   .then(() => seedConversationReads())
   // Ustawienia moderacji z panelu admina (limity zapytań, filtr, wymóg 2FA) trzymamy w pamięci.
   .then(() => startModerationSettings())
+  // Zdejmuje blokady czasowe po terminie (co kilka minut).
+  .then(() => startModerationCleanup())
   .then(() => {
     server.listen(port);
+    // Ranking popularności gier budujemy z wyprzedzeniem, żeby pierwsze wejście na listę nie czekało.
+    warmPopularPool();
   })
   .catch((err) => {
     console.error('Nie udało się połączyć z bazą danych:', err);

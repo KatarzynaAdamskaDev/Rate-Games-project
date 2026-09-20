@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { readCollection } = require('../utils/dataStore');
+const { SITE } = require('../utils/siteFacts');
+const { organizationLd } = require('../utils/seo');
 const {
   getMostReviewedGames,
   getOverallStats,
@@ -54,16 +55,32 @@ router.get('/', async (req, res, next) => {
       getOverallStats(),
     ]);
 
-    const latestPosts = readCollection('blog')
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 3);
-
     res.render('index', {
       title: 'GameVerse - opinie o grach',
+      seo: {
+        title: 'GameVerse - opinie o grach',
+        description: SITE.description,
+        jsonLd: [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: 'GameVerse',
+            url: res.locals.siteUrl,
+            inLanguage: SITE.language,
+            description: SITE.summary,
+            publisher: { '@id': `${res.locals.siteUrl}/#organization` },
+            potentialAction: {
+              '@type': 'SearchAction',
+              target: `${res.locals.siteUrl}/search?q={search_term_string}`,
+              'query-input': 'required name=search_term_string',
+            },
+          },
+          organizationLd(res.locals.siteUrl, SITE),
+        ],
+      },
       trending,
       weeklyReview,
       stats,
-      latestPosts,
     });
   } catch (err) {
     next(err);

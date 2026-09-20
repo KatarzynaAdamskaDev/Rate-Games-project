@@ -104,6 +104,20 @@ const User = sequelize.define(
       type: DataTypes.STRING(200),
       allowNull: true,
     },
+    // Blokada czasowa: po tej dacie konto jest znowu aktywne (null przy isBanned = blokada stała).
+    bannedUntil: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Wyciszenie: do tej daty konto nie może pisać recenzji, komentarzy ani wiadomości.
+    mutedUntil: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    muteReason: {
+      type: DataTypes.STRING(200),
+      allowNull: true,
+    },
     // Punkty doświadczenia (PD) i poziom - przechowywane w bazie, a
     // aktualizowane przy każdej zmianie aktywności (utils/progressHelpers.js).
     points: {

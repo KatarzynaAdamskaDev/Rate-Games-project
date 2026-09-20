@@ -1,5 +1,6 @@
 const { findById } = require('../utils/userHelpers');
 const { getAnnouncement } = require('../utils/adminHelpers');
+const { isBanActive, banMessage } = require('../utils/moderationStatus');
 
 const SESSION_REFRESH_MS = 60 * 1000;
 
@@ -25,9 +26,9 @@ async function exposeLocals(req, res, next) {
       const fresh = await findById(sessionUser.id);
       if (!fresh) {
         delete req.session.user;
-      } else if (fresh.isBanned) {
+      } else if (isBanActive(fresh)) {
         delete req.session.user;
-        req.flash('error', 'Twoje konto zostało zablokowane przez administratora.');
+        req.flash('error', banMessage(fresh));
       } else {
         sessionUser.avatarUrl = fresh.avatarUrl || null;
         sessionUser.role = fresh.role;

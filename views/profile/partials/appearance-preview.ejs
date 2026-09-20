@@ -1,0 +1,29 @@
+<%
+// Podgląd na żywo: tak wygląda baner Twojego profilu z aktualną ramką, tłem i trofeum.
+// Dane: profileUser, theme (motyw aktywnego tła), trophy, progress.
+%>
+<div class="gv-live-preview">
+  <span class="gv-live-preview-label"><i class="bi bi-eye-fill"></i> Tak wygląda Twój profil</span>
+  <div class="gv-profile-hero gv-preview-hero gv-bg-<%= profileUser.activeBackground || 'bg-default' %>"
+       style="--hero-accent: <%= theme.accent %>; --hero-accent-2: <%= theme.accent2 %>;">
+    <div class="gv-preview-identity">
+      <% if (profileUser.avatarUrl) { %>
+        <img src="<%= profileUser.avatarUrl %>" alt="" class="gv-profile-avatar gv-preview-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>">
+      <% } else { %>
+        <div class="gv-profile-avatar gv-preview-avatar gv-frame-<%= profileUser.activeFrame || 'frame-basic' %>"></div>
+      <% } %>
+      <div class="gv-preview-name">
+        <b><%= profileUser.username %></b>
+        <small>Motyw: <%= theme.label %></small>
+      </div>
+    </div>
+    <div class="gv-hero-xp gv-preview-xp">
+      <span class="gv-level-trophy" style="color: <%= trophy.color %>;"><i class="bi <%= trophy.icon %>"></i></span>
+      <div class="gv-level-info">
+        <div class="gv-level-label">POZIOM</div>
+        <div class="gv-level-number"><%= progress.level %></div>
+        <div class="gv-xp-track"><div class="gv-xp-fill" style="width:<%= progress.percent %>%;"></div></div>
+      </div>
+    </div>
+  </div>
+</div>

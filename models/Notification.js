@@ -14,7 +14,7 @@ const Notification = sequelize.define(
       type: DataTypes.UUID,
       allowNull: false,
     },
-    // 'follow' | 'review-like' | 'review-comment' | 'comment-like'
+    // 'follow' | 'review-like' | 'review-comment' | 'blog-comment' | 'comment-like'
     type: {
       type: DataTypes.STRING,
       allowNull: false,

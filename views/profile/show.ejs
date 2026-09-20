@@ -11,7 +11,7 @@
   <section class="gv-section">
     <div class="wrap">
 
-      <div class="gv-profile-hero gv-bg-<%= profileUser.activeBackground || 'bg-default' %>">
+      <div class="gv-profile-hero gv-bg-<%= profileUser.activeBackground || 'bg-default' %>" style="--hero-accent: <%= theme.accent %>; --hero-accent-2: <%= theme.accent2 %>;">
         <div class="gv-hero-identity">
           <div class="gv-profile-avatar-wrap">
             <% if (profileUser.avatarUrl) { %>
@@ -59,14 +59,38 @@
           <a href="/profile/settings" class="gv-btn-outline"><i class="bi bi-pencil-square"></i> Edytuj profil</a>
           <a href="/chat" class="gv-btn-outline"><i class="bi bi-chat-dots-fill"></i> Czat i grupy</a>
         <% } else if (currentUser) { %>
-          <form action="/profile/<%= alreadyFollowing ? 'unfollow' : 'follow' %>/<%= profileUser.username %>" method="POST">
-            <button type="submit" class="gv-follow-btn <%= alreadyFollowing ? 'following' : '' %>">
-              <%- alreadyFollowing ? '<i class="bi bi-check-lg"></i> Obserwujesz' : '<i class="bi bi-plus-lg"></i> Obserwuj' %>
-            </button>
-          </form>
-          <form action="/chat/start/<%= profileUser.username %>" method="POST">
-            <button type="submit" class="gv-btn-outline"><i class="bi bi-chat-dots-fill"></i> Napisz wiadomość</button>
-          </form>
+          <% if (iBlocked) { %>
+            <span class="gv-blocked-note"><i class="bi bi-slash-circle-fill"></i> Zablokowałeś(-aś) tego użytkownika</span>
+            <form action="/profile/unblock/<%= profileUser.username %>" method="POST">
+              <input type="hidden" name="returnTo" value="profile">
+              <button type="submit" class="gv-btn-outline"><i class="bi bi-unlock-fill"></i> Odblokuj</button>
+            </form>
+          <% } else { %>
+            <form action="/profile/<%= alreadyFollowing ? 'unfollow' : 'follow' %>/<%= profileUser.username %>" method="POST">
+              <button type="submit" class="gv-follow-btn <%= alreadyFollowing ? 'following' : '' %>">
+                <%- alreadyFollowing ? '<i class="bi bi-check-lg"></i> Obserwujesz' : '<i class="bi bi-plus-lg"></i> Obserwuj' %>
+              </button>
+            </form>
+            <form action="/chat/start/<%= profileUser.username %>" method="POST">
+              <button type="submit" class="gv-btn-outline"><i class="bi bi-chat-dots-fill"></i> Napisz wiadomość</button>
+            </form>
+          <% } %>
+          <details class="gv-profile-more">
+            <summary class="gv-btn-outline"><i class="bi bi-three-dots"></i> Więcej</summary>
+            <div class="gv-profile-more-menu">
+              <% if (!iBlocked) { %>
+                <form action="/profile/block/<%= profileUser.username %>" method="POST" onsubmit="return confirm('Zablokować użytkownika <%= profileUser.username %>? Jego komentarze zostaną ukryte, a wasze obserwowanie usunięte.');">
+                  <button type="submit"><i class="bi bi-slash-circle"></i> Zablokuj użytkownika</button>
+                </form>
+              <% } %>
+              <button type="button" data-bs-toggle="modal" data-bs-target="#reportModal"
+                      data-report-type="user"
+                      data-report-url="/reports/user/<%= encodeURIComponent(profileUser.username) %>"
+                      data-report-author="<%= profileUser.username %>">
+                <i class="bi bi-flag"></i> Zgłoś użytkownika
+              </button>
+            </div>
+          </details>
         <% } else { %>
           <p class="gv-empty-state" style="margin:0;">
             <button type="button" class="gv-inline-link" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>,
@@ -196,6 +220,8 @@
       </div>
     </div>
   <% } %>
+
+  <% if (currentUser && !isOwnProfile) { %><%- include('../partials/report-modal') %><% } %>
 
   <% if (profileUser.bio) { %>
     <div class="modal fade" id="bioModal" tabindex="-1" aria-labelledby="bioModalLabel" aria-hidden="true">
