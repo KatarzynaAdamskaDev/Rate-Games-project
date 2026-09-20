@@ -8,6 +8,7 @@ const tabLead = {
   background: 'Wybierz tło banera na swoim profilu. Nowe tła odblokowują się wraz z poziomem.',
   badge: 'Wybierz odznakę, która będzie widoczna jako trofeum w banerze Twojego profilu.',
   notifications: 'Zdecyduj, o czym chcesz dostawać powiadomienia w dzwonku na górze strony.',
+  blocked: 'Osoby, które zablokowałeś(-aś): ich komentarze są przed Tobą ukryte, nie napiszą do Ciebie na czacie i nie zaobserwują Cię.',
   account: 'Zmień hasło, zabezpiecz konto i zarządzaj jego istnieniem.',
 };
 %>
@@ -101,7 +102,7 @@ const tabLead = {
                   <div class="gv-avatar-preview gv-avatar-preview-placeholder"></div>
                 <% } %>
                 <form action="/profile/settings/avatar" method="POST" enctype="multipart/form-data" class="gv-avatar-form">
-                  <label class="gv-edit-label" for="avatarFile">Wybierz nowe zdjęcie (PNG, JPG, WEBP, GIF - max 2 MB)</label>
+                  <label class="gv-edit-label" for="avatarFile">Wybierz nowe zdjęcie (PNG, JPG, WEBP, GIF - max 2 MB; obraz zostanie sprawdzony i zmniejszony)</label>
                   <input type="file" id="avatarFile" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" class="form-control gv-input mb-2" required>
                   <button type="submit" class="gv-btn-success">Wgraj zdjęcie</button>
                 </form>
@@ -239,6 +240,29 @@ const tabLead = {
                 <button type="submit" class="gv-btn-success">Zapisz ustawienia</button>
               </div>
             </form>
+
+          <% } else if (tab === 'blocked') { %>
+
+            <div class="gv-edit-section">
+              <h3>Zablokowani użytkownicy</h3>
+              <% if (blockedUsers.length === 0) { %>
+                <p class="gv-settings-hint">Nie zablokowałeś(-aś) nikogo. Użytkownika zablokujesz w jego profilu (przycisk „Więcej”).</p>
+              <% } else { %>
+                <ul class="gv-blocked-list">
+                  <% blockedUsers.forEach(function(b) { %>
+                    <li>
+                      <a href="/<%= encodeURIComponent(b.username) %>" class="gv-admin-user">
+                        <% if (b.avatarUrl) { %><img src="<%= b.avatarUrl %>" alt="" class="gv-mini-avatar"><% } else { %><span class="gv-mini-avatar"></span><% } %>
+                        <span><b><%= b.username %></b><small>zablokowano <%= new Date(b.blockedAt).toLocaleDateString('pl-PL') %></small></span>
+                      </a>
+                      <form action="/profile/unblock/<%= b.username %>" method="POST">
+                        <button type="submit" class="gv-btn-outline"><i class="bi bi-unlock-fill"></i> Odblokuj</button>
+                      </form>
+                    </li>
+                  <% }) %>
+                </ul>
+              <% } %>
+            </div>
 
           <% } else if (tab === 'account') { %>
 

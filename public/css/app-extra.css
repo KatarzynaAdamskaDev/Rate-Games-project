@@ -5218,3 +5218,152 @@ a.gv-blog-badge:hover {
   color: #fff;
   filter: brightness(1.08);
 }
+
+/* ==========================================================================
+   BLOKADY CZASOWE, WYCISZENIA, BLOKOWANIE UŻYTKOWNIKÓW, ZGŁOSZENIA TREŚCI
+   ========================================================================== */
+
+/* formularz w oknie admina z listą wyboru czasu, powodem i przyciskiem w jednej linii */
+.gv-inline-form-wrap {
+  flex-wrap: wrap;
+}
+.gv-inline-form-wrap .gv-select {
+  flex: 0 0 auto;
+  width: 150px;
+  padding: 5px 9px;
+  font-size: 11.5px;
+}
+.gv-inline-form-wrap .gv-input {
+  flex: 1 1 180px;
+}
+
+/* zakładki rodzajów zgłoszeń */
+.gv-report-types a i {
+  margin-right: 6px;
+}
+.gv-report-type-count {
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  color: #fff;
+  background: var(--pink);
+  border-radius: 999px;
+}
+.gv-report-context {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--accent-soft);
+}
+
+/* zgłaszanie wiadomości na czacie */
+.gv-msg {
+  position: relative;
+}
+.gv-msg-report {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 2px 5px;
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--text-lo);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+.gv-msg:hover .gv-msg-report,
+.gv-msg-report:focus-visible {
+  opacity: 1;
+}
+.gv-msg-report:hover {
+  color: var(--amber);
+}
+@media (hover: none) {
+  .gv-msg-report {
+    opacity: 0.7;
+  }
+}
+
+/* profil innego użytkownika: menu "Więcej" (blokowanie, zgłoszenie) */
+.gv-profile-more {
+  position: relative;
+}
+.gv-profile-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.gv-profile-more > summary::-webkit-details-marker {
+  display: none;
+}
+.gv-profile-more-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.gv-profile-more-menu form {
+  display: block;
+}
+.gv-profile-more-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-mid);
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.gv-profile-more-menu button:hover {
+  color: var(--text-hi);
+  background: var(--bg-2);
+}
+.gv-blocked-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--amber);
+}
+
+/* lista zablokowanych w ustawieniach */
+.gv-blocked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 640px;
+}
+.gv-blocked-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+.gv-blocked-list li:last-child {
+  border-bottom: none;
+}
+
+.gv-admin-modal .modal-body {
+  overflow-x: hidden;
+}
+.gv-inline-form-wrap .gv-input {
+  min-width: 0;
+}

@@ -12,6 +12,7 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const ReviewComment = require('../models/ReviewComment');
 const ReviewReport = require('../models/ReviewReport');
+const ContentReport = require('../models/ContentReport');
 const AdminLog = require('../models/AdminLog');
 const { readCollection } = require('./dataStore');
 const { toCsv } = require('./csv');
@@ -30,6 +31,8 @@ const EXPORTS = {
       { key: 'points', label: 'PD' },
       { key: 'isBanned', label: 'Zablokowany' },
       { key: 'banReason', label: 'Powód blokady' },
+      { key: 'bannedUntil', label: 'Blokada do' },
+      { key: 'mutedUntil', label: 'Wyciszony do' },
       { key: 'twoFactorEnabled', label: '2FA' },
       { key: 'createdAt', label: 'Data rejestracji' },
     ],
@@ -67,6 +70,24 @@ const EXPORTS = {
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'reviewId', label: 'ID recenzji' },
+      { key: 'reporterId', label: 'ID zgłaszającego' },
+      { key: 'reason', label: 'Powód' },
+      { key: 'comment', label: 'Dopisek zgłaszającego' },
+      { key: 'status', label: 'Status' },
+      { key: 'resolution', label: 'Uzasadnienie decyzji' },
+      { key: 'resolvedBy', label: 'Rozpatrzył(a)' },
+      { key: 'createdAt', label: 'Zgłoszono' },
+    ],
+  },
+  'content-reports': {
+    label: 'Zgłoszenia komentarzy, użytkowników i wiadomości',
+    description: 'Zgłoszenia pozostałych rodzajów treści wraz z migawką treści i decyzją.',
+    model: ContentReport,
+    columns: [
+      { key: 'id', label: 'ID' },
+      { key: 'targetType', label: 'Rodzaj' },
+      { key: 'targetUsername', label: 'Zgłoszony użytkownik' },
+      { key: 'snapshot', label: 'Treść' },
       { key: 'reporterId', label: 'ID zgłaszającego' },
       { key: 'reason', label: 'Powód' },
       { key: 'comment', label: 'Dopisek zgłaszającego' },

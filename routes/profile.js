@@ -18,8 +18,10 @@ const { limiters } = require('../middleware/rateLimit');
 const { NOTIFICATION_TYPES, parsePrefs, serializePrefs } = require('../utils/notificationPrefs');
 const totp = require('../utils/totp');
 const { checkUploadToken, verifyAfterUpload, reject, isValid } = require('../middleware/csrf');
+const { sanitizeImage } = require('../utils/imageSafety');
 const { MAX_FAVORITES, addFavorite, removeFavorite } = require('../utils/favoriteHelpers');
 const { follow, unfollow } = require('../utils/socialHelpers');
+const { isBlockedEitherWay, blockUser, unblockUser, listBlockedUsers } = require('../utils/blockHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
 const {
   buildProfileViewModel,
@@ -42,6 +44,7 @@ const SETTINGS_TABS = [
   { id: 'background', label: 'Tło profilu', icon: 'bi-card-image' },
   { id: 'badge', label: 'Wyróżniona odznaka', icon: 'bi-award-fill' },
   { id: 'notifications', label: 'Powiadomienia', icon: 'bi-bell-fill' },
+  { id: 'blocked', label: 'Zablokowani użytkownicy', icon: 'bi-slash-circle-fill' },
   { id: 'account', label: 'Konto i bezpieczeństwo', icon: 'bi-shield-lock-fill' },
 ];
 
@@ -56,16 +59,10 @@ const AVATAR_DIR = path.join(__dirname, '..', 'public', 'images', 'avatars');
 // katalog nie istnieje, a multer nie tworzy go sam (błąd ENOENT przy uploadzie).
 fs.mkdirSync(AVATAR_DIR, { recursive: true });
 
-const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, AVATAR_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${req.session.user.id}-${Date.now()}${ext}`);
-  },
-});
-
+// Plik trafia najpierw do pamięci: dopiero po weryfikacji zawartości i przekodowaniu
+// (utils/imageSafety.js) zapisujemy na dysku nowy, bezpieczny obraz.
 const avatarUpload = multer({
-  storage: avatarStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
   fileFilter: (req, file, cb) => {
     // Pole _csrf jest w formularzu przed plikiem - zły token nie zapisuje niczego na dysku.
@@ -152,6 +149,7 @@ router.get('/settings', ensureAuthenticated, async (req, res, next) => {
       profileUrlBase: `${req.protocol}://${req.get('host')}`,
       notificationTypes: NOTIFICATION_TYPES,
       notificationPrefs: parsePrefs(user.notificationPrefs),
+      blockedUsers: tab === 'blocked' ? await listBlockedUsers(user.id) : [],
       twoFactor,
     });
   } catch (err) {
@@ -295,10 +293,22 @@ router.post('/settings/avatar', ensureAuthenticated, limiters.upload, (req, res)
       return res.redirect(settingsUrl('avatar'));
     }
 
+    // Sygnatura pliku, limit wymiarów i przekodowanie do WebP - nazwa i typ od klienta nie mają znaczenia.
+    let filename;
+    try {
+      const image = await sanitizeImage(req.file.buffer, { maxSize: 512 });
+      filename = `${req.session.user.id}-${Date.now()}${image.ext}`;
+      await fs.promises.writeFile(path.join(AVATAR_DIR, filename), image.buffer);
+    } catch (imageError) {
+      if (!imageError.userFacing) console.error('Błąd przetwarzania awatara:', imageError);
+      req.flash('error', imageError.userFacing ? imageError.message : 'Nie udało się przetworzyć zdjęcia.');
+      return res.redirect(settingsUrl('avatar'));
+    }
+
     const user = await User.findByPk(req.session.user.id);
     const oldAvatarUrl = user.avatarUrl;
 
-    user.avatarUrl = `/images/avatars/${req.file.filename}`;
+    user.avatarUrl = `/images/avatars/${filename}`;
     await user.save();
     req.session.user.avatarUrl = user.avatarUrl; // od razu odświeża awatar w navbarze
 
@@ -308,7 +318,7 @@ router.post('/settings/avatar', ensureAuthenticated, limiters.upload, (req, res)
       fs.unlink(oldPath, () => {}); // ignorujemy błąd, jeśli plik już nie istnieje
     }
 
-    req.flash('success', 'Zdjęcie profilowe zostało zaktualizowane.');
+    req.flash('success', 'Zdjęcie profilowe zostało zweryfikowane i zaktualizowane.');
     res.redirect(settingsUrl('avatar'));
   });
 });
@@ -545,6 +555,10 @@ router.post('/follow/:username', ensureAuthenticated, limiters.follow, async (re
     req.flash('error', 'Nie znaleziono użytkownika.');
     return res.redirect('/');
   }
+  if (await isBlockedEitherWay(req.session.user.id, target.id)) {
+    req.flash('error', 'Nie możesz obserwować tego użytkownika (jedna ze stron zablokowała drugą).');
+    return res.redirect(req.get('Referer') || `/${target.username}`);
+  }
   const started = await follow(req.session.user.id, target.id);
   if (started) {
     await createNotification({
@@ -556,6 +570,37 @@ router.post('/follow/:username', ensureAuthenticated, limiters.follow, async (re
     });
   }
   res.redirect(req.get('Referer') || `/${target.username}`);
+});
+
+/* ------------------------- BLOKOWANIE UŻYTKOWNIKÓW ------------------------- */
+
+router.post('/block/:username', ensureAuthenticated, limiters.follow, async (req, res) => {
+  const target = await findByUsername(req.params.username);
+  if (!target) {
+    req.flash('error', 'Nie znaleziono użytkownika.');
+    return res.redirect('/');
+  }
+  if (target.id === req.session.user.id) {
+    req.flash('error', 'Nie możesz zablokować samego siebie.');
+    return res.redirect('/profile');
+  }
+
+  await blockUser(req.session.user.id, target.id);
+  req.flash('success', `Zablokowano użytkownika ${target.username}: jego komentarze są ukryte, a wasze obserwowanie zostało usunięte.`);
+  res.redirect(`/${encodeURIComponent(target.username)}`);
+});
+
+router.post('/unblock/:username', ensureAuthenticated, limiters.follow, async (req, res) => {
+  const target = await findByUsername(req.params.username);
+  if (!target) {
+    req.flash('error', 'Nie znaleziono użytkownika.');
+    return res.redirect(settingsUrl('blocked'));
+  }
+
+  await unblockUser(req.session.user.id, target.id);
+  req.flash('success', `Odblokowano użytkownika ${target.username}.`);
+  const back = String(req.body.returnTo || '') === 'profile' ? `/${encodeURIComponent(target.username)}` : settingsUrl('blocked');
+  res.redirect(back);
 });
 
 router.post('/unfollow/:username', ensureAuthenticated, limiters.follow, async (req, res) => {

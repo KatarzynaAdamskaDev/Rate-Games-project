@@ -15,7 +15,7 @@ const RESERVED_USERNAMES = [
   'users',
   'admin',
   'api',
-  'notifications',
+  'notifications', 'reports',
 ];
 
 function isReservedUsername(username) {

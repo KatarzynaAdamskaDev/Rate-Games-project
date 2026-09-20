@@ -8,6 +8,7 @@ const router = express.Router();
 const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 const { buildPagerLinks } = require('../utils/gameListing');
 const { logAdminAction } = require('../utils/adminHelpers');
+const { sanitizeImage } = require('../utils/imageSafety');
 const { checkUploadToken, verifyAfterUpload, reject, isValid } = require('../middleware/csrf');
 const {
   CATEGORIES,
@@ -32,11 +33,9 @@ const MAX_EXCERPT = 200;
 // Git nie przechowuje pustych katalogów, a multer sam ich nie tworzy.
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+// Plik trafia najpierw do pamięci; na dysk zapisujemy dopiero zweryfikowany i przekodowany obraz.
 const coverUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-    filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname).toLowerCase()}`),
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 }, // 3 MB
   fileFilter: (req, file, cb) => {
     // Pole _csrf jest w formularzu przed plikiem - zły token nie zapisuje niczego na dysku.
@@ -53,7 +52,7 @@ const coverUpload = multer({
 
 /** Wgrywa okładkę; przy błędzie zapamiętuje komunikat, a formularz wyświetla się ponownie. */
 function handleCoverUpload(req, res, next) {
-  coverUpload(req, res, (err) => {
+  coverUpload(req, res, async (err) => {
     req.body = req.body || {};
     if (err && err.message === 'csrf') return reject(req, res);
     if (!err && !isValid(req)) return verifyAfterUpload(req, res, () => {});
@@ -64,6 +63,19 @@ function handleCoverUpload(req, res, next) {
           : err.userFacing
             ? err.message
             : 'Nie udało się wgrać okładki.';
+    }
+
+    // Sygnatura pliku, limit wymiarów i przekodowanie do WebP (utils/imageSafety.js).
+    if (!err && req.file) {
+      try {
+        const image = await sanitizeImage(req.file.buffer, { maxSize: 1600 });
+        req.file.filename = `${uuidv4()}${image.ext}`;
+        await fs.promises.writeFile(path.join(UPLOAD_DIR, req.file.filename), image.buffer);
+      } catch (imageError) {
+        if (!imageError.userFacing) console.error('Błąd przetwarzania okładki:', imageError);
+        req.coverError = imageError.userFacing ? imageError.message : 'Nie udało się przetworzyć okładki.';
+        req.file = undefined;
+      }
     }
     next();
   });

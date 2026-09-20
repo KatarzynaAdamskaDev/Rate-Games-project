@@ -63,6 +63,17 @@ zgłoszenia, komentarze, gry własne, blog, moderacja czatu, eksport CSV i kopie
 zapasowe bazy, dziennik działań oraz ustawienia (ogłoszenie, filtr wulgaryzmów,
 antyspam, limity zapytań, wymóg 2FA).
 
+### Moderacja: blokady czasowe, wyciszenia, zgłoszenia, blokowanie użytkowników
+
+- Admin blokuje konto na 1 / 7 / 30 dni albo bezterminowo (czasowa blokada wygasa sama) i może
+  **wyciszyć** użytkownika: czyta serwis, ale nie pisze recenzji, komentarzy ani wiadomości.
+- Zgłosić można recenzję, komentarz, użytkownika i wiadomość na czacie (jedno okno z powodem);
+  wszystkie trafiają do kolejki w panelu (Zgłoszenia), a odrzucenie wymaga podania powodu.
+- Użytkownik może zablokować inne konto: ukrywa jego komentarze, a tamta osoba nie napisze do niego
+  na czacie ani go nie zaobserwuje (Edytuj profil -> Zablokowani użytkownicy).
+- Wgrywane obrazy (awatary, okładki bloga) są sprawdzane po sygnaturze pliku, ograniczane wymiarami
+  i przekodowywane do WebP (biblioteka `sharp` - po aktualizacji uruchom `npm install`).
+
 ### Nadawanie i odbieranie uprawnień administratora
 
 Zmiana roli wymaga potwierdzenia: wpisania nazwy użytkownika, własnego hasła i (przy

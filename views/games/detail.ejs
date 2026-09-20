@@ -170,6 +170,15 @@
                           <i class="bi <%= c.liked ? 'bi-heart-fill' : 'bi-heart' %>"></i>
                           <span class="gv-count"><%= c.likeCount %></span>
                         </button>
+                        <% if (currentUser && currentUser.id !== c.userId) { %>
+                          <button type="button" class="gv-icon-btn gv-report-btn" title="Zgłoś komentarz"
+                                  data-bs-toggle="modal" data-bs-target="#reportModal"
+                                  data-report-type="comment"
+                                  data-report-url="/reports/comment/<%= c.id %>"
+                                  data-report-author="<%= c.username %>">
+                            <i class="bi bi-flag"></i>
+                          </button>
+                        <% } %>
                         <% if (currentUser && currentUser.id === c.userId) { %>
                           <form action="/games/<%= game.id %>/reviews/<%= review.id %>/comments/<%= c.id %>/delete" method="POST"
                                 onsubmit="return confirm('Usunąć komentarz?');" class="d-inline">

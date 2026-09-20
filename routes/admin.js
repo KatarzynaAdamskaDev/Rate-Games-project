@@ -9,6 +9,7 @@ const Review = require('../models/Review');
 const ReviewComment = require('../models/ReviewComment');
 const CommentLike = require('../models/CommentLike');
 const ReviewReport = require('../models/ReviewReport');
+const ContentReport = require('../models/ContentReport');
 const CustomGame = require('../models/CustomGame');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
@@ -35,6 +36,8 @@ const { getRules, getStats: getRateLimitStats } = require('../middleware/rateLim
 const backup = require('../utils/backupHelpers');
 const totp = require('../utils/totp');
 const roles = require('../utils/adminRoles');
+const status = require('../utils/moderationStatus');
+const { TYPE_LABELS } = require('../utils/reportReasons');
 const SiteSetting = require('../models/SiteSetting');
 const AdminIdea = require('../models/AdminIdea');
 const { IDEAS, AREAS, DECISIONS, findIdea } = require('../utils/adminIdeas');
@@ -48,8 +51,8 @@ router.use(ensureAuthenticated, ensureAdmin);
 router.use(async (req, res, next) => {
   try {
     // Rolę sprawdzamy w bazie przy każdym wejściu, więc odebrane uprawnienia działają od razu (nie po minucie odświeżenia sesji).
-    const me = await User.findByPk(req.session.user.id, { attributes: ['role', 'isBanned', 'twoFactorEnabled'] });
-    if (!me || me.role !== 'admin' || me.isBanned) {
+    const me = await User.findByPk(req.session.user.id, { attributes: ['role', 'isBanned', 'bannedUntil', 'twoFactorEnabled'] });
+    if (!me || me.role !== 'admin' || status.isBanActive(me)) {
       if (req.session.user) req.session.user.role = me ? me.role : 'user';
       req.flash('error', 'Nie masz już uprawnień administratora.');
       return res.redirect('/');
@@ -61,7 +64,11 @@ router.use(async (req, res, next) => {
       return res.redirect('/profile/settings?tab=account');
     }
 
-    res.locals.pendingReportsCount = await ReviewReport.count({ where: { status: 'pending' } });
+    const [pendingReviewReports, pendingContentReports] = await Promise.all([
+      ReviewReport.count({ where: { status: 'pending' } }),
+      ContentReport.count({ where: { status: 'pending' } }),
+    ]);
+    res.locals.pendingReportsCount = pendingReviewReports + pendingContentReports;
 
     res.locals.pendingIdeasCount = (await loadAllIdeas()).filter((idea) => !idea.decision).length;
     next();
@@ -189,12 +196,13 @@ router.get('/', async (req, res, next) => {
 router.get('/users', async (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim();
-    const filter = ['admin', 'banned'].includes(req.query.filter) ? req.query.filter : '';
+    const filter = ['admin', 'banned', 'muted'].includes(req.query.filter) ? req.query.filter : '';
 
     const where = {};
     if (q) where[Op.or] = [{ username: likeFilter(q) }, { email: likeFilter(q) }];
     if (filter === 'admin') where.role = 'admin';
-    if (filter === 'banned') where.isBanned = true;
+    if (filter === 'banned') Object.assign(where, status.activeBanWhere());
+    if (filter === 'muted') where.mutedUntil = { [Op.gt]: new Date() };
 
     const total = await User.count({ where });
     const { page, pages, offset, limit } = pageOf(req, total);
@@ -212,6 +220,8 @@ router.get('/users', async (req, res, next) => {
     const probation = roles.probationEndsAt(viewer);
 
     render(res, 'users', 'users', 'Użytkownicy', {
+      durations: status.DURATIONS,
+      formatUntil: status.formatUntil,
       probationEnds: probation,
       probationDays: roles.PROBATION_DAYS,
       users: rows.map((u) => {
@@ -219,6 +229,9 @@ router.get('/users', async (req, res, next) => {
         return {
           ...plain,
           reviewCount: reviewCounts.get(u.id) || 0,
+          banActive: status.isBanActive(plain),
+          muteActive: status.isMuted(plain),
+          muteForever: status.isPermanentMute(plain),
           roleChange: roles.evaluateRoleChange(viewer, plain, plain.role === 'admin' ? 'user' : 'admin'),
         };
       }),
@@ -314,9 +327,19 @@ router.post('/users/:id/ban', async (req, res, next) => {
     if (!guardTarget(req, res, target)) return;
 
     const reason = String(req.body.reason || '').trim().slice(0, 200) || null;
-    await target.update({ isBanned: true, banReason: reason });
-    await logAdminAction(req, 'user.ban', 'user', target.username, reason || 'bez podanego powodu');
-    req.flash('success', `Konto ${target.username} zostało zablokowane.`);
+    const duration = status.findDuration(req.body.duration);
+    const until = status.banUntil(req.body.duration);
+    await target.update({ isBanned: true, banReason: reason, bannedUntil: until });
+    await logAdminAction(
+      req, 'user.ban', 'user', target.username,
+      `${duration.label}${reason ? ` - ${reason}` : ''}`
+    );
+    req.flash(
+      'success',
+      until
+        ? `Konto ${target.username} zostało zablokowane do ${status.formatUntil(until)}.`
+        : `Konto ${target.username} zostało zablokowane bezterminowo.`
+    );
     res.redirect(backTo(req, '/admin/users'));
   } catch (err) {
     next(err);
@@ -328,9 +351,55 @@ router.post('/users/:id/unban', async (req, res, next) => {
     const target = await User.findByPk(req.params.id);
     if (!guardTarget(req, res, target, { allowAdmin: true })) return;
 
-    await target.update({ isBanned: false, banReason: null });
+    await target.update({ isBanned: false, banReason: null, bannedUntil: null });
     await logAdminAction(req, 'user.unban', 'user', target.username);
     req.flash('success', `Konto ${target.username} zostało odblokowane.`);
+    res.redirect(backTo(req, '/admin/users'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/users/:id/mute', async (req, res, next) => {
+  try {
+    const target = await User.findByPk(req.params.id);
+    if (!guardTarget(req, res, target)) return;
+
+    const reason = String(req.body.reason || '').trim().slice(0, 200) || null;
+    const duration = status.findDuration(req.body.duration);
+    const until = status.muteUntil(req.body.duration);
+    await target.update({ mutedUntil: until, muteReason: reason });
+    await logAdminAction(req, 'user.mute', 'user', target.username, `${duration.label}${reason ? ` - ${reason}` : ''}`);
+
+    await createNotification({
+      userId: target.id,
+      type: 'moderation',
+      actorId: req.session.user.id,
+      message: `Twoje konto zostało wyciszone ${duration.ms ? `do ${status.formatUntil(until)}` : 'bezterminowo'} - możesz czytać serwis, ale nie możesz pisać recenzji, komentarzy ani wiadomości.${reason ? ` Powód: ${reason}` : ''}`,
+      link: null,
+    });
+    req.flash('success', `Konto ${target.username} zostało wyciszone (${duration.label.toLowerCase()}).`);
+    res.redirect(backTo(req, '/admin/users'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/users/:id/unmute', async (req, res, next) => {
+  try {
+    const target = await User.findByPk(req.params.id);
+    if (!guardTarget(req, res, target, { allowAdmin: true })) return;
+
+    await target.update({ mutedUntil: null, muteReason: null });
+    await logAdminAction(req, 'user.unmute', 'user', target.username);
+    await createNotification({
+      userId: target.id,
+      type: 'moderation',
+      actorId: req.session.user.id,
+      message: 'Wyciszenie Twojego konta zostało zdjęte - możesz znowu pisać.',
+      link: null,
+    });
+    req.flash('success', `Wyciszenie konta ${target.username} zostało zdjęte.`);
     res.redirect(backTo(req, '/admin/users'));
   } catch (err) {
     next(err);
@@ -483,32 +552,65 @@ router.post('/reviews/:id/delete', async (req, res, next) => {
 
 /* ------------------------------ zgłoszenia ------------------------------ */
 
+const REPORT_TYPES = ['review', 'comment', 'user', 'message'];
+
 router.get('/reports', async (req, res, next) => {
   try {
-    const status = req.query.status === 'all' ? 'all' : 'pending';
-    const where = status === 'pending' ? { status: 'pending' } : {};
+    const statusFilter = req.query.status === 'all' ? 'all' : 'pending';
+    const type = REPORT_TYPES.includes(req.query.type) ? req.query.type : '';
+    const where = statusFilter === 'pending' ? { status: 'pending' } : {};
 
-    const total = await ReviewReport.count({ where });
+    // Recenzje mają własną tabelę zgłoszeń, reszta (komentarze, użytkownicy, wiadomości) - wspólną.
+    const [reviewRows, contentRows] = await Promise.all([
+      type && type !== 'review'
+        ? []
+        : ReviewReport.findAll({ where, order: [['createdAt', 'DESC']], limit: 300 }),
+      type === 'review'
+        ? []
+        : ContentReport.findAll({
+          where: type ? { ...where, targetType: type } : where,
+          order: [['createdAt', 'DESC']],
+          limit: 300,
+        }),
+    ]);
+
+    const merged = [
+      ...reviewRows.map((r) => ({ ...r.get({ plain: true }), kind: 'review' })),
+      ...contentRows.map((r) => ({ ...r.get({ plain: true }), kind: r.targetType })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const total = merged.length;
     const { page, pages, offset, limit } = pageOf(req, total);
-    const rows = (await ReviewReport.findAll({ where, order: [['createdAt', 'DESC']], limit, offset }))
-      .map((r) => r.get({ plain: true }));
+    const rows = merged.slice(offset, offset + limit);
 
-    const reviews = await Review.findAll({ where: { id: rows.map((r) => r.reviewId) } });
+    const reviewIds = rows.filter((r) => r.kind === 'review').map((r) => r.reviewId);
+    const reviews = reviewIds.length ? await Review.findAll({ where: { id: reviewIds } }) : [];
     const reporters = await User.findAll({
-      where: { id: rows.map((r) => r.reporterId) },
+      where: { id: [...new Set(rows.map((r) => r.reporterId))] },
       attributes: ['id', 'username'],
     });
     const enriched = await enrichReviews(reviews.map((r) => r.get({ plain: true })));
     const reviewById = new Map(enriched.map((r) => [r.id, r]));
     const reporterById = new Map(reporters.map((u) => [u.id, u.username]));
 
+    // Liczniki oczekujących zgłoszeń przy zakładkach rodzajów.
+    const [pendingReview, ...pendingByType] = await Promise.all([
+      ReviewReport.count({ where: { status: 'pending' } }),
+      ...['comment', 'user', 'message'].map((t) => ContentReport.count({ where: { status: 'pending', targetType: t } })),
+    ]);
+    const typeCounts = { review: pendingReview, comment: pendingByType[0], user: pendingByType[1], message: pendingByType[2] };
+
     render(res, 'reports', 'reports', 'Zgłoszenia', {
       reports: rows.map((r) => ({
         ...r,
-        review: reviewById.get(r.reviewId) || null,
+        review: r.kind === 'review' ? reviewById.get(r.reviewId) || null : null,
         reporterName: reporterById.get(r.reporterId) || 'usunięty użytkownik',
       })),
-      status,
+      status: statusFilter,
+      type,
+      typeCounts,
+      typeLabels: TYPE_LABELS,
+      durations: status.DURATIONS,
       total,
       pager: buildPagerLinks(req, page, page < pages),
       page,
@@ -597,6 +699,143 @@ router.post('/reports/:id/dismiss', async (req, res, next) => {
 
     req.flash('success', 'Zgłoszenie zostało odrzucone, a zgłaszający dostał uzasadnienie.');
     res.redirect(backTo(req, '/admin/reports'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ----------- zgłoszenia komentarzy, użytkowników i wiadomości ----------- */
+
+router.post('/reports/content/:id/dismiss', async (req, res, next) => {
+  try {
+    const report = await ContentReport.findByPk(req.params.id);
+    if (!report) {
+      req.flash('error', 'Nie znaleziono zgłoszenia.');
+      return res.redirect(backTo(req, '/admin/reports'));
+    }
+
+    const reason = String(req.body.reason || '').trim().slice(0, 300);
+    if (reason.length < 3) {
+      req.flash('error', 'Podaj powód odrzucenia zgłoszenia (min. 3 znaki).');
+      return res.redirect(backTo(req, '/admin/reports'));
+    }
+
+    await report.update({ status: 'dismissed', resolution: reason, resolvedBy: req.session.user.username, resolvedAt: new Date() });
+    await logAdminAction(req, 'report.dismiss', 'report', `${report.targetType}:${report.id.slice(0, 8)}`, reason);
+    await createNotification({
+      userId: report.reporterId,
+      type: 'report-result',
+      actorId: req.session.user.id,
+      message: `Twoje zgłoszenie zostało odrzucone. Powód: ${reason}`,
+      link: null,
+    });
+
+    req.flash('success', 'Zgłoszenie zostało odrzucone, a zgłaszający dostał uzasadnienie.');
+    res.redirect(backTo(req, '/admin/reports'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+const CONTENT_ACTIONS = {
+  comment: ['delete-comment', 'mute', 'ban'],
+  message: ['delete-message', 'mute', 'ban'],
+  user: ['mute', 'ban'],
+};
+
+router.post('/reports/content/:id/resolve', async (req, res, next) => {
+  try {
+    const back = backTo(req, '/admin/reports');
+    const report = await ContentReport.findByPk(req.params.id);
+    if (!report || report.status !== 'pending') {
+      req.flash('error', 'Nie znaleziono zgłoszenia albo zostało już rozpatrzone.');
+      return res.redirect(back);
+    }
+
+    const action = String(req.body.action || '');
+    if (!(CONTENT_ACTIONS[report.targetType] || []).includes(action)) {
+      req.flash('error', 'Wybierz działanie.');
+      return res.redirect(back);
+    }
+
+    const reason = String(req.body.reason || '').trim().slice(0, 200);
+    const durationKey = req.body.duration;
+    const target = report.targetUserId ? await User.findByPk(report.targetUserId) : null;
+    let outcome;
+
+    if (action === 'delete-comment') {
+      const comment = await ReviewComment.findByPk(report.targetId);
+      if (comment) {
+        await CommentLike.destroy({ where: { commentId: comment.id } });
+        await comment.destroy();
+      }
+      outcome = 'Usunięto komentarz';
+      if (target) {
+        await createNotification({
+          userId: target.id, type: 'moderation', actorId: req.session.user.id,
+          message: `Twój komentarz został usunięty przez moderatora${reason ? `. Powód: ${reason}` : '.'}`, link: null,
+        });
+      }
+    } else if (action === 'delete-message') {
+      const message = await Message.findByPk(report.targetId);
+      if (message) await message.destroy();
+      outcome = 'Usunięto wiadomość';
+      if (target) {
+        await createNotification({
+          userId: target.id, type: 'moderation', actorId: req.session.user.id,
+          message: `Twoja wiadomość na czacie została usunięta przez moderatora${reason ? `. Powód: ${reason}` : '.'}`, link: null,
+        });
+      }
+    } else {
+      // Wyciszenie albo blokada autora - nie dotyczą administratorów ani własnego konta.
+      if (!target) {
+        req.flash('error', 'Konto autora już nie istnieje.');
+        return res.redirect(back);
+      }
+      if (target.id === req.session.user.id) {
+        req.flash('error', 'Tej operacji nie możesz wykonać na własnym koncie.');
+        return res.redirect(back);
+      }
+      if (target.role === 'admin') {
+        req.flash('error', 'Najpierw odbierz temu użytkownikowi uprawnienia administratora.');
+        return res.redirect(back);
+      }
+
+      const duration = status.findDuration(durationKey);
+      if (action === 'ban') {
+        await target.update({ isBanned: true, banReason: reason || null, bannedUntil: status.banUntil(durationKey) });
+        outcome = `Zablokowano konto (${duration.label.toLowerCase()})`;
+      } else {
+        const until = status.muteUntil(durationKey);
+        await target.update({ mutedUntil: until, muteReason: reason || null });
+        await createNotification({
+          userId: target.id, type: 'moderation', actorId: req.session.user.id,
+          message: `Twoje konto zostało wyciszone ${duration.ms ? `do ${status.formatUntil(until)}` : 'bezterminowo'}.${reason ? ` Powód: ${reason}` : ''}`, link: null,
+        });
+        outcome = `Wyciszono konto (${duration.label.toLowerCase()})`;
+      }
+    }
+
+    // Ta sama treść mogła zostać zgłoszona przez kilka osób - wszystkie zgłoszenia zamykamy razem.
+    const related = await ContentReport.findAll({
+      where: { targetType: report.targetType, targetId: report.targetId, status: 'pending' },
+    });
+    for (const item of related) {
+      await item.update({
+        status: 'reviewed',
+        resolution: `${outcome}${reason ? `. ${reason}` : ''}`.slice(0, 300),
+        resolvedBy: req.session.user.username,
+        resolvedAt: new Date(),
+      });
+      await createNotification({
+        userId: item.reporterId, type: 'report-result', actorId: req.session.user.id,
+        message: 'Dziękujemy za zgłoszenie - moderator podjął działania wobec zgłoszonej treści.', link: null,
+      });
+    }
+
+    await logAdminAction(req, 'report.resolve', 'report', `${report.targetType}: ${report.targetUsername || report.targetId}`, `${outcome}${reason ? ` - ${reason}` : ''}`);
+    req.flash('success', `${outcome}. Zgłoszenia rozpatrzone (${related.length}).`);
+    res.redirect(back);
   } catch (err) {
     next(err);
   }

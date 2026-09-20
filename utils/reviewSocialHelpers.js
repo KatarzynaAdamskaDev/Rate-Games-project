@@ -30,8 +30,11 @@ async function hasLiked(reviewId, userId) {
 
 async function getCommentsForReview(reviewId, currentUserId) {
   const rows = await ReviewComment.findAll({ where: { reviewId } });
+  // Komentarze osób zablokowanych przez oglądającego są ukryte (utils/blockHelpers.js).
+  const blocked = new Set(await require('./blockHelpers').getBlockedIds(currentUserId));
   const comments = rows
     .map((r) => r.get({ plain: true }))
+    .filter((c) => !blocked.has(c.userId))
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   return Promise.all(

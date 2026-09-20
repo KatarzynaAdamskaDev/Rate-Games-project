@@ -23,6 +23,9 @@ const { getPopularGames } = require('../utils/igdbService');
 const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
 const { moderateText, moderateName } = require('../utils/contentFilter');
 const { limiters } = require('../middleware/rateLimit');
+const { blockIfMuted } = require('../middleware/muted');
+const { isBlockedEitherWay } = require('../utils/blockHelpers');
+const { REASONS_BY_TYPE, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 
 // Cały czat wymaga zalogowania.
 router.use(ensureAuthenticated);
@@ -67,6 +70,8 @@ router.get('/', async (req, res) => {
       .filter((u) => u.id !== me.id && mutualIds.has(u.id))
       .map((u) => u.username),
     popularGames: await getPopularGames(20),
+    reportReasonSets: { message: REASONS_BY_TYPE.message },
+    reportCommentMax: MAX_COMMENT_LENGTH,
   });
 });
 
@@ -130,7 +135,7 @@ router.get('/friends-search', async (req, res) => {
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
 
-router.post('/start/:username', limiters.chatCreate, async (req, res) => {
+router.post('/start/:username', blockIfMuted, limiters.chatCreate, async (req, res) => {
   const target = await findByUsername(req.params.username);
   if (!target) {
     req.flash('error', 'Nie znaleziono użytkownika o takiej nazwie.');
@@ -146,6 +151,11 @@ router.post('/start/:username', limiters.chatCreate, async (req, res) => {
     isFollowing(target.id, req.session.user.id),
   ]);
 
+  if (await isBlockedEitherWay(req.session.user.id, target.id)) {
+    req.flash('error', 'Nie możesz pisać do tego użytkownika (jedna ze stron zablokowała drugą).');
+    return res.redirect('/chat');
+  }
+
   if (!iFollowThem || !theyFollowMe) {
     req.flash(
       'error',
@@ -160,7 +170,7 @@ router.post('/start/:username', limiters.chatCreate, async (req, res) => {
 
 /* ------------------------------ GRUPY ------------------------------ */
 
-router.post('/groups/new', limiters.chatCreate, async (req, res) => {
+router.post('/groups/new', blockIfMuted, limiters.chatCreate, async (req, res) => {
   const { name } = req.body;
   let memberIds = req.body.memberIds || [];
   if (!Array.isArray(memberIds)) memberIds = [memberIds];
@@ -265,7 +275,7 @@ router.get('/:conversationId/messages', async (req, res) => {
   res.json({ messages });
 });
 
-router.post('/:conversationId/messages', limiters.chatMessage, async (req, res) => {
+router.post('/:conversationId/messages', blockIfMuted, limiters.chatMessage, async (req, res) => {
   const { conversationId } = req.params;
 
   if (!(await canAccessConversation(req.session.user.id, conversationId))) {
@@ -275,6 +285,15 @@ router.post('/:conversationId/messages', limiters.chatMessage, async (req, res) 
   const text = (req.body.text || '').trim();
   if (!text) {
     return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
+  }
+
+  // W rozmowie prywatnej nie da się pisać do osoby, która zablokowała nas albo którą zablokowaliśmy.
+  const conversation = await getConversationById(conversationId);
+  if (conversation && conversation.type === 'dm') {
+    const otherId = conversation.memberIds.find((id) => id !== req.session.user.id);
+    if (otherId && (await isBlockedEitherWay(req.session.user.id, otherId))) {
+      return res.status(403).json({ error: 'Nie możesz wysyłać wiadomości do tego użytkownika (jedna ze stron zablokowała drugą).' });
+    }
   }
 
   const checked = moderateText(text.slice(0, 1000), { userId: req.session.user.id });

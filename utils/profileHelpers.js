@@ -17,6 +17,8 @@ const { deleteReviewData } = require('./reviewSocialHelpers');
 const { removeUserFromConversations } = require('./chatHelpers');
 const Notification = require('../models/Notification');
 const FavoriteGame = require('../models/FavoriteGame');
+const ContentReport = require('../models/ContentReport');
+const UserBlock = require('../models/UserBlock');
 
 /** Zwraca dane użytkownika bezpieczne do wyświetlenia (bez hasha i tokenów). */
 function getUserPublic(user) {
@@ -80,6 +82,8 @@ async function purgeUserData(userId) {
     ReviewLike.destroy({ where: { userId } }),
     CommentLike.destroy({ where: { userId } }),
     ReviewReport.destroy({ where: { reporterId: userId } }),
+    ContentReport.destroy({ where: { [Op.or]: [{ reporterId: userId }, { targetUserId: userId }] } }),
+    UserBlock.destroy({ where: { [Op.or]: [{ blockerId: userId }, { blockedId: userId }] } }),
     Follow.destroy({ where: { [Op.or]: [{ followerId: userId }, { followingId: userId }] } }),
     FavoriteGame.destroy({ where: { userId } }),
     Notification.destroy({ where: { [Op.or]: [{ userId }, { actorId: userId }] } }),

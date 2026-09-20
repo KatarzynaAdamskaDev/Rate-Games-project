@@ -5,6 +5,7 @@
  */
 const Notification = require('../models/Notification');
 const { isNotificationEnabled } = require('./notificationPrefs');
+const { hasBlocked } = require('./blockHelpers');
 
 const MAX_PER_USER = 50;
 // Komunikaty od moderatorów (np. usunięta recenzja) nie podlegają ustawieniom powiadomień użytkownika.
@@ -15,6 +16,8 @@ async function createNotification({ userId, type, actorId, message, link }) {
   if (!userId || userId === actorId) return null;
   // Odbiorca mógł wyłączyć ten rodzaj powiadomień w ustawieniach profilu.
   if (!ALWAYS_DELIVERED.has(type) && !(await isNotificationEnabled(userId, type))) return null;
+  // Osoby zablokowane przez odbiorcę nie wysyłają mu powiadomień.
+  if (actorId && !ALWAYS_DELIVERED.has(type) && (await hasBlocked(userId, actorId))) return null;
 
   // Powiadomienia o decyzjach moderatorów niosą różne treści, więc nie są traktowane jako duplikaty.
   if (!NO_DEDUPE.has(type)) {

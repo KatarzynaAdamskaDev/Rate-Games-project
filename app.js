@@ -23,6 +23,7 @@ const chatRouter = require('./routes/chat');
 const notificationsRouter = require('./routes/notifications');
 const adminRouter = require('./routes/admin');
 const reviewsRouter = require('./routes/reviews');
+const reportsRouter = require('./routes/reports');
 const userProfileRouter = require('./routes/userProfile');
 
 const app = express();
@@ -84,6 +85,7 @@ app.use('/chat', chatRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/admin', adminRouter);
 app.use('/reviews', reviewsRouter);
+app.use('/reports', reportsRouter);
 
 // UWAGA: musi być zamontowany na samym końcu (po wszystkich innych trasach),
 // bo obsługuje /:username jako "łapacz wszystkiego" - inaczej połknąłby

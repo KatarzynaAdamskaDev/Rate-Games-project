@@ -11,7 +11,8 @@ const { syncUserProgress } = require('../utils/progressHelpers');
 const { createNotification } = require('../utils/notificationHelpers');
 const { moderateText } = require('../utils/contentFilter');
 const { limiters } = require('../middleware/rateLimit');
-const { REPORT_REASONS, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
+const { blockIfMuted } = require('../middleware/muted');
+const { REASONS_BY_TYPE, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 const ReviewComment = require('../models/ReviewComment');
 const { getGenres, PLATFORM_OPTIONS } = require('../utils/igdbService');
 const {
@@ -176,7 +177,7 @@ router.get('/:id', async (req, res, next) => {
       reviews,
       averageRating,
       myReview,
-      reportReasons: REPORT_REASONS,
+      reportReasonSets: { review: REASONS_BY_TYPE.review, comment: REASONS_BY_TYPE.comment },
       reportCommentMax: MAX_COMMENT_LENGTH,
     });
   } catch (error) {
@@ -186,7 +187,7 @@ router.get('/:id', async (req, res, next) => {
 
 /* --------------------------- DODAJ OPINIĘ --------------------------- */
 
-router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, res, next) => {
+router.post('/:id/reviews', ensureAuthenticated, blockIfMuted, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
 
   const existing = await Review.findOne({
@@ -234,7 +235,7 @@ router.post('/:id/reviews', ensureAuthenticated, limiters.review, async (req, re
 
 /* --- RESZTA TRAS (EDYCJA, USUWANE, KOMENTARZE, LAJKI) POZOSTAJE BEZ ZMIAN --- */
 
-router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, limiters.review, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, blockIfMuted, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
   const review = await Review.findByPk(req.params.reviewId);
   if (!review || String(review.gameId) !== gameId) return next();
@@ -332,7 +333,7 @@ router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
   });
 });
 
-router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, limiters.comment, async (req, res, next) => {
+router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, blockIfMuted, limiters.comment, async (req, res, next) => {
   const gameId = String(req.params.id);
   const wantsJson = wantsJsonResponse(req);
 

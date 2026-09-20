@@ -3,6 +3,8 @@ const router = express.Router();
 
 const { findByUsername } = require('../utils/userHelpers');
 const { isFollowing } = require('../utils/socialHelpers');
+const { hasBlocked } = require('../utils/blockHelpers');
+const { REASONS_BY_TYPE, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 const {
   buildProfileViewModel,
   buildTabData,
@@ -28,12 +30,17 @@ router.get('/:username', async (req, res, next) => {
     ? await isFollowing(req.session.user.id, user.id)
     : false;
 
+  const iBlocked = req.session.user ? await hasBlocked(req.session.user.id, user.id) : false;
+
   res.render('profile/show', {
     title: `Profil: ${user.username}`,
     ...vm,
     ...tabData,
     isOwnProfile: false,
     alreadyFollowing,
+    iBlocked,
+    reportReasonSets: { user: REASONS_BY_TYPE.user },
+    reportCommentMax: MAX_COMMENT_LENGTH,
     maxFavorites: MAX_FAVORITES,
     tab,
   });

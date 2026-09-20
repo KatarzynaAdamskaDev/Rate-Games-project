@@ -16,6 +16,7 @@
     <option value="">Wszyscy</option>
     <option value="admin" <%= filter === 'admin' ? 'selected' : '' %>>Administratorzy</option>
     <option value="banned" <%= filter === 'banned' ? 'selected' : '' %>>Zablokowani</option>
+    <option value="muted" <%= filter === 'muted' ? 'selected' : '' %>>Wyciszeni</option>
   </select>
   <button type="submit" class="btn gv-btn-primary"><i class="bi bi-search"></i> Szukaj</button>
 </form>
@@ -55,10 +56,13 @@
           </td>
           <td><%= u.reviewCount %></td>
           <td>
-            <% if (u.isBanned) { %>
-              <span class="gv-badge gv-badge-danger" title="<%= u.banReason || '' %>">zablokowany</span>
+            <% if (u.banActive) { %>
+              <span class="gv-badge gv-badge-danger" title="<%= u.banReason || '' %>">zablokowany<%= u.bannedUntil ? ' do ' + new Date(u.bannedUntil).toLocaleDateString('pl-PL') : '' %></span>
             <% } else { %>
               <span class="gv-badge gv-badge-ok">aktywny</span>
+            <% } %>
+            <% if (u.muteActive) { %>
+              <span class="gv-badge gv-badge-warn" title="<%= u.muteReason || '' %>">wyciszony<%= u.muteForever ? '' : ' do ' + new Date(u.mutedUntil).toLocaleDateString('pl-PL') %></span>
             <% } %>
           </td>
           <td>
@@ -141,16 +145,51 @@
                 <p class="gv-admin-note">Zmiana uprawnień wymaga potwierdzenia nazwą użytkownika, Twoim hasłem<%= adminHasTwoFactor ? ' i kodem 2FA' : '' %>. Wszyscy administratorzy dostaną o niej powiadomienie.</p>
               <% } %>
 
-              <% if (u.isBanned) { %>
-                <p class="gv-admin-note">Konto jest zablokowane<%= u.banReason ? ': ' + u.banReason : '' %>.</p>
+            </section>
+
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-slash-circle-fill"></i> Blokada konta</h3>
+              <% if (u.banActive) { %>
+                <p class="gv-admin-note">
+                  Konto jest zablokowane <%= u.bannedUntil ? 'do ' + formatUntil(u.bannedUntil) : 'bezterminowo' %><%= u.banReason ? ' - ' + u.banReason : '' %>.
+                </p>
                 <form method="POST" action="/admin/users/<%= u.id %>/unban">
                   <button type="submit" class="gv-mini-btn gv-mini-ok"><i class="bi bi-unlock-fill"></i> Odblokuj konto</button>
                 </form>
               <% } else if (u.role !== 'admin') { %>
-                <form method="POST" action="/admin/users/<%= u.id %>/ban" class="gv-inline-form">
-                  <input type="text" name="reason" maxlength="200" placeholder="Powód blokady" class="form-control gv-input" aria-label="Powód blokady">
+                <p class="gv-admin-note">Zablokowany użytkownik nie zaloguje się, a blokada czasowa wygasa sama.</p>
+                <form method="POST" action="/admin/users/<%= u.id %>/ban" class="gv-inline-form gv-inline-form-wrap">
+                  <select name="duration" class="form-select gv-select" aria-label="Czas blokady">
+                    <% durations.forEach(function(d) { %><option value="<%= d.key %>"><%= d.label %></option><% }) %>
+                  </select>
+                  <input type="text" name="reason" maxlength="200" placeholder="Powód (widzi go użytkownik)" class="form-control gv-input" aria-label="Powód blokady">
                   <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-slash-circle"></i> Zablokuj</button>
                 </form>
+              <% } else { %>
+                <p class="gv-admin-note">Administratora nie można zablokować - najpierw odbierz mu uprawnienia.</p>
+              <% } %>
+            </section>
+
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-mic-mute-fill"></i> Wyciszenie</h3>
+              <% if (u.muteActive) { %>
+                <p class="gv-admin-note">
+                  Użytkownik jest wyciszony <%= u.muteForever ? 'bezterminowo' : 'do ' + formatUntil(u.mutedUntil) %><%= u.muteReason ? ' - ' + u.muteReason : '' %>.
+                </p>
+                <form method="POST" action="/admin/users/<%= u.id %>/unmute">
+                  <button type="submit" class="gv-mini-btn gv-mini-ok"><i class="bi bi-mic-fill"></i> Zdejmij wyciszenie</button>
+                </form>
+              <% } else if (u.role !== 'admin') { %>
+                <p class="gv-admin-note">Wyciszony użytkownik może czytać serwis, ale nie może pisać recenzji, komentarzy ani wiadomości.</p>
+                <form method="POST" action="/admin/users/<%= u.id %>/mute" class="gv-inline-form gv-inline-form-wrap">
+                  <select name="duration" class="form-select gv-select" aria-label="Czas wyciszenia">
+                    <% durations.forEach(function(d) { %><option value="<%= d.key %>" <%= d.key === '7d' ? 'selected' : '' %>><%= d.label %></option><% }) %>
+                  </select>
+                  <input type="text" name="reason" maxlength="200" placeholder="Powód (widzi go użytkownik)" class="form-control gv-input" aria-label="Powód wyciszenia">
+                  <button type="submit" class="gv-mini-btn gv-mini-warn"><i class="bi bi-mic-mute-fill"></i> Wycisz</button>
+                </form>
+              <% } else { %>
+                <p class="gv-admin-note">Administratora nie można wyciszyć.</p>
               <% } %>
             </section>
 

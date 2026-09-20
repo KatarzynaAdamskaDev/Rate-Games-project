@@ -1,8 +1,26 @@
 <%- include('partials/top') %>
 
+<%
+  const __qs = function(st, ty) {
+    const parts = [];
+    if (st === 'all') parts.push('status=all');
+    if (ty) parts.push('type=' + ty);
+    return '/admin/reports' + (parts.length ? '?' + parts.join('&') : '');
+  };
+  const __typeIcons = { review: 'bi-journal-text', comment: 'bi-chat-left-text-fill', user: 'bi-person-fill', message: 'bi-envelope-fill' };
+%>
 <div class="gv-admin-tabs">
-  <a href="/admin/reports" class="<%= status === 'pending' ? 'active' : '' %>">Do rozpatrzenia</a>
-  <a href="/admin/reports?status=all" class="<%= status === 'all' ? 'active' : '' %>">Wszystkie</a>
+  <a href="<%= __qs('pending', type) %>" class="<%= status === 'pending' ? 'active' : '' %>">Do rozpatrzenia</a>
+  <a href="<%= __qs('all', type) %>" class="<%= status === 'all' ? 'active' : '' %>">Wszystkie</a>
+</div>
+<div class="gv-admin-tabs gv-report-types">
+  <a href="<%= __qs(status, '') %>" class="<%= !type ? 'active' : '' %>">Wszystkie rodzaje</a>
+  <% Object.keys(typeLabels).forEach(function(key) { %>
+    <a href="<%= __qs(status, key) %>" class="<%= type === key ? 'active' : '' %>">
+      <i class="bi <%= __typeIcons[key] %>"></i> <%= typeLabels[key] %>
+      <% if (typeCounts[key] > 0) { %><small class="gv-report-type-count"><%= typeCounts[key] %></small><% } %>
+    </a>
+  <% }) %>
 </div>
 <p class="gv-admin-count"><%= total %> <%= total === 1 ? 'zgłoszenie' : 'zgłoszeń' %></p>
 
@@ -16,10 +34,24 @@
           <span class="gv-badge <%= rep.status === 'pending' ? 'gv-badge-warn' : (rep.status === 'dismissed' ? '' : 'gv-badge-ok') %>">
             <%= rep.status === 'pending' ? 'do rozpatrzenia' : (rep.status === 'dismissed' ? 'odrzucone' : 'rozpatrzone') %>
           </span>
+          <span class="gv-badge gv-badge-info"><i class="bi <%= __typeIcons[rep.kind] %>"></i> <%= typeLabels[rep.kind] %></span>
           <small class="gv-muted">zgłosił(a) <b><%= rep.reporterName %></b> · <%= new Date(rep.createdAt).toLocaleString('pl-PL') %></small>
         </div>
 
-        <% if (rep.review) { %>
+        <% if (rep.kind !== 'review') { %>
+          <div class="gv-report-review">
+            <div class="gv-report-meta">
+              <% if (rep.kind === 'user') { %>Zgłoszony użytkownik:<% } else if (rep.kind === 'comment') { %>Autor komentarza:<% } else { %>Nadawca wiadomości:<% } %>
+              <% if (rep.targetUsername) { %><a href="/<%= encodeURIComponent(rep.targetUsername) %>"><b><%= rep.targetUsername %></b></a><% } else { %><span class="gv-muted">konto usunięte</span><% } %>
+              <% if (rep.link) { %><a href="<%= rep.link %>" class="gv-report-context">zobacz w kontekście <i class="bi bi-box-arrow-up-right"></i></a><% } %>
+            </div>
+            <% if (rep.snapshot) { %>
+              <p><%= rep.snapshot %></p>
+            <% } else { %>
+              <p class="gv-muted"><%= rep.kind === 'user' ? 'Użytkownik nie ma opisu profilu.' : 'Brak zapisanej treści.' %></p>
+            <% } %>
+          </div>
+        <% } else if (rep.review) { %>
           <div class="gv-report-review">
             <div class="gv-report-meta">
               <a href="/<%= encodeURIComponent(rep.review.username) %>"><b><%= rep.review.username %></b></a>
@@ -38,7 +70,22 @@
           <% if (rep.comment) { %><br><b>Dopisek zgłaszającego:</b> <%= rep.comment %><% } %>
         </p>
 
-        <% if (rep.status === 'pending') { %>
+        <% if (rep.status === 'pending' && rep.kind !== 'review') { %>
+          <div class="gv-report-actions">
+            <button type="button" class="gv-mini-btn gv-mini-danger"
+                    data-bs-toggle="modal" data-bs-target="#contentActionModal"
+                    data-action="/admin/reports/content/<%= rep.id %>/resolve"
+                    data-type="<%= rep.kind %>"
+                    data-author="<%= rep.targetUsername || '' %>">
+              <i class="bi bi-hammer"></i> Podejmij działanie
+            </button>
+            <button type="button" class="gv-mini-btn"
+                    data-bs-toggle="modal" data-bs-target="#dismissModal"
+                    data-action="/admin/reports/content/<%= rep.id %>/dismiss">
+              <i class="bi bi-x-circle"></i> Odrzuć zgłoszenie
+            </button>
+          </div>
+        <% } else if (rep.status === 'pending') { %>
           <div class="gv-report-actions">
             <% if (rep.review) { %>
               <button type="button" class="gv-mini-btn gv-mini-danger"
@@ -93,6 +140,40 @@
   </div>
 </div>
 
+<div class="modal fade" id="contentActionModal" tabindex="-1" aria-labelledby="contentActionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content gv-modal-content">
+      <form method="POST" action="" id="contentActionForm">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="contentActionModalLabel"><i class="bi bi-hammer"></i> Działanie moderatora</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <p class="gv-auth-subtext" id="contentActionIntro">Wybierz, co zrobić w związku ze zgłoszeniem.</p>
+          <div class="gv-reason-list" id="contentActionList"></div>
+
+          <div class="gv-idea-form-row mt-3 d-none" id="contentActionDuration">
+            <div>
+              <label class="gv-label" for="contentDuration">Czas trwania</label>
+              <select id="contentDuration" name="duration" class="form-select gv-select">
+                <% durations.forEach(function(d) { %><option value="<%= d.key %>" <%= d.key === '7d' ? 'selected' : '' %>><%= d.label %></option><% }) %>
+              </select>
+            </div>
+          </div>
+
+          <label class="gv-label mt-3" for="contentReason">Powód dla użytkownika (opcjonalnie)</label>
+          <textarea id="contentReason" name="reason" rows="2" maxlength="200" class="form-control gv-input" placeholder="Użytkownik zobaczy ten powód."></textarea>
+          <p class="gv-admin-note mt-2">Wszystkie zgłoszenia tej samej treści zostaną zamknięte, a zgłaszający dostaną powiadomienie.</p>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="submit" class="btn gv-btn-danger">Wykonaj</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="deleteReviewModal" tabindex="-1" aria-labelledby="deleteReviewModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content gv-modal-content">
@@ -130,6 +211,44 @@
     }
 
     wire('dismissModal', 'dismissForm');
+
+    // Okno działania: lista dostępnych działań zależy od rodzaju zgłoszenia.
+    var actionsByType = {
+      comment: [['delete-comment', 'Usuń komentarz'], ['mute', 'Wycisz autora'], ['ban', 'Zablokuj konto autora']],
+      message: [['delete-message', 'Usuń wiadomość'], ['mute', 'Wycisz nadawcę'], ['ban', 'Zablokuj konto nadawcy']],
+      user: [['mute', 'Wycisz użytkownika'], ['ban', 'Zablokuj konto użytkownika']],
+    };
+    var actionList = document.getElementById('contentActionList');
+    var durationBox = document.getElementById('contentActionDuration');
+    function syncDuration() {
+      var checked = actionList.querySelector('input:checked');
+      var needs = checked && (checked.value === 'mute' || checked.value === 'ban');
+      durationBox.classList.toggle('d-none', !needs);
+    }
+    actionList.addEventListener('change', syncDuration);
+    wire('contentActionModal', 'contentActionForm', function (trigger) {
+      var type = trigger.getAttribute('data-type');
+      var author = trigger.getAttribute('data-author');
+      document.getElementById('contentActionIntro').textContent =
+        author ? 'Zgłoszenie dotyczy użytkownika ' + author + '. Wybierz działanie.' : 'Wybierz działanie.';
+      actionList.innerHTML = '';
+      (actionsByType[type] || []).forEach(function (item, index) {
+        var label = document.createElement('label');
+        label.className = 'gv-reason';
+        var input = document.createElement('input');
+        input.type = 'radio';
+        input.name = 'action';
+        input.value = item[0];
+        input.required = true;
+        if (index === 0) input.checked = true;
+        var span = document.createElement('span');
+        span.textContent = item[1];
+        label.appendChild(input);
+        label.appendChild(span);
+        actionList.appendChild(label);
+      });
+      syncDuration();
+    });
     wire('deleteReviewModal', 'deleteReviewForm', function (trigger) {
       var author = trigger && trigger.getAttribute('data-author');
       document.getElementById('deleteReviewIntro').textContent =

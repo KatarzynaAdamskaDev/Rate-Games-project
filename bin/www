@@ -8,6 +8,7 @@ const { syncAllUsersProgress } = require('../utils/progressHelpers');
 const { seedConversationReads } = require('../utils/chatHelpers');
 const { purgeOrphanedData } = require('../utils/cleanupHelpers');
 const { startModerationSettings } = require('../utils/moderationSettings');
+const { startModerationCleanup } = require('../utils/moderationStatus');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -40,6 +41,8 @@ sequelize
   .then(() => seedConversationReads())
   // Ustawienia moderacji z panelu admina (limity zapytań, filtr, wymóg 2FA) trzymamy w pamięci.
   .then(() => startModerationSettings())
+  // Zdejmuje blokady czasowe po terminie (co kilka minut).
+  .then(() => startModerationCleanup())
   .then(() => {
     server.listen(port);
   })
