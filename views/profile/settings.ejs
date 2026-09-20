@@ -1,9 +1,11 @@
 <%
 // Edycja profilu w układzie z lewym menu sekcji i treścią po prawej.
-// tab: general | avatar | background | badge | notifications | account
+// tab: general | themes | avatar | background | badge | notifications | blocked | account
 const currentTab = tabs.find(function(t) { return t.id === tab; });
+const themeLabel = function(id) { const t = themes.find(function(x) { return x.id === id; }); return t ? t.label : ''; };
 const tabLead = {
   general: 'Ustaw nazwę i opis swojego profilu. Nazwa oraz awatar reprezentują Cię w całym GameVerse, więc powinny być odpowiednie dla wszystkich użytkowników.',
+  themes: 'Każdy poziom odblokowuje zestaw: ramkę, tło i odznakę w jednej palecie kolorów. Jednym kliknięciem ustawisz cały wygląd profilu.',
   avatar: 'Wgraj zdjęcie profilowe i wybierz ramkę, w której będzie się wyświetlać. Kolejne ramki odblokowują się wraz z poziomem.',
   background: 'Wybierz tło banera na swoim profilu. Nowe tła odblokowują się wraz z poziomem.',
   badge: 'Wybierz odznakę, która będzie widoczna jako trofeum w banerze Twojego profilu.',
@@ -60,6 +62,10 @@ const tabLead = {
           <h2 class="gv-edit-title"><%= currentTab ? currentTab.label : 'Ogólne' %></h2>
           <p class="gv-edit-lead"><%= tabLead[tab] %></p>
 
+          <% if (['themes', 'avatar', 'background', 'badge'].indexOf(tab) !== -1) { %>
+            <%- include('partials/appearance-preview') %>
+          <% } %>
+
           <% if (tab === 'general') { %>
 
             <form action="/profile/settings/general" method="POST" class="gv-edit-section">
@@ -89,6 +95,48 @@ const tabLead = {
                 <div><dt>Dołączył(a)</dt><dd><%= new Date(profileUser.createdAt).toLocaleDateString('pl-PL') %></dd></div>
                 <div><dt>Poziom</dt><dd><%= progress.level %> (<%= progress.points %> PD)</dd></div>
               </dl>
+            </div>
+
+          <% } else if (tab === 'themes') { %>
+
+            <div class="gv-edit-section">
+              <h3>Gotowe zestawy</h3>
+              <div class="gv-points-note">
+                Twój poziom: <b><%= progress.level %></b> (<%= progress.points %> PD).
+                <% if (profileUser.unlockAll) { %>
+                  <br><span class="gv-unlock-all-note"><i class="bi bi-unlock-fill"></i> Administrator odblokował Ci wszystkie zestawy.</span>
+                <% } %>
+              </div>
+              <div class="gv-theme-grid">
+                <% themes.forEach(function(t) {
+                     const frame = allFrames.find(function(f) { return f.id === t.frame; });
+                     const bg = allBackgrounds.find(function(b) { return b.id === t.background; });
+                     const badge = t.badge ? allBadges.find(function(b) { return b.id === t.badge; }) : null;
+                     const active = profileUser.activeFrame === t.frame && profileUser.activeBackground === t.background;
+                %>
+                  <div class="gv-theme-card <%= t.locked ? 'locked' : '' %> <%= active ? 'active' : '' %>" style="--theme-accent: <%= t.accent %>; --theme-accent-2: <%= t.accent2 %>;">
+                    <div class="gv-theme-preview gv-swatch-<%= t.background %>">
+                      <span class="gv-theme-avatar gv-frame-<%= t.frame %>"></span>
+                      <span class="gv-theme-trophy" style="color: <%= badge ? badge.color : t.accent %>;"><i class="bi <%= badge ? badge.icon : 'bi-trophy-fill' %>"></i></span>
+                    </div>
+                    <b><%= t.label %></b>
+                    <ul class="gv-theme-parts">
+                      <li><i class="bi bi-person-bounding-box"></i> <%= frame.label %></li>
+                      <li><i class="bi bi-card-image"></i> <%= bg.label %></li>
+                      <li class="<%= badge && badge.locked ? 'missing' : '' %>"><i class="bi <%= badge ? badge.icon : 'bi-trophy-fill' %>"></i> <%= badge ? badge.label : 'Domyślne trofeum' %><%= badge && badge.locked ? ' (jeszcze niezdobyta)' : '' %></li>
+                    </ul>
+                    <% if (t.locked) { %>
+                      <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= t.levelRequired %></span>
+                    <% } else if (active) { %>
+                      <span class="gv-active-tag"><i class="bi bi-check-lg"></i> Aktywny zestaw</span>
+                    <% } else { %>
+                      <form action="/profile/customize/theme/<%= t.id %>" method="POST">
+                        <button type="submit" class="gv-set-active-btn">Zastosuj zestaw</button>
+                      </form>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
             </div>
 
           <% } else if (tab === 'avatar') { %>
@@ -127,6 +175,7 @@ const tabLead = {
                   <div class="gv-unlock-item <%= f.locked ? 'locked' : '' %>">
                     <div class="gv-unlock-swatch gv-swatch-<%= f.id %>"></div>
                     <b><%= f.label %></b>
+                    <small class="gv-unlock-theme">Motyw: <%= themeLabel(f.theme) %></small>
                     <% if (f.locked) { %>
                       <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= f.levelRequired %></span>
                     <% } else if (profileUser.activeFrame === f.id) { %>
@@ -156,6 +205,7 @@ const tabLead = {
                   <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
                     <div class="gv-unlock-swatch gv-swatch-<%= b.id %>"></div>
                     <b><%= b.label %></b>
+                    <small class="gv-unlock-theme">Motyw: <%= themeLabel(b.theme) %></small>
                     <% if (b.locked) { %>
                       <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> Poziom <%= b.levelRequired %></span>
                     <% } else if (profileUser.activeBackground === b.id) { %>
@@ -190,6 +240,7 @@ const tabLead = {
                   <div class="gv-unlock-item <%= b.locked ? 'locked' : '' %>">
                     <div class="gv-unlock-swatch gv-trophy-swatch" style="color: <%= b.color %>;"><i class="bi <%= b.icon %>"></i></div>
                     <b><%= b.label %></b>
+                    <small class="gv-unlock-theme">Motyw: <%= themeLabel(b.theme) %></small>
                     <% if (b.locked) { %>
                       <span class="gv-lock-tag"><i class="bi bi-lock-fill"></i> <%= b.description %></span>
                     <% } else if (trophy.id === b.id) { %>

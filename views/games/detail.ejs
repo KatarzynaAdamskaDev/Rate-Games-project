@@ -38,7 +38,7 @@
         <form action="/games/<%= game.id %>/reviews" method="POST" class="gv-review-form mb-5">
           <div class="mb-3">
             <label class="gv-label d-block">Twoja ocena</label>
-            <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena">
+            <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena (kliknij lewą połowę gwiazdki, aby dać połówkę)">
               <i class="bi bi-star" data-value="1"></i>
               <i class="bi bi-star" data-value="2"></i>
               <i class="bi bi-star" data-value="3"></i>
@@ -282,20 +282,38 @@
           });
         }
 
+        // Podpis obok gwiazdek: aktualna ocena i podpowiedź o połówkach.
+        var label = document.createElement('span');
+        label.className = 'gv-star-value';
+        picker.insertAdjacentElement('afterend', label);
+        input.parentNode.insertBefore(label, input);
+
+        function describe(value) {
+          label.textContent = value ? value + ' / 5' : 'Kliknij gwiazdkę (lewa połowa = pół punktu)';
+          label.classList.toggle('empty', !value);
+        }
+
         stars.forEach(function (star) {
           star.addEventListener('mousemove', function (e) {
-            paint(valueFromEvent(star, e));
+            var value = valueFromEvent(star, e);
+            paint(value);
+            describe(value);
           });
           star.addEventListener('click', function (e) {
             var value = valueFromEvent(star, e);
             picker.dataset.selected = value;
             input.value = value;
+            paint(value);
+            describe(value);
           });
         });
 
         picker.addEventListener('mouseleave', function () {
-          paint(Number(picker.dataset.selected || 0));
+          var selected = Number(picker.dataset.selected || 0);
+          paint(selected);
+          describe(selected);
         });
+        describe(Number(picker.dataset.selected || 0));
       });
 
       // Walidacja: nie pozwól wysłać opinii bez wybranej oceny gwiazdkowej

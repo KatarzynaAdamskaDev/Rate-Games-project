@@ -1,4 +1,8 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const { Op, fn, col } = require('sequelize');
 const router = express.Router();
@@ -34,6 +38,10 @@ const {
 const { getModeration, saveModeration, PROFANITY_MODES, MAX_EXTRA_WORDS_LENGTH } = require('../utils/moderationSettings');
 const { getRules, getStats: getRateLimitStats } = require('../middleware/rateLimit');
 const backup = require('../utils/backupHelpers');
+const { sanitizeImage } = require('../utils/imageSafety');
+const { checkUploadToken, verifyAfterUpload, reject: rejectCsrf, isValid: csrfValid } = require('../middleware/csrf');
+const gameForm = require('../utils/gameFormOptions');
+const gameLookup = require('../utils/igdbLookup');
 const totp = require('../utils/totp');
 const roles = require('../utils/adminRoles');
 const status = require('../utils/moderationStatus');
@@ -238,7 +246,7 @@ router.get('/users', async (req, res, next) => {
       q,
       filter,
       total,
-      pager: buildPagerLinks(req, page, page < pages),
+      pager: buildPagerLinks(req, page, page < pages, pages),
       page,
       pages,
     });
@@ -522,7 +530,7 @@ router.get('/reviews', async (req, res, next) => {
       q,
       rating: rating >= 1 && rating <= 5 ? rating : '',
       total,
-      pager: buildPagerLinks(req, page, page < pages),
+      pager: buildPagerLinks(req, page, page < pages, pages),
       page,
       pages,
     });
@@ -612,7 +620,7 @@ router.get('/reports', async (req, res, next) => {
       typeLabels: TYPE_LABELS,
       durations: status.DURATIONS,
       total,
-      pager: buildPagerLinks(req, page, page < pages),
+      pager: buildPagerLinks(req, page, page < pages, pages),
       page,
       pages,
     });
@@ -860,7 +868,7 @@ router.get('/comments', async (req, res, next) => {
       comments: rows.map((c) => ({ ...c, gameId: gameByReview.get(c.reviewId) || null })),
       q,
       total,
-      pager: buildPagerLinks(req, page, page < pages),
+      pager: buildPagerLinks(req, page, page < pages, pages),
       page,
       pages,
     });
@@ -908,31 +916,147 @@ router.get('/games', async (req, res, next) => {
   }
 });
 
-router.get('/games/new', (req, res) => {
-  render(res, 'game-form', 'games', 'Dodaj grę', { game: null, formData: {} });
+/* ---- formularz gry: okładka wgrywana jako plik, platformy i rok do wyboru ---- */
+
+const GAME_COVER_DIR = path.join(__dirname, '..', 'public', 'images', 'games', 'uploads');
+const GAME_COVER_URL = '/images/games/uploads/';
+const COVER_PLACEHOLDER = '/images/game-placeholder.svg';
+fs.mkdirSync(GAME_COVER_DIR, { recursive: true });
+
+const gameCoverUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 }, // 3 MB
+  fileFilter: (req, file, cb) => {
+    // Pole _csrf jest w formularzu przed plikiem - zły token nie zapisuje niczego.
+    if (!checkUploadToken(req)) return cb(new Error('csrf'));
+    cb(null, true);
+  },
+}).single('cover');
+
+function removeStoredGameCover(coverImage) {
+  if (coverImage && String(coverImage).startsWith(GAME_COVER_URL)) {
+    fs.unlink(path.join(GAME_COVER_DIR, path.basename(coverImage)), () => {});
+  }
+}
+
+/** Wgrywa okładkę (sprawdzenie sygnatury, zmniejszenie, WebP); błąd zapamiętuje do wyświetlenia w formularzu. */
+function handleGameCover(req, res, next) {
+  gameCoverUpload(req, res, async (err) => {
+    req.body = req.body || {};
+    if (err && err.message === 'csrf') return rejectCsrf(req, res);
+    if (!err && !csrfValid(req)) return verifyAfterUpload(req, res, () => {});
+
+    if (err) {
+      req.coverError = err.code === 'LIMIT_FILE_SIZE' ? 'Okładka jest za duża (maksymalnie 3 MB).' : 'Nie udało się wgrać okładki.';
+    } else if (req.file) {
+      try {
+        const image = await sanitizeImage(req.file.buffer, { maxSize: 900 });
+        req.file.filename = `${uuidv4()}${image.ext}`;
+        await fs.promises.writeFile(path.join(GAME_COVER_DIR, req.file.filename), image.buffer);
+      } catch (imageError) {
+        req.coverError = imageError.userFacing ? imageError.message : 'Nie udało się przetworzyć okładki.';
+        req.file = undefined;
+      }
+    }
+    next();
+  });
+}
+
+async function renderGameForm(res, { existing, formData = {}, error = null, status = 200 }) {
+  const game = existing ? existing.get({ plain: true }) : null;
+  res.status(status);
+  render(res, 'game-form', 'games', existing ? 'Edytuj grę' : 'Dodaj grę', {
+    game,
+    formData,
+    formError: error,
+    genres: await gameForm.genreOptions(),
+    platformChoices: gameForm.PLATFORM_CHOICES,
+    years: gameForm.yearOptions(),
+    selectedPlatforms: formData.platforms !== undefined
+      ? gameForm.parsePlatforms(formData.platforms)
+      : gameForm.splitStoredPlatforms(game && game.platform),
+  });
+}
+
+router.get('/games/new', async (req, res, next) => {
+  try {
+    await renderGameForm(res, { existing: null, formData: {} });
+  } catch (err) {
+    next(err);
+  }
 });
+
+// Podpowiedzi z IGDB do formularza: po wpisaniu tytułu zwraca platformy, rok, kategorię, opis i okładkę.
+router.get('/games/lookup', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
+    return res.json({ ok: false, reason: 'no-keys', results: [] });
+  }
+  try {
+    res.json({ ok: true, results: await gameLookup.searchGames(req.query.q) });
+  } catch (err) {
+    console.error('[ADMIN] BŁĄD: wyszukiwanie gry w IGDB nie powiodło się:', err.message);
+    res.json({ ok: false, reason: 'error', results: [] });
+  }
+});
+
+/** Pobiera okładkę z IGDB, sprawdza ją i zapisuje lokalnie jako WebP. Zwraca nazwę pliku. */
+async function storeIgdbCover(imageId) {
+  const image = await sanitizeImage(await gameLookup.downloadCover(imageId), { maxSize: 900 });
+  const filename = `${uuidv4()}${image.ext}`;
+  await fs.promises.writeFile(path.join(GAME_COVER_DIR, filename), image.buffer);
+  return filename;
+}
 
 async function saveGame(req, res, next, existing) {
   try {
-    const { title, category, platform, releaseYear, coverImage, description } = req.body;
-    if (!title || !category || !description) {
-      req.flash('error', 'Tytuł, kategoria i opis są wymagane.');
-      return res.status(400).render('admin/game-form', {
-        title: 'Panel admina - gra',
-        active: 'games',
-        pageTitle: existing ? 'Edytuj grę' : 'Dodaj grę',
-        game: existing ? existing.get({ plain: true }) : null,
-        formData: req.body,
-      });
+    const { title, description, releaseYear } = req.body;
+    const category = String(req.body.category === '__other' ? req.body.categoryOther : req.body.category || '').trim();
+    const platforms = gameForm.parsePlatforms(req.body.platforms);
+    const year = parseInt(releaseYear, 10);
+
+    let error = req.coverError || null;
+    if (!error && !String(title || '').trim()) error = 'Podaj tytuł gry.';
+    if (!error && !category) error = 'Wybierz kategorię.';
+    if (!error && platforms.length === 0) error = 'Zaznacz co najmniej jedną platformę.';
+    if (!error && !(year >= gameForm.MIN_YEAR && year <= new Date().getFullYear() + 2)) error = 'Wybierz rok wydania.';
+    if (!error && String(description || '').trim().length < 10) error = 'Opis powinien mieć co najmniej 10 znaków.';
+
+    if (error) {
+      if (req.file) removeStoredGameCover(`${GAME_COVER_URL}${req.file.filename}`);
+      return renderGameForm(res, { existing, formData: req.body, error, status: 400 });
     }
 
+    // Okładka wybrana z podpowiedzi IGDB (własny plik ma pierwszeństwo).
+    let igdbCover = null;
+    if (!req.file && req.body.removeCover !== '1' && gameLookup.isValidCoverId(req.body.coverIgdbId)) {
+      try {
+        igdbCover = await storeIgdbCover(req.body.coverIgdbId);
+      } catch (coverErr) {
+        console.error('[ADMIN] BŁĄD: nie udało się pobrać okładki z IGDB:', coverErr.message);
+        return renderGameForm(res, {
+          existing,
+          formData: req.body,
+          error: 'Nie udało się pobrać okładki z IGDB. Spróbuj ponownie albo wgraj własny plik.',
+          status: 502,
+        });
+      }
+    }
+
+    // Okładka: nowy plik > okładka z IGDB > zaznaczone "usuń" > dotychczasowa (przy dodawaniu brak = obrazek zastępczy).
+    let coverImage = existing ? existing.coverImage : COVER_PLACEHOLDER;
+    if (req.file) coverImage = `${GAME_COVER_URL}${req.file.filename}`;
+    else if (igdbCover) coverImage = `${GAME_COVER_URL}${igdbCover}`;
+    else if (req.body.removeCover === '1') coverImage = COVER_PLACEHOLDER;
+    if (existing && coverImage !== existing.coverImage) removeStoredGameCover(existing.coverImage);
+
     const data = {
-      title: title.trim(),
-      category: category.trim(),
-      platform: (platform || 'PC').trim(),
-      releaseYear: Number(releaseYear) || new Date().getFullYear(),
-      coverImage: (coverImage || '').trim() || '/images/game-placeholder.svg',
-      description: description.trim(),
+      title: String(title).trim(),
+      category: category.slice(0, 60),
+      platform: platforms.join(', '),
+      releaseYear: year,
+      coverImage: coverImage || COVER_PLACEHOLDER,
+      description: String(description).trim(),
     };
 
     if (existing) {
@@ -950,19 +1074,19 @@ async function saveGame(req, res, next, existing) {
   }
 }
 
-router.post('/games/new', (req, res, next) => saveGame(req, res, next, null));
+router.post('/games/new', handleGameCover, (req, res, next) => saveGame(req, res, next, null));
 
 router.get('/games/:id/edit', async (req, res, next) => {
   try {
     const game = await CustomGame.findByPk(req.params.id);
     if (!game) return next();
-    render(res, 'game-form', 'games', 'Edytuj grę', { game: game.get({ plain: true }), formData: {} });
+    await renderGameForm(res, { existing: game, formData: {} });
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/games/:id/edit', async (req, res, next) => {
+router.post('/games/:id/edit', handleGameCover, async (req, res, next) => {
   const game = await CustomGame.findByPk(req.params.id);
   if (!game) return next();
   saveGame(req, res, next, game);
@@ -981,6 +1105,7 @@ router.post('/games/:id/delete', async (req, res, next) => {
     for (const review of reviews) await removeReview(review);
 
     await logAdminAction(req, 'game.delete', 'game', game.title, `Usunięto też ${reviews.length} recenzji`);
+    removeStoredGameCover(game.coverImage);
     await game.destroy();
     req.flash('success', `Gra „${game.title}” została usunięta (razem z ${reviews.length} recenzjami).`);
     res.redirect('/admin/games');
@@ -1034,7 +1159,7 @@ router.get('/chat', async (req, res, next) => {
         };
       }),
       total,
-      pager: buildPagerLinks(req, page, page < pages),
+      pager: buildPagerLinks(req, page, page < pages, pages),
       page,
       pages,
     });
@@ -1077,7 +1202,7 @@ router.get('/log', async (req, res, next) => {
     render(res, 'log', 'log', 'Dziennik działań', {
       entries,
       total,
-      pager: buildPagerLinks(req, page, page < pages),
+      pager: buildPagerLinks(req, page, page < pages, pages),
       page,
       pages,
     });

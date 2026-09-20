@@ -9,6 +9,7 @@ const { seedConversationReads } = require('../utils/chatHelpers');
 const { purgeOrphanedData } = require('../utils/cleanupHelpers');
 const { startModerationSettings } = require('../utils/moderationSettings');
 const { startModerationCleanup } = require('../utils/moderationStatus');
+const { warmPopularPool } = require('../utils/gamePopularity');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -45,6 +46,8 @@ sequelize
   .then(() => startModerationCleanup())
   .then(() => {
     server.listen(port);
+    // Ranking popularności gier budujemy z wyprzedzeniem, żeby pierwsze wejście na listę nie czekało.
+    warmPopularPool();
   })
   .catch((err) => {
     console.error('Nie udało się połączyć z bazą danych:', err);

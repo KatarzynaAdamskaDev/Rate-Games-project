@@ -1,6 +1,6 @@
 # GameVerse
 
-Strona z opiniami o grach - Node.js + Express + EJS + Bootstrap, dane przechowywane w plikach JSON.
+Strona z opiniami o grach - Node.js + Express + EJS + Bootstrap, dane w bazie SQL (SQLite lokalnie, Azure SQL na produkcji), katalog gier z IGDB.
 
 ## Struktura katalogów
 
@@ -15,29 +15,63 @@ gameverse/
 ├── utils/               # logika aplikacji (katalog gier IGDB, statystyki, profile, czat)
 ├── data/                # blog.json oraz lokalna baza SQLite (dev.sqlite3)
 ├── app.js               # konfiguracja aplikacji Express
+├── scripts/setup.js     # npm run setup - instalacja wszystkiego jedną komendą
 ├── create-admin.js      # skrypt CLI do utworzenia konta administratora
 └── package.json
 ```
 
 ## Wymagania
 
-- Node.js 18+ (używany jest wbudowany `fetch` do weryfikacji reCAPTCHA)
+- **Node.js 20.17 lub nowszy** (najlepiej 22 LTS - wersja 22+ jest potrzebna do połączenia z Azure SQL na produkcji).
+  Pobierzesz go z https://nodejs.org (razem z nim instaluje się `npm`).
+- Konto deweloperskie Twitch (darmowe) po klucze do katalogu gier IGDB:
+  https://dev.twitch.tv/console - utwórz aplikację i skopiuj `Client ID` oraz `Client Secret`.
 
-## Instalacja
+Nic więcej nie trzeba: baza SQLite tworzy się sama, a wszystkie biblioteki instalują się jednym poleceniem.
+
+## Instalacja - jedna komenda
+
+```bash
+npm run setup
+```
+
+Skrypt `scripts/setup.js` sprawdza wersję Node.js, instaluje wszystkie zależności (`npm install`), tworzy
+plik `.env` z `.env.example` (z wylosowanym `SESSION_SECRET`) oraz katalogi na wgrywane pliki.
+Jeśli wolisz to zrobić ręcznie:
 
 ```bash
 npm install
-cp .env.example .env
+cp .env.example .env    # Windows (PowerShell): Copy-Item .env.example .env
 ```
 
-Uzupełnij plik `.env`:
+### Co instaluje `npm install`
 
-- `SESSION_SECRET` - długi, losowy ciąg znaków (na produkcji obowiązkowy - bez niego serwer się nie uruchomi)
-- `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - klucze wygenerowane na
-  https://www.google.com/recaptcha/admin/create (typ **reCAPTCHA v2 "Checkbox"**).
-  Jeśli zostawisz je puste, formularz rejestracji będzie działał, ale bez
-  realnej weryfikacji captchy (zobaczysz komunikat ostrzegawczy zamiast
-  widżetu Google).
+Wszystko jest zapisane w `package.json` - nie trzeba instalować pojedynczych pakietów.
+
+| Pakiet | Do czego służy |
+| --- | --- |
+| `express`, `ejs`, `express-session`, `connect-flash`, `morgan` | serwer, widoki, sesje (w bazie), komunikaty, logi |
+| `sequelize`, `sqlite3`, `tedious` | baza danych: SQLite lokalnie, Azure SQL (`tedious`) na produkcji |
+| `bcryptjs` | bezpieczne hashowanie haseł |
+| `multer`, `sharp` | wgrywanie plików i sprawdzanie / zmniejszanie obrazów (awatary, okładki) |
+| `qrcode` | kod QR do włączenia 2FA administratorów |
+| `axios`, `igdb-api-node` | pobieranie gier z IGDB |
+| `nodemailer` | wysyłka maili z resetem hasła |
+| `dotenv`, `uuid` | zmienne środowiskowe, identyfikatory |
+| `nodemon` (dev) | automatyczny restart serwera w trybie `npm run dev` |
+
+Pakiety `sqlite3` i `sharp` mają gotowe binaria dla Windows, macOS i Linuksa - nie wymagają kompilatora.
+
+### Plik `.env`
+
+Uzupełnij go po instalacji (wzór: `.env.example`):
+
+- `SESSION_SECRET` - długi, losowy ciąg znaków (na produkcji obowiązkowy - bez niego serwer się nie uruchomi).
+- `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` - klucze IGDB. Bez nich aplikacja działa, ale bez katalogu gier.
+- `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - opcjonalnie, klucze reCAPTCHA v2 "Checkbox"
+  (https://www.google.com/recaptcha/admin/create). Puste = rejestracja bez realnej weryfikacji captchy.
+- `EMAIL_USER` / `EMAIL_PASS` - opcjonalnie, konto Gmail i hasło aplikacji do maili z resetem hasła.
+- `AZURE_SQL_*` i `NODE_ENV=production` - tylko na produkcji (baza Azure SQL).
 
 ## Uruchomienie
 
@@ -50,11 +84,11 @@ Aplikacja domyślnie startuje na `http://localhost:3000`.
 
 ## Konto administratora
 
-Dodawanie gier (`/games/new`) i wpisów na blogu (`/blog/new`) wymaga roli
-`admin`. Utwórz takie konto poleceniem:
+Panel administratora, dodawanie gier ręcznie i wpisów na blogu wymagają roli `admin`.
+Utwórz takie konto poleceniem:
 
 ```bash
-node create-admin.js admin@example.com admin MojeHaslo123
+npm run create-admin -- admin@example.com admin MojeHaslo123
 ```
 
 Administrator ma w nawigacji link **ADMIN** (`/admin`): pulpit ze statystykami,
@@ -107,7 +141,11 @@ uzupełniane przy starcie serwera.
 
 Gry pochodzą z API IGDB (wymagane `TWITCH_CLIENT_ID` i `TWITCH_CLIENT_SECRET`
 w `.env`); gry dodane ręcznie przez administratora trafiają do tabeli
-`custom_games`. Jedynie wpisy na blogu są nadal w pliku `data/blog.json`.
+`custom_games`. W formularzu ręcznego dodawania gry (Panel admina -> Gry własne) wpisanie tytułu
+(np. "CS2") uruchamia podpowiedzi z IGDB: po wybraniu gry formularz sam uzupełnia platformy, rok,
+kategorię, opis i okładkę (okładka jest pobierana, sprawdzana i zapisywana lokalnie jako WebP).
+Bez kluczy IGDB formularz działa jak dotychczas - dane wpisuje się ręcznie.
+Jedynie wpisy na blogu są nadal w pliku `data/blog.json`.
 
 Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
 zapisywane jawnie.
@@ -124,7 +162,13 @@ zapisywane jawnie.
   (tylko dla zalogowanych użytkowników)
 - Kategorie gier
 - Blog (lista + pojedynczy wpis)
-- Wyszukiwarka (gry + wpisy blogowe)
+- Wyszukiwarka (gry + wpisy blogowe) - rozumie skróty i początki nazw ("cs", "cs2", "gta5", "mc", "botw", "minecr"),
+  patrz `utils/gameSearch.js`; własne skróty dopisuje się w `utils/gameAliases.js`. Toleruje też inny zapis tytułu
+  ("little big planet" = LittleBigPlanet, "spider man" = Spider-Man, "final fantasy 7" = Final Fantasy VII,
+  "ratchet and clank" = Ratchet & Clank) oraz literówki w nazwach popularnych gier ("skirym") - `utils/searchText.js`
+- Lista gier ma numerowany pasek stron (pierwsza, ostatnia, okolice bieżącej) i pole "idź do strony" - `views/partials/pager.ejs`
+- Sortowanie "Popularne" (lista gier, strona główna, wyniki wyszukiwania) opiera się na danych o graczach z IGDB
+  (kto gra teraz, kto zagrał, Steam) - `utils/gamePopularity.js`; ranking odświeża się co kilka godzin
 - Panel dodawania gier / wpisów na blogu dla roli `admin`
 - Edycja profilu w zakładkach (ogólne, awatar, wygląd, powiadomienia, konto) z wyborem rodzajów powiadomień
 - Panel administratora `/admin` (patrz wyżej)

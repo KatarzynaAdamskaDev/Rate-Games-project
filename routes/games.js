@@ -35,6 +35,11 @@ const {
   deleteReviewData,
 } = require('../utils/reviewSocialHelpers');
 
+/** Ocena od 0.5 do 5 co pół gwiazdki (0.5, 1, 1.5 ... 5). */
+function isValidRating(value) {
+  return Number.isFinite(value) && value >= 0.5 && value <= 5 && Number.isInteger(value * 2);
+}
+
 function wantsJsonResponse(req) {
   return req.xhr || (req.headers.accept || '').includes('application/json');
 }
@@ -69,7 +74,7 @@ router.get('/', async (req, res, next) => {
       activeYear,
       activeSort: result.sort,
       query: String(q || '').trim(),
-      pager: buildPagerLinks(req, result.page, result.hasNext),
+      pager: buildPagerLinks(req, result.page, result.hasNext, result.totalPages),
     });
   } catch (error) {
     next(error);
@@ -78,37 +83,9 @@ router.get('/', async (req, res, next) => {
 
 /* --------------------------- DODAJ GRĘ (ADMIN) --------------------------- */
 
+// Dodawanie gier ręcznie odbywa się w panelu admina (formularz z wgrywaniem okładki i wyborem platform).
 router.get('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
-  res.render('games/form', { title: 'Dodaj grę', formData: {}, game: null });
-});
-
-router.post('/new', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
-  const { title, category, platform, releaseYear, coverImage, description } = req.body;
-
-  if (!title || !category || !description) {
-    req.flash('error', 'Tytuł, kategoria i opis są wymagane.');
-    return res.status(400).render('games/form', {
-      title: 'Dodaj grę',
-      formData: req.body,
-      game: null,
-    });
-  }
-
-  try {
-    const newGame = await CustomGame.create({
-      title,
-      category,
-      platform: platform || 'PC',
-      releaseYear: Number(releaseYear) || new Date().getFullYear(),
-      coverImage: coverImage || '/images/game-placeholder.svg',
-      description,
-    });
-
-    req.flash('success', `Gra "${title}" została dodana.`);
-    res.redirect(`/games/${newGame.id}`);
-  } catch (err) {
-    next(err);
-  }
+  res.redirect('/admin/games/new');
 });
 
 /* ------------------ WYSZUKIWANIE GIER (JSON, do formularzy) ------------------ */
@@ -204,8 +181,8 @@ router.post('/:id/reviews', ensureAuthenticated, blockIfMuted, limiters.review, 
   const { rating, text } = req.body;
   const numericRating = Number(rating);
 
-  if (!numericRating || numericRating < 1 || numericRating > 5 || !text) {
-    req.flash('error', 'Podaj ocenę (1-5) oraz treść opinii.');
+  if (!isValidRating(numericRating) || !text) {
+    req.flash('error', 'Podaj ocenę (0.5-5, co pół gwiazdki) oraz treść opinii.');
     return res.redirect(`/games/${gameId}`);
   }
 
@@ -248,8 +225,8 @@ router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, blockIfMuted, li
   const { rating, text } = req.body;
   const numericRating = Number(rating);
 
-  if (!numericRating || numericRating < 1 || numericRating > 5 || !text) {
-    req.flash('error', 'Podaj ocenę (1-5) oraz treść opinii.');
+  if (!isValidRating(numericRating) || !text) {
+    req.flash('error', 'Podaj ocenę (0.5-5, co pół gwiazdki) oraz treść opinii.');
     return res.redirect(`/games/${gameId}`);
   }
 

@@ -33,6 +33,7 @@ const {
   pointsFromStats,
   FRAMES,
   BACKGROUNDS,
+  THEMES,
 } = require('../utils/pointsHelpers');
 const User = require('../models/User');
 
@@ -40,6 +41,7 @@ const User = require('../models/User');
 
 const SETTINGS_TABS = [
   { id: 'general', label: 'Ogólne', icon: 'bi-person-fill' },
+  { id: 'themes', label: 'Zestawy wyglądu', icon: 'bi-stars' },
   { id: 'avatar', label: 'Awatar', icon: 'bi-image-fill' },
   { id: 'background', label: 'Tło profilu', icon: 'bi-card-image' },
   { id: 'badge', label: 'Wyróżniona odznaka', icon: 'bi-award-fill' },
@@ -362,6 +364,34 @@ router.post('/settings/bio', ensureAuthenticated, async (req, res) => {
 });
 
 /* --------------------- RAMKI / TŁA (WYBÓR AKTYWNYCH) --------------------- */
+
+/* ------------------------------ ZESTAWY (MOTYWY) ------------------------------ */
+
+router.post('/customize/theme/:themeId', ensureAuthenticated, async (req, res) => {
+  const theme = THEMES.find((t) => t.id === req.params.themeId);
+  if (!theme) {
+    req.flash('error', 'Nieznany zestaw.');
+    return res.redirect(settingsUrl('themes'));
+  }
+
+  const { level, unlockAll } = await getUnlockContext(req.session.user.id);
+  if (!unlockAll && theme.levelRequired > level) {
+    req.flash('error', `Zestaw „${theme.label}” odblokowuje się na poziomie ${theme.levelRequired}.`);
+    return res.redirect(settingsUrl('themes'));
+  }
+
+  const update = { activeFrame: theme.frame, activeBackground: theme.background };
+
+  // Odznaka z zestawu trafia do banera tylko wtedy, gdy użytkownik ją zdobył (albo ma odblokowane wszystko).
+  const user = await findById(req.session.user.id);
+  const { allBadges } = await buildProfileViewModel(user);
+  const badge = theme.badge ? allBadges.find((b) => b.id === theme.badge) : null;
+  update.activeTrophy = badge && !badge.locked ? badge.id : null;
+
+  await User.update(update, { where: { id: req.session.user.id } });
+  req.flash('success', `Zastosowano zestaw „${theme.label}”: ramka, tło i trofeum pasują do siebie.`);
+  res.redirect(settingsUrl('themes'));
+});
 
 router.post('/customize/frame/:frameId', ensureAuthenticated, async (req, res) => {
   const { frameId } = req.params;

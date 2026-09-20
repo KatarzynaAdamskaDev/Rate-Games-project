@@ -187,6 +187,10 @@ const POPULAR_TTL_MS = 30 * 60 * 1000;
 const popularCache = new Map(); // limit -> { games, at }
 
 async function getPopularGames(limit = 6) {
+  // Ranking z danych o graczach (utils/gamePopularity.js); require w funkcji, bo ten moduł importuje ten plik.
+  const pool = await require('./gamePopularity').getPopularPool();
+  if (pool) return pool.games.slice(0, limit).map(formatIGDBGame);
+
   const cached = popularCache.get(limit);
   if (cached && Date.now() - cached.at < POPULAR_TTL_MS) return cached.games;
 

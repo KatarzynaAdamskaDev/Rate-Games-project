@@ -109,7 +109,7 @@ router.get('/', (req, res) => {
     categories: CATEGORIES.filter((name) => counts[name]),
     counts,
     total: all.length,
-    pager: buildPagerLinks(req, page, hasNext),
+    pager: buildPagerLinks(req, page, hasNext, Math.max(1, Math.ceil((filtered.length - gridStart) / PAGE_SIZE))),
   });
 });
 

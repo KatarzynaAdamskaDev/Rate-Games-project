@@ -36,7 +36,7 @@ router.get('/', async (req, res, next) => {
       feed,
       activeSort: feed.sort,
       activeRating: Number(rating) >= 1 && Number(rating) <= 5 ? Number(rating) : '',
-      pager: buildPagerLinks(req, feed.page, feed.page < feed.pages),
+      pager: buildPagerLinks(req, feed.page, feed.page < feed.pages, feed.pages),
     });
   } catch (err) {
     next(err);

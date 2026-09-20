@@ -1,43 +1,385 @@
 <%- include('partials/top') %>
 
 <%
+const editing = !!game;
 const __v = function (name) {
   if (formData && formData[name] !== undefined) return formData[name];
   return game && game[name] !== undefined && game[name] !== null ? game[name] : '';
 };
+
+// Kategoria: z listy gatunków albo własna ("Inna...").
+const currentCategory = formData && formData.category !== undefined
+  ? (formData.category === '__other' ? String(formData.categoryOther || '') : formData.category)
+  : (game ? game.category : '');
+const categoryInList = genres.indexOf(currentCategory) !== -1;
+const categoryValue = !currentCategory ? '' : (categoryInList ? currentCategory : '__other');
+const categoryOtherValue = categoryValue === '__other' ? currentCategory : '';
+
+// Okładka wybrana z podpowiedzi IGDB (wraca do formularza, gdy zapis się nie powiódł).
+const igdbCoverId = formData && /^[a-z0-9]{5,40}$/.test(String(formData.coverIgdbId || '')) ? String(formData.coverIgdbId) : '';
+const currentCover = igdbCoverId
+  ? 'https://images.igdb.com/igdb/image/upload/t_cover_big/' + igdbCoverId + '.jpg'
+  : (game && game.coverImage ? game.coverImage : '/images/game-placeholder.svg');
+const hasCover = editing && currentCover !== '/images/game-placeholder.svg';
+const currentYear = __v('releaseYear') ? Number(__v('releaseYear')) : new Date().getFullYear();
 %>
 
-<form method="POST" action="<%= game ? '/admin/games/' + game.id + '/edit' : '/admin/games/new' %>" class="gv-admin-card gv-admin-form">
-  <div class="gv-admin-form-grid">
-    <div class="full">
-      <label class="gv-label" for="gfTitle">Tytuł *</label>
-      <input type="text" id="gfTitle" name="title" class="form-control gv-input" value="<%= __v('title') %>" maxlength="150" required>
-    </div>
-    <div>
-      <label class="gv-label" for="gfCategory">Kategoria *</label>
-      <input type="text" id="gfCategory" name="category" class="form-control gv-input" value="<%= __v('category') %>" maxlength="60" required>
-    </div>
-    <div>
-      <label class="gv-label" for="gfPlatform">Platforma</label>
-      <input type="text" id="gfPlatform" name="platform" class="form-control gv-input" value="<%= __v('platform') || 'PC' %>" maxlength="80">
-    </div>
-    <div>
-      <label class="gv-label" for="gfYear">Rok wydania</label>
-      <input type="number" id="gfYear" name="releaseYear" class="form-control gv-input" value="<%= __v('releaseYear') %>" min="1970" max="2100">
-    </div>
-    <div>
-      <label class="gv-label" for="gfCover">Adres okładki (URL)</label>
-      <input type="text" id="gfCover" name="coverImage" class="form-control gv-input" value="<%= __v('coverImage') %>" maxlength="500" placeholder="/images/game-placeholder.svg">
-    </div>
-    <div class="full">
-      <label class="gv-label" for="gfDesc">Opis *</label>
-      <textarea id="gfDesc" name="description" rows="5" class="form-control gv-input" required><%= __v('description') %></textarea>
+<% if (formError) { %>
+  <div class="gv-admin-alert gv-admin-alert-error"><i class="bi bi-exclamation-triangle-fill"></i><span><%= formError %></span></div>
+<% } %>
+
+<form method="POST" enctype="multipart/form-data" action="<%= editing ? '/admin/games/' + game.id + '/edit' : '/admin/games/new' %>" class="gv-gameform" id="gameForm">
+  <div class="gv-gameform-main">
+
+    <section class="gv-admin-card">
+      <h2><i class="bi bi-1-circle-fill"></i> Podstawowe informacje</h2>
+      <div class="gv-admin-form-grid">
+        <div class="full">
+          <label class="gv-label" for="gfTitle">Tytuł gry</label>
+          <div class="gv-lookup" id="gfLookupBox">
+            <i class="bi bi-search gv-lookup-icon"></i>
+            <input type="text" id="gfTitle" name="title" class="form-control gv-input gv-lookup-input" value="<%= __v('title') %>" maxlength="150" placeholder="Wpisz tytuł, np. CS2 albo Hollow Knight" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="gfLookupList" required>
+            <ul class="gv-lookup-list d-none" id="gfLookupList" role="listbox"></ul>
+          </div>
+          <div class="gv-lookup-status" id="gfLookupStatus" aria-live="polite"><i class="bi bi-magic"></i><span>Podczas wpisywania podpowiemy grę z IGDB i uzupełnimy platformy, okładkę, opis i rok.</span></div>
+        </div>
+        <div>
+          <label class="gv-label" for="gfCategory">Kategoria</label>
+          <select id="gfCategory" name="category" class="form-select gv-select" required>
+            <option value="" disabled <%= categoryValue === '' ? 'selected' : '' %>>Wybierz kategorię...</option>
+            <% genres.forEach(function(name) { %>
+              <option value="<%= name %>" <%= categoryValue === name ? 'selected' : '' %>><%= name %></option>
+            <% }) %>
+            <option value="__other" <%= categoryValue === '__other' ? 'selected' : '' %>>Inna (wpisz własną)...</option>
+          </select>
+          <input type="text" id="gfCategoryOther" name="categoryOther" class="form-control gv-input mt-2 <%= categoryValue === '__other' ? '' : 'd-none' %>" value="<%= categoryOtherValue %>" maxlength="60" placeholder="Nazwa własnej kategorii">
+        </div>
+        <div>
+          <label class="gv-label" for="gfYear">Rok wydania</label>
+          <select id="gfYear" name="releaseYear" class="form-select gv-select" required>
+            <% years.forEach(function(y) { %>
+              <option value="<%= y %>" <%= y === currentYear ? 'selected' : '' %>><%= y %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="gv-admin-card">
+      <h2><i class="bi bi-2-circle-fill"></i> Platformy</h2>
+      <p class="gv-admin-note">Zaznacz wszystkie platformy, na których można zagrać.</p>
+      <div class="gv-chip-check-row" id="gfPlatforms">
+        <% platformChoices.forEach(function(p) { %>
+          <label class="gv-chip-check">
+            <input type="checkbox" name="platforms" value="<%= p.value %>" <%= selectedPlatforms.indexOf(p.value) !== -1 ? 'checked' : '' %>>
+            <span><i class="bi <%= p.icon %>"></i> <%= p.label %></span>
+          </label>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="gv-admin-card">
+      <h2><i class="bi bi-3-circle-fill"></i> Okładka</h2>
+      <label class="gv-dropzone" for="gfCover" id="gfDropzone">
+        <i class="bi bi-cloud-arrow-up-fill"></i>
+        <b>Przeciągnij zdjęcie tutaj albo kliknij, aby wybrać</b>
+        <small>PNG, JPG, WEBP lub GIF, do 3 MB. Obraz zostanie sprawdzony i zmniejszony automatycznie.</small>
+        <span class="gv-dropzone-file" id="gfFileName"></span>
+      </label>
+      <input type="file" id="gfCover" name="cover" accept="image/png,image/jpeg,image/webp,image/gif" class="gv-visually-hidden">
+      <input type="hidden" name="coverIgdbId" id="gfIgdbId" value="<%= igdbCoverId %>">
+      <div class="gv-igdb-cover <%= igdbCoverId ? '' : 'd-none' %>" id="gfIgdbCover">
+        <img src="<%= igdbCoverId ? 'https://images.igdb.com/igdb/image/upload/t_cover_small/' + igdbCoverId + '.jpg' : '' %>" alt="" id="gfIgdbThumb">
+        <span><b>Okładka z IGDB</b><small>Zostanie pobrana, sprawdzona i zapisana na serwerze przy zapisie gry.</small></span>
+        <button type="button" class="gv-btn-outline" id="gfIgdbClear"><i class="bi bi-x-lg"></i> Cofnij</button>
+      </div>
+      <% if (hasCover) { %>
+        <label class="gv-check mt-3">
+          <input type="checkbox" name="removeCover" value="1" id="gfRemoveCover">
+          <span>Usuń obecną okładkę (użyj obrazka zastępczego)</span>
+        </label>
+      <% } %>
+    </section>
+
+    <section class="gv-admin-card">
+      <h2><i class="bi bi-4-circle-fill"></i> Opis</h2>
+      <label class="gv-label" for="gfDesc">Krótki opis gry</label>
+      <textarea id="gfDesc" name="description" rows="6" class="form-control gv-input" minlength="10" maxlength="2000" placeholder="O czym jest gra, w jakim jest stylu, co ją wyróżnia..." required><%= __v('description') %></textarea>
+      <div class="gv-edit-hint"><span id="gfDescCount"><%= String(__v('description')).length %></span> / 2000 znaków</div>
+    </section>
+
+    <div class="gv-admin-form-actions">
+      <button type="submit" class="btn gv-btn-success"><i class="bi bi-check-lg"></i> <%= editing ? 'Zapisz zmiany' : 'Dodaj grę' %></button>
+      <a href="/admin/games" class="gv-btn-outline">Anuluj</a>
     </div>
   </div>
-  <div class="gv-admin-form-actions">
-    <button type="submit" class="btn gv-btn-success"><i class="bi bi-check-lg"></i> <%= game ? 'Zapisz zmiany' : 'Dodaj grę' %></button>
-    <a href="/admin/games" class="gv-btn-outline">Anuluj</a>
-  </div>
+
+  <aside class="gv-gameform-side">
+    <div class="gv-gameform-preview">
+      <span class="gv-label">Podgląd karty gry</span>
+      <div class="gv-game-card">
+        <div class="gv-game-card-img-wrap">
+          <img src="<%= currentCover %>" alt="" class="gv-game-card-img" id="pvCover" data-original="<%= game && game.coverImage ? game.coverImage : '/images/game-placeholder.svg' %>">
+          <span class="gv-game-card-category" id="pvCategory"><%= currentCategory || 'Kategoria' %></span>
+        </div>
+        <div class="gv-game-card-body">
+          <h3 class="gv-game-card-title" id="pvTitle"><%= __v('title') || 'Tytuł gry' %></h3>
+          <p class="gv-game-card-meta"><span id="pvPlatforms"><%= selectedPlatforms.length ? selectedPlatforms.join(', ') : 'Platformy' %></span> · <span id="pvYear"><%= currentYear %></span></p>
+          <div class="gv-game-card-rating"><span class="gv-game-card-count">Brak opinii - bądź pierwszy!</span></div>
+        </div>
+      </div>
+    </div>
+  </aside>
 </form>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('gameForm');
+    var title = document.getElementById('gfTitle');
+    var category = document.getElementById('gfCategory');
+    var categoryOther = document.getElementById('gfCategoryOther');
+    var year = document.getElementById('gfYear');
+    var desc = document.getElementById('gfDesc');
+    var cover = document.getElementById('gfCover');
+    var dropzone = document.getElementById('gfDropzone');
+    var fileName = document.getElementById('gfFileName');
+    var removeCover = document.getElementById('gfRemoveCover');
+    var original = document.getElementById('pvCover').getAttribute('data-original');
+    var placeholder = '/images/game-placeholder.svg';
+
+    function categoryText() {
+      if (category.value === '__other') return categoryOther.value.trim() || 'Kategoria';
+      return category.value || 'Kategoria';
+    }
+
+    // Podgląd karty gry na żywo.
+    function refresh() {
+      document.getElementById('pvTitle').textContent = title.value.trim() || 'Tytuł gry';
+      document.getElementById('pvCategory').textContent = categoryText();
+      document.getElementById('pvYear').textContent = year.value;
+      var checked = Array.prototype.map.call(form.querySelectorAll('input[name="platforms"]:checked'), function (i) { return i.value; });
+      document.getElementById('pvPlatforms').textContent = checked.length ? checked.join(', ') : 'Platformy';
+      document.getElementById('gfDescCount').textContent = String(desc.value.length);
+      categoryOther.classList.toggle('d-none', category.value !== '__other');
+      categoryOther.required = category.value === '__other';
+    }
+    form.addEventListener('input', refresh);
+    form.addEventListener('change', refresh);
+    refresh();
+
+    var igdbId = document.getElementById('gfIgdbId');
+    var igdbBox = document.getElementById('gfIgdbCover');
+
+    // Okładka z podpowiedzi IGDB: ustawia albo cofa wybór (własny plik i "usuń" mają pierwszeństwo).
+    function setIgdbCover(result) {
+      if (result && result.coverId) {
+        igdbId.value = result.coverId;
+        document.getElementById('gfIgdbThumb').src = result.thumb;
+        document.getElementById('pvCover').src = result.cover;
+        igdbBox.classList.remove('d-none');
+        cover.value = '';
+        fileName.textContent = '';
+        if (removeCover) removeCover.checked = false;
+      } else {
+        igdbId.value = '';
+        igdbBox.classList.add('d-none');
+        document.getElementById('pvCover').src = removeCover && removeCover.checked ? placeholder : original;
+      }
+    }
+    document.getElementById('gfIgdbClear').addEventListener('click', function () { setIgdbCover(null); });
+
+    function showFile(file) {
+      if (!file) return;
+      fileName.textContent = file.name;
+      document.getElementById('pvCover').src = URL.createObjectURL(file);
+      igdbId.value = '';
+      igdbBox.classList.add('d-none');
+      if (removeCover) removeCover.checked = false;
+    }
+    cover.addEventListener('change', function () { showFile(cover.files && cover.files[0]); });
+
+    // Przeciąganie pliku na pole okładki.
+    ['dragenter', 'dragover'].forEach(function (name) {
+      dropzone.addEventListener(name, function (event) { event.preventDefault(); dropzone.classList.add('dragging'); });
+    });
+    ['dragleave', 'drop'].forEach(function (name) {
+      dropzone.addEventListener(name, function (event) { event.preventDefault(); dropzone.classList.remove('dragging'); });
+    });
+    dropzone.addEventListener('drop', function (event) {
+      if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
+        cover.files = event.dataTransfer.files;
+        showFile(cover.files[0]);
+      }
+    });
+
+    if (removeCover) {
+      removeCover.addEventListener('change', function () {
+        if (removeCover.checked) {
+          igdbId.value = '';
+          igdbBox.classList.add('d-none');
+        }
+        document.getElementById('pvCover').src = removeCover.checked ? placeholder : original;
+      });
+    }
+
+    /* ---- podpowiedzi z IGDB: wpisujesz tytuł, wybierasz grę, a formularz sam się uzupełnia ---- */
+    var box = document.getElementById('gfLookupBox');
+    var list = document.getElementById('gfLookupList');
+    var status = document.getElementById('gfLookupStatus');
+    var timer = null;
+    var seq = 0;
+    var results = [];
+    var active = -1;
+
+    function setStatus(icon, text, tone) {
+      status.className = 'gv-lookup-status' + (tone ? ' ' + tone : '');
+      status.innerHTML = '';
+      var i = document.createElement('i');
+      i.className = 'bi ' + icon;
+      var s = document.createElement('span');
+      s.textContent = text;
+      status.appendChild(i);
+      status.appendChild(s);
+    }
+
+    function closeList() {
+      list.classList.add('d-none');
+      title.setAttribute('aria-expanded', 'false');
+      active = -1;
+    }
+
+    function highlight(index) {
+      var items = list.children;
+      for (var n = 0; n < items.length; n += 1) items[n].classList.toggle('active', n === index);
+      active = index;
+      if (items[index]) items[index].scrollIntoView({ block: 'nearest' });
+    }
+
+    function renderResults() {
+      list.innerHTML = '';
+      results.forEach(function (game, index) {
+        var li = document.createElement('li');
+        li.setAttribute('role', 'option');
+        var thumb = document.createElement(game.thumb ? 'img' : 'span');
+        thumb.className = 'gv-lookup-thumb';
+        if (game.thumb) { thumb.src = game.thumb; thumb.alt = ''; thumb.loading = 'lazy'; }
+        else thumb.innerHTML = '<i class="bi bi-image"></i>';
+        var text = document.createElement('span');
+        text.className = 'gv-lookup-text';
+        var name = document.createElement('b');
+        name.textContent = game.title;
+        var meta = document.createElement('small');
+        var shown = game.platforms.slice(0, 4).join(', ') + (game.platforms.length > 4 ? ' +' + (game.platforms.length - 4) : '');
+        meta.textContent = [game.year, shown, game.category].filter(Boolean).join(' · ') || 'Brak danych';
+        text.appendChild(name);
+        text.appendChild(meta);
+        li.appendChild(thumb);
+        li.appendChild(text);
+        li.addEventListener('mousedown', function (event) { event.preventDefault(); pick(index); });
+        li.addEventListener('mousemove', function () { if (active !== index) highlight(index); });
+        list.appendChild(li);
+      });
+      list.classList.toggle('d-none', results.length === 0);
+      title.setAttribute('aria-expanded', results.length ? 'true' : 'false');
+      active = -1;
+    }
+
+    // Wybrana gra uzupełnia wszystkie pola formularza (każde można potem poprawić).
+    function pick(index) {
+      var game = results[index];
+      if (!game) return;
+      closeList();
+      title.value = game.title;
+
+      if (game.category) {
+        var hasOption = Array.prototype.some.call(category.options, function (o) { return o.value === game.category; });
+        category.value = hasOption ? game.category : '__other';
+        if (!hasOption) categoryOther.value = game.category;
+      }
+      if (game.year && Array.prototype.some.call(year.options, function (o) { return o.value === String(game.year); })) {
+        year.value = String(game.year);
+      }
+      if (game.platforms.length) {
+        Array.prototype.forEach.call(form.querySelectorAll('input[name="platforms"]'), function (input) {
+          input.checked = game.platforms.indexOf(input.value) !== -1;
+        });
+        document.getElementById('gfPlatforms').classList.remove('invalid');
+      }
+      if (game.description) desc.value = game.description;
+      if (game.coverId) setIgdbCover(game);
+      refresh();
+
+      var filled = ['tytuł'];
+      if (game.category) filled.push('kategorię');
+      if (game.year) filled.push('rok');
+      if (game.platforms.length) filled.push('platformy');
+      if (game.description) filled.push('opis');
+      if (game.coverId) filled.push('okładkę');
+      setStatus('bi-check-circle-fill', 'Uzupełniono z IGDB: ' + filled.join(', ') + '. Sprawdź dane i popraw, jeśli trzeba (opis z IGDB jest po angielsku).', 'ok');
+    }
+
+    function search(query) {
+      var mine = ++seq;
+      setStatus('bi-arrow-repeat gv-spin', 'Szukam w IGDB...');
+      fetch('/admin/games/lookup?q=' + encodeURIComponent(query), { headers: { Accept: 'application/json' } })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (mine !== seq) return;
+          if (!data.ok) {
+            results = [];
+            renderResults();
+            setStatus('bi-exclamation-triangle-fill', data.reason === 'no-keys'
+              ? 'Brak kluczy IGDB w pliku .env - uzupełnij dane ręcznie.'
+              : 'IGDB jest teraz niedostępne - uzupełnij dane ręcznie.', 'warn');
+            return;
+          }
+          results = data.results || [];
+          renderResults();
+          if (results.length) setStatus('bi-hand-index-thumb', 'Wybierz grę z listy, a uzupełnimy resztę pól (' + results.length + ' wyników).');
+          else setStatus('bi-info-circle', 'Nie znaleziono takiej gry w IGDB - uzupełnij dane ręcznie.');
+        })
+        .catch(function () {
+          if (mine !== seq) return;
+          results = [];
+          renderResults();
+          setStatus('bi-exclamation-triangle-fill', 'Nie udało się połączyć z wyszukiwarką - uzupełnij dane ręcznie.', 'warn');
+        });
+    }
+
+    title.addEventListener('input', function () {
+      clearTimeout(timer);
+      var query = title.value.trim();
+      if (query.length < 2) {
+        seq += 1;
+        results = [];
+        renderResults();
+        setStatus('bi-magic', 'Podczas wpisywania podpowiemy grę z IGDB i uzupełnimy platformy, okładkę, opis i rok.');
+        return;
+      }
+      timer = setTimeout(function () { search(query); }, 350);
+    });
+    title.addEventListener('keydown', function (event) {
+      var open = !list.classList.contains('d-none');
+      if (event.key === 'ArrowDown' && open) { event.preventDefault(); highlight((active + 1) % results.length); }
+      else if (event.key === 'ArrowUp' && open) { event.preventDefault(); highlight((active - 1 + results.length) % results.length); }
+      else if (event.key === 'Enter' && open && active >= 0) { event.preventDefault(); pick(active); }
+      else if (event.key === 'Escape' && open) { event.preventDefault(); closeList(); }
+    });
+    title.addEventListener('focus', function () { if (results.length) list.classList.remove('d-none'); });
+    document.addEventListener('mousedown', function (event) { if (!box.contains(event.target)) closeList(); });
+
+    // Minimum jedna platforma (natywna walidacja nie umie tego dla grupy pól wyboru).
+    form.addEventListener('submit', function (event) {
+      if (!form.querySelector('input[name="platforms"]:checked')) {
+        event.preventDefault();
+        document.getElementById('gfPlatforms').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('gfPlatforms').classList.add('invalid');
+      }
+    });
+    form.addEventListener('change', function (event) {
+      if (event.target.name === 'platforms') document.getElementById('gfPlatforms').classList.remove('invalid');
+    });
+  });
+</script>
 
 <%- include('partials/bottom') %>

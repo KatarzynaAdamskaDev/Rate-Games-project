@@ -1,6 +1,33 @@
 <% if (pager && (pager.prev || pager.next)) { %>
-  <nav class="gv-pager" aria-label="Strony wyników">
-    <% if (pager.prev) { %><a href="<%= pager.prev %>" class="gv-pager-btn">&larr; Poprzednia</a><% } else { %><span></span><% } %>
-    <% if (pager.next) { %><a href="<%= pager.next %>" class="gv-pager-btn">Następna &rarr;</a><% } %>
+  <% const numbered = !!(pager.pages && pager.pages.length); %>
+  <nav class="gv-pager<%= numbered ? ' gv-pager-numbered' : '' %>" aria-label="Strony wyników">
+    <% if (pager.prev) { %><a href="<%= pager.prev %>" class="gv-pager-btn gv-pager-prev" rel="prev"><i class="bi bi-arrow-left"></i> Poprzednia</a><% } else { %><span class="gv-pager-spacer"></span><% } %>
+
+    <% if (numbered) { %>
+      <ol class="gv-pager-pages">
+        <% pager.pages.forEach(function (item) { %>
+          <% if (item.gap) { %>
+            <li class="gv-pager-gap" aria-hidden="true">&hellip;</li>
+          <% } else if (item.current) { %>
+            <li><span class="gv-pager-num current" aria-current="page"><%= item.n %></span></li>
+          <% } else { %>
+            <li class="<%= item.far ? 'far' : '' %>"><a href="<%= item.href %>" class="gv-pager-num" aria-label="Strona <%= item.n %>"><%= item.n %></a></li>
+          <% } %>
+        <% }) %>
+      </ol>
+    <% } %>
+
+    <% if (pager.next) { %><a href="<%= pager.next %>" class="gv-pager-btn gv-pager-next" rel="next">Następna <i class="bi bi-arrow-right"></i></a><% } else if (numbered) { %><span class="gv-pager-spacer"></span><% } %>
+
+    <% if (pager.jump && pager.jump.max > 7) { %>
+      <form method="GET" action="<%= pager.jump.action %>" class="gv-pager-jump">
+        <% pager.jump.fields.forEach(function (field) { %>
+          <input type="hidden" name="<%= field[0] %>" value="<%= field[1] %>">
+        <% }) %>
+        <label for="pagerJump">Strona <b><%= pager.current %></b> z <b><%= pager.total %></b> &middot; idź do strony:</label>
+        <input type="number" id="pagerJump" name="page" min="1" max="<%= pager.jump.max %>" inputmode="numeric" class="gv-pager-jump-input" placeholder="nr" required>
+        <button type="submit" class="gv-pager-btn gv-pager-go">Idź</button>
+      </form>
+    <% } %>
   </nav>
 <% } %>

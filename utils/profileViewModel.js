@@ -6,6 +6,8 @@ const {
   allBackgroundsWithLockState,
   allBadgesWithLockState,
   resolveTrophy,
+  THEMES,
+  themeForBackground,
 } = require('./pointsHelpers');
 const { getFollowers, getFollowing } = require('./socialHelpers');
 const { getUserPublic } = require('./profileHelpers');
@@ -46,7 +48,9 @@ async function buildProfileViewModel(user) {
     allFrames: allFramesWithLockState(progress.level, !!user.unlockAll),
     allBackgrounds: allBackgroundsWithLockState(progress.level, !!user.unlockAll),
     allBadges: allBadgesWithLockState(stats, !!user.unlockAll),
-    trophy: resolveTrophy(user.activeTrophy, stats, !!user.unlockAll),
+    theme: themeForBackground(user.activeBackground),
+    themes: THEMES.map((t) => ({ ...t, locked: !user.unlockAll && t.levelRequired > progress.level })),
+    trophy: resolveTrophy(user.activeTrophy, stats, !!user.unlockAll, themeForBackground(user.activeBackground).accent),
     reviews,
   };
 }

@@ -11,7 +11,7 @@
       </a>
 
       <!-- Hamburger Menu (mobile) -->
-      <button class="hamburger-menu" id="hamburgerMenu" aria-label="Menu">
+      <button class="hamburger-menu" id="hamburgerMenu" aria-label="Menu" aria-expanded="false" aria-controls="mainNav">
         <span></span>
         <span></span>
         <span></span>
@@ -25,6 +25,11 @@
         <% if (user && user.role === 'admin') { %>
           <a href="/admin" class="<%= path.startsWith('/admin') ? 'active' : '' %>">ADMIN</a>
         <% } %>
+        <!-- Wyszukiwarka w rozwijanym menu (widoczna tylko na wąskich ekranach) -->
+        <form class="nav-mobile-search" action="/search" method="GET" role="search">
+          <input type="search" name="q" placeholder="Szukaj gier, wpisów, graczy..." autocomplete="off" aria-label="Szukaj">
+          <button type="submit" aria-label="Szukaj"><i class="bi bi-search"></i></button>
+        </form>
       </nav>
 
       <!-- Wyszukiwarka -->
@@ -121,21 +126,33 @@
 <% } %>
 
 <script>
-  const hamburger = document.getElementById('hamburgerMenu');
-  const mainNav = document.getElementById('mainNav');
+  // Rozwijane menu na wąskich ekranach (do 980 px): przycisk, Escape, kliknięcie poza menu i powrót do szerokiego układu je zamykają.
+  (function () {
+    var hamburger = document.getElementById('hamburgerMenu');
+    var mainNav = document.getElementById('mainNav');
+    if (!hamburger || !mainNav) return;
 
-  if (hamburger) {
-    hamburger.addEventListener('click', function() {
-      hamburger.classList.toggle('active');
-      mainNav.classList.toggle('active');
-    });
+    function setOpen(open) {
+      hamburger.classList.toggle('active', open);
+      mainNav.classList.toggle('active', open);
+      hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
 
-    // Zamknij menu po kliknięciu na link
-    mainNav.querySelectorAll('a').forEach(link => {
-      link.addEventListener('click', function() {
-        hamburger.classList.remove('active');
-        mainNav.classList.remove('active');
-      });
+    hamburger.addEventListener('click', function (event) {
+      event.stopPropagation();
+      setOpen(!mainNav.classList.contains('active'));
     });
-  }
+    mainNav.querySelectorAll('a').forEach(function (link) {
+      link.addEventListener('click', function () { setOpen(false); });
+    });
+    document.addEventListener('click', function (event) {
+      if (!mainNav.contains(event.target) && !hamburger.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') setOpen(false);
+    });
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 980) setOpen(false);
+    });
+  })();
 </script>
