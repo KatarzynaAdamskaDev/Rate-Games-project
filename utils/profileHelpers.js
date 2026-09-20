@@ -10,6 +10,7 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const ReviewLike = require('../models/ReviewLike');
 const ReviewComment = require('../models/ReviewComment');
+const BlogComment = require('../models/BlogComment');
 const ReviewReport = require('../models/ReviewReport');
 const CommentLike = require('../models/CommentLike');
 const Follow = require('../models/Follow');
@@ -77,6 +78,7 @@ async function purgeUserData(userId) {
   const ownCommentIds = ownComments.map((c) => c.id);
   if (ownCommentIds.length) await CommentLike.destroy({ where: { commentId: ownCommentIds } });
   await ReviewComment.destroy({ where: { userId } });
+  await BlogComment.destroy({ where: { userId } });
 
   await Promise.all([
     ReviewLike.destroy({ where: { userId } }),

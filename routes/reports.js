@@ -9,6 +9,7 @@ const { ensureAuthenticated } = require('../middleware/auth');
 const { limiters } = require('../middleware/rateLimit');
 const ContentReport = require('../models/ContentReport');
 const ReviewComment = require('../models/ReviewComment');
+const BlogComment = require('../models/BlogComment');
 const Review = require('../models/Review');
 const Message = require('../models/Message');
 const User = require('../models/User');
@@ -77,19 +78,29 @@ async function submitReport(req, res, target) {
 
 router.post('/comment/:commentId', limiters.report, async (req, res, next) => {
   try {
-    const comment = await ReviewComment.findByPk(req.params.commentId);
+    // Komentarz pod recenzją albo pod wpisem na blogu - identyfikatory są unikalne w obu tabelach.
+    const reviewComment = await ReviewComment.findByPk(req.params.commentId);
+    const blogComment = reviewComment ? null : await BlogComment.findByPk(req.params.commentId);
+    const comment = reviewComment || blogComment;
     if (!comment) {
       req.flash('error', 'Ten komentarz już nie istnieje.');
       return res.redirect(backPath(req));
     }
-    const review = await Review.findByPk(comment.reviewId);
+
+    let link = null;
+    if (blogComment) {
+      link = `/blog/${blogComment.postId}#comment-${blogComment.id}`;
+    } else {
+      const review = await Review.findByPk(comment.reviewId);
+      link = review ? `/games/${review.gameId}#review-${review.id}` : null;
+    }
     await submitReport(req, res, {
       type: 'comment',
       id: comment.id,
       userId: comment.userId,
       username: comment.username,
       snapshot: comment.text,
-      link: review ? `/games/${review.gameId}#review-${review.id}` : null,
+      link,
     });
   } catch (err) {
     next(err);

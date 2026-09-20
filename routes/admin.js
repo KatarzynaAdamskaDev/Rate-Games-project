@@ -11,6 +11,7 @@ const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 const User = require('../models/User');
 const Review = require('../models/Review');
 const ReviewComment = require('../models/ReviewComment');
+const BlogComment = require('../models/BlogComment');
 const CommentLike = require('../models/CommentLike');
 const ReviewReport = require('../models/ReviewReport');
 const ContentReport = require('../models/ContentReport');
@@ -49,7 +50,8 @@ const { TYPE_LABELS } = require('../utils/reportReasons');
 const SiteSetting = require('../models/SiteSetting');
 const AdminIdea = require('../models/AdminIdea');
 const { IDEAS, AREAS, DECISIONS, findIdea } = require('../utils/adminIdeas');
-const { getPosts: getBlogPosts, removePost: removeBlogPost } = require('../utils/blogHelpers');
+const { getAllPosts, removePost: removeBlogPost } = require('../utils/blogHelpers');
+const { deleteCommentsForPost: deleteBlogComments, countCommentsForPosts: countBlogComments } = require('../utils/blogCommentHelpers');
 
 const PAGE_SIZE = 15;
 
@@ -776,6 +778,9 @@ router.post('/reports/content/:id/resolve', async (req, res, next) => {
       if (comment) {
         await CommentLike.destroy({ where: { commentId: comment.id } });
         await comment.destroy();
+      } else {
+        // Zgłoszony komentarz mógł być pod wpisem na blogu.
+        await BlogComment.destroy({ where: { id: report.targetId } });
       }
       outcome = 'Usunięto komentarz';
       if (target) {
@@ -854,19 +859,37 @@ router.post('/reports/content/:id/resolve', async (req, res, next) => {
 router.get('/comments', async (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim();
+    const source = req.query.source === 'blog' ? 'blog' : 'reviews';
+    const Model = source === 'blog' ? BlogComment : ReviewComment;
     const where = q ? { [Op.or]: [{ text: likeFilter(q) }, { username: likeFilter(q) }] } : {};
 
-    const total = await ReviewComment.count({ where });
+    const [total, reviewTotal, blogTotal] = await Promise.all([
+      Model.count({ where }),
+      ReviewComment.count(),
+      BlogComment.count(),
+    ]);
     const { page, pages, offset, limit } = pageOf(req, total);
-    const rows = (await ReviewComment.findAll({ where, order: [['createdAt', 'DESC']], limit, offset }))
+    const rows = (await Model.findAll({ where, order: [['createdAt', 'DESC']], limit, offset }))
       .map((c) => c.get({ plain: true }));
 
-    const reviews = await Review.findAll({ where: { id: rows.map((c) => c.reviewId) }, attributes: ['id', 'gameId'] });
-    const gameByReview = new Map(reviews.map((r) => [r.id, r.gameId]));
+    let comments;
+    if (source === 'blog') {
+      const titles = new Map(getAllPosts().map((post) => [post.id, post.title]));
+      comments = rows.map((c) => ({ ...c, link: `/blog/${c.postId}#comment-${c.id}`, where: titles.get(c.postId) || null }));
+    } else {
+      const reviews = await Review.findAll({ where: { id: rows.map((c) => c.reviewId) }, attributes: ['id', 'gameId'] });
+      const gameByReview = new Map(reviews.map((r) => [r.id, r.gameId]));
+      comments = rows.map((c) => {
+        const gameId = gameByReview.get(c.reviewId);
+        return { ...c, link: gameId ? `/games/${gameId}#review-${c.reviewId}` : null, where: gameId ? 'Recenzja' : null };
+      });
+    }
 
     render(res, 'comments', 'comments', 'Komentarze', {
-      comments: rows.map((c) => ({ ...c, gameId: gameByReview.get(c.reviewId) || null })),
+      comments,
       q,
+      source,
+      sourceCounts: { reviews: reviewTotal, blog: blogTotal },
       total,
       pager: buildPagerLinks(req, page, page < pages, pages),
       page,
@@ -879,13 +902,15 @@ router.get('/comments', async (req, res, next) => {
 
 router.post('/comments/:id/delete', async (req, res, next) => {
   try {
-    const comment = await ReviewComment.findByPk(req.params.id);
+    // Komentarz pod recenzją albo pod wpisem na blogu (identyfikatory są unikalne w obu tabelach).
+    const reviewComment = await ReviewComment.findByPk(req.params.id);
+    const comment = reviewComment || (await BlogComment.findByPk(req.params.id));
     if (!comment) {
       req.flash('error', 'Nie znaleziono komentarza.');
       return res.redirect(backTo(req, '/admin/comments'));
     }
     await logAdminAction(req, 'comment.delete', 'comment', comment.username, comment.text.slice(0, 120));
-    await CommentLike.destroy({ where: { commentId: comment.id } });
+    if (reviewComment) await CommentLike.destroy({ where: { commentId: comment.id } });
     await comment.destroy();
     req.flash('success', 'Komentarz został usunięty.');
     res.redirect(backTo(req, '/admin/comments'));
@@ -1116,8 +1141,20 @@ router.post('/games/:id/delete', async (req, res, next) => {
 
 /* ------------------------------ blog ------------------------------ */
 
-router.get('/blog', (req, res) => {
-  render(res, 'blog', 'blog', 'Blog', { posts: getBlogPosts() });
+router.get('/blog', async (req, res, next) => {
+  try {
+    const all = getAllPosts();
+    const filter = ['draft', 'scheduled', 'published'].includes(req.query.state) ? req.query.state : '';
+    const stateCounts = { draft: 0, scheduled: 0, published: 0 };
+    all.forEach((post) => {
+      stateCounts[post.state] += 1;
+    });
+    const posts = filter ? all.filter((post) => post.state === filter) : all;
+    const commentCounts = await countBlogComments(posts.map((post) => post.id));
+    render(res, 'blog', 'blog', 'Blog', { posts, filter, stateCounts, total: all.length, commentCounts });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/blog/:id/delete', async (req, res) => {
@@ -1126,6 +1163,7 @@ router.post('/blog/:id/delete', async (req, res) => {
     req.flash('error', 'Nie znaleziono wpisu.');
     return res.redirect('/admin/blog');
   }
+  await deleteBlogComments(post.id);
   await logAdminAction(req, 'blog.delete', 'blog', post.title);
   req.flash('success', 'Wpis został usunięty.');
   res.redirect('/admin/blog');

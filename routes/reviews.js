@@ -27,6 +27,7 @@ router.get('/', async (req, res, next) => {
       ]);
 
     res.render('reviews', {
+      seo: { description: 'Najnowsze recenzje graczy, ranking najczęściej recenzowanych i najwyżej ocenianych gier oraz recenzja tygodnia w GameVerse.' },
       title: 'Recenzje graczy',
       stats,
       mostReviewedGames,

@@ -11,6 +11,7 @@ const { sequelize } = require('../config/database');
 const User = require('../models/User');
 const Review = require('../models/Review');
 const ReviewComment = require('../models/ReviewComment');
+const BlogComment = require('../models/BlogComment');
 const ReviewReport = require('../models/ReviewReport');
 const ContentReport = require('../models/ContentReport');
 const AdminLog = require('../models/AdminLog');
@@ -58,6 +59,18 @@ const EXPORTS = {
     columns: [
       { key: 'id', label: 'ID' },
       { key: 'reviewId', label: 'ID recenzji' },
+      { key: 'username', label: 'Autor' },
+      { key: 'text', label: 'Treść' },
+      { key: 'createdAt', label: 'Dodano' },
+    ],
+  },
+  blogComments: {
+    label: 'Komentarze pod wpisami',
+    description: 'Komentarze pod wpisami na blogu.',
+    model: BlogComment,
+    columns: [
+      { key: 'id', label: 'ID' },
+      { key: 'postId', label: 'ID wpisu' },
       { key: 'username', label: 'Autor' },
       { key: 'text', label: 'Treść' },
       { key: 'createdAt', label: 'Dodano' },

@@ -54,6 +54,7 @@ Wszystko jest zapisane w `package.json` - nie trzeba instalować pojedynczych pa
 | `sequelize`, `sqlite3`, `tedious` | baza danych: SQLite lokalnie, Azure SQL (`tedious`) na produkcji |
 | `bcryptjs` | bezpieczne hashowanie haseł |
 | `multer`, `sharp` | wgrywanie plików i sprawdzanie / zmniejszanie obrazów (awatary, okładki) |
+| `opentype.js` | rysowanie tytułów na automatycznie tworzonych okładkach bloga (czcionka w `assets/fonts`) |
 | `qrcode` | kod QR do włączenia 2FA administratorów |
 | `axios`, `igdb-api-node` | pobieranie gier z IGDB |
 | `nodemailer` | wysyłka maili z resetem hasła |
@@ -67,6 +68,8 @@ Pakiety `sqlite3` i `sharp` mają gotowe binaria dla Windows, macOS i Linuksa - 
 Uzupełnij go po instalacji (wzór: `.env.example`):
 
 - `SESSION_SECRET` - długi, losowy ciąg znaków (na produkcji obowiązkowy - bez niego serwer się nie uruchomi).
+- `SITE_URL` - publiczny adres serwisu bez końcowego ukośnika (np. `https://twoja-domena.pl`). Trafia do `sitemap.xml`,
+  `robots.txt` i podglądów linków (Open Graph). Puste = adres brany z żądania.
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` - klucze IGDB. Bez nich aplikacja działa, ale bez katalogu gier.
 - `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - opcjonalnie, klucze reCAPTCHA v2 "Checkbox"
   (https://www.google.com/recaptcha/admin/create). Puste = rejestracja bez realnej weryfikacji captchy.
@@ -166,6 +169,31 @@ zapisywane jawnie.
   patrz `utils/gameSearch.js`; własne skróty dopisuje się w `utils/gameAliases.js`. Toleruje też inny zapis tytułu
   ("little big planet" = LittleBigPlanet, "spider man" = Spider-Man, "final fantasy 7" = Final Fantasy VII,
   "ratchet and clank" = Ratchet & Clank) oraz literówki w nazwach popularnych gier ("skirym") - `utils/searchText.js`
+- SEO i udostępnianie: znaczniki Open Graph / Twitter Card i dane strukturalne (JSON-LD) dla gier, recenzji
+  (link `/games/ID?review=ID` ma własny podgląd), wpisów bloga i profili, przyciski "Udostępnij", `robots.txt`
+  i `sitemap.xml` (opublikowane wpisy, gry z recenzjami, gry własne i najpopularniejsze gry z IGDB; bez szkiców
+  i zaplanowanych wpisów). Kod: `middleware/seo.js`, `utils/seo.js`, `routes/seo.js`, `views/partials/head.ejs`
+- GEO (widoczność w odpowiedziach chatbotów i wyszukiwarek AI): `/llms.txt` i `/llms-full.txt` (opis serwisu, fakty,
+  FAQ, popularne gry z ocenami graczy i treść wpisów w Markdownie), `robots.txt` z jawnym wpuszczeniem crawlerów
+  ChatGPT, Claude, Perplexity, Gemini i innych, dane strukturalne (Organization, WebSite, VideoGame, BlogPosting,
+  FAQPage, BreadcrumbList, ItemList), strony `/aboutus` i `/help` (FAQ), kanał RSS `/feed.xml` oraz wpisy bloga jako
+  Markdown (`/blog/ID.md`). Wszystkie opisy pochodzą z jednego miejsca - `utils/siteFacts.js` (funkcje, FAQ, liczby) -
+  edytuj je tam, gdy zmieni się serwis
+- Okładki bloga tworzone automatycznie (`utils/blogCoverGenerator.js`): grafika 1200x630 z tytułu, kategorii i tagów -
+  kolory zależą od kategorii, wzór tła od tytułu, przycisk "Inny wariant" losuje nowy wygląd. Działa bez zewnętrznych
+  usług i tak samo na każdym serwerze (tekst jest zamieniany na krzywe). Własny plik lub adres zastępuje okładkę
+- Asystent SEO w edytorze wpisów (`utils/seoAssistant.js`, liczony lokalnie, bez zewnętrznych usług): propozycje tagów
+  z treści (tytuły gier z katalogu, platformy, gatunki, nazwy własne, powtarzające się frazy), ocena SEO z listą
+  kontrolną i podpowiedziami oraz przycisk "Formatuj pod SEO" - pogrubia pierwsze wystąpienie najważniejszych fraz,
+  linkuje gry z katalogu (`/games/ID`), zamienia punktory, krótkie linie i adresy URL na listy, śródtytuły i linki,
+  z możliwością cofnięcia. Zmiany widać na liście przed zapisem wpisu
+- Edytor wpisów bloga (`/blog/new`): karty jak w formularzu gry, pasek formatowania ze skrótami (Ctrl+B / I / K), podgląd treści
+  na żywo, tagi jako chipy z podpowiedziami, okładka przeciągana na pole, podgląd karty na liście, lista kontrolna oraz
+  automatyczny zapis kopii roboczej w przeglądarce (z przywracaniem po zamknięciu karty)
+- Blog: szkice, zaplanowana publikacja (wpis pojawia się sam o wybranej porze), tagi (`/blog?tag=...`) oraz
+  komentarze pod wpisami z tą samą moderacją co komentarze pod recenzjami (wyciszenie, limit, filtr wulgaryzmów,
+  zgłaszanie, ukrywanie komentarzy zablokowanych osób, usuwanie przez autora i administratora, panel
+  Komentarze -> "Pod wpisami bloga")
 - Lista gier ma numerowany pasek stron (pierwsza, ostatnia, okolice bieżącej) i pole "idź do strony" - `views/partials/pager.ejs`
 - Sortowanie "Popularne" (lista gier, strona główna, wyniki wyszukiwania) opiera się na danych o graczach z IGDB
   (kto gra teraz, kto zagrał, Steam) - `utils/gamePopularity.js`; ranking odświeża się co kilka godzin

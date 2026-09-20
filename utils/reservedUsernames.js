@@ -16,6 +16,8 @@ const RESERVED_USERNAMES = [
   'admin',
   'api',
   'notifications', 'reports',
+  // strony informacyjne i pliki dla robotów
+  'aboutus', 'help', 'legal', 'contact', 'feed', 'sitemap', 'robots', 'llms',
 ];
 
 function isReservedUsername(username) {

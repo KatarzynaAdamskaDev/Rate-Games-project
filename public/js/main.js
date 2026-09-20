@@ -330,3 +330,39 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+// Udostępnianie: przycisk z atrybutem data-share otwiera systemowe okno udostępniania (telefony),
+// a gdy go nie ma - kopiuje adres do schowka.
+document.addEventListener('click', function (event) {
+  var button = event.target.closest && event.target.closest('[data-share]');
+  if (!button) return;
+
+  var url = button.getAttribute('data-share-url') || window.location.href;
+  var title = button.getAttribute('data-share-title') || document.title;
+  var label = button.querySelector('[data-share-label]');
+
+  function confirmCopied() {
+    if (typeof showToast === 'function') showToast('Link skopiowany do schowka.', true);
+    if (label) {
+      var original = label.textContent;
+      label.textContent = 'Skopiowano!';
+      setTimeout(function () { label.textContent = original; }, 2000);
+    }
+  }
+
+  function copy() {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(confirmCopied, function () { window.prompt('Skopiuj adres:', url); });
+    } else {
+      window.prompt('Skopiuj adres:', url);
+    }
+  }
+
+  if (navigator.share) {
+    navigator.share({ title: title, url: url }).catch(function (err) {
+      if (err && err.name !== 'AbortError') copy();
+    });
+  } else {
+    copy();
+  }
+});

@@ -16,5 +16,42 @@
     "excerpt": "Kilka wskazówek, jak podzielić się swoją opinią w sposób pomocny dla innych graczy.",
     "content": "Dobra recenzja to nie tylko ocena w skali 1-5. To opis doświadczenia - co zaskoczyło, co zawiodło i komu dana gra się spodoba. W tym artykule dzielimy się wskazówkami, jak pisać recenzje, które realnie pomagają innym graczom.",
     "createdAt": "2026-07-15T09:00:00.000Z"
+  },
+  {
+    "id": "8031b260-70f9-45b4-a672-17585806a7ee",
+    "title": "Jak granie w the binding of isaac wpływa na długość fifusia?",
+    "author": "test",
+    "category": "Poradniki",
+    "tags": [
+      "isaac",
+      "fiflak",
+      "The Binding of Isaac"
+    ],
+    "excerpt": "Generalnie to gracze TBOI mają sporego ziutka nie. DO tego jeszcze fakt że są koksami no to już wgl. Czy jest wgl gracz isaaczka z małym tym? No ja sie nie…",
+    "content": "Generalnie to gracze TBOI mają sporego ziutka nie. DO tego jeszcze fakt że są koksami no to już wgl. Czy jest wgl gracz isaaczka z małym tym? No ja sie nie spotkałem jeszcze ale do odważnych świat należy więc wszystko przed nami. Niemniej jednak skrótowo można stwierdzić że granie w ajzaka zwiększa jegomościa",
+    "coverImage": "/images/blog/uploads/f81864f1-17c2-47ce-9521-9172617a6efa.webp",
+    "coverAuto": true,
+    "coverSpec": "[\"Jak granie w the binding of isaac wpływa na długość fifusia?\",\"Poradniki\",[\"isaac\",\"fiflak\",\"The Binding of Isaac\"],6]",
+    "coverVariant": 6,
+    "status": "draft",
+    "publishAt": null,
+    "createdAt": "2026-09-20T21:29:19.513Z",
+    "updatedAt": "2026-09-20T21:52:01.380Z"
+  },
+  {
+    "id": "685d2963-8fe1-4b10-95e7-2bb2a8a3547d",
+    "title": "Najpopularniejsze gry według społeczności",
+    "author": "test",
+    "category": "Aktualności",
+    "tags": [],
+    "excerpt": "Counter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike…",
+    "content": "Counter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehuga Counter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehuga Counter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehuga Counter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehuga Counter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehugaCounter-Strike 2rhygorghoirehuga",
+    "coverImage": "/images/blog/uploads/8e349e6d-2eaf-4de1-9497-94dc114d846a.webp",
+    "coverAuto": true,
+    "coverSpec": "[\"Najpopularniejsze gry według społeczności\",\"Aktualności\",[],0]",
+    "coverVariant": 0,
+    "status": "draft",
+    "publishAt": null,
+    "createdAt": "2026-09-20T21:35:05.503Z"
   }
 ]

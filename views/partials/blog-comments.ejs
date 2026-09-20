@@ -1,0 +1,57 @@
+<%
+// Komentarze pod wpisem na blogu. Dane: post, comments, commentMax, currentUser.
+// Moderacja jak przy komentarzach pod recenzjami: zgłaszanie (okno zgłoszenia), usuwanie przez autora i administratora.
+const __isAdmin = currentUser && currentUser.role === 'admin';
+%>
+<section class="gv-post-comments" id="comments" aria-labelledby="commentsHeading">
+  <h2 id="commentsHeading"><i class="bi bi-chat-dots"></i> Komentarze <span class="gv-blog-comments-count"><%= comments.length %></span></h2>
+
+  <% if (currentUser) { %>
+    <form action="/blog/<%= post.id %>/comments" method="POST" class="gv-blog-comment-form">
+      <textarea name="text" rows="3" maxlength="<%= commentMax %>" class="form-control gv-input" placeholder="Napisz komentarz..." required></textarea>
+      <div class="gv-blog-comment-form-foot">
+        <small>Komentarze podlegają tej samej moderacji co opinie o grach - bądź uprzejmy(-a).</small>
+        <button type="submit" class="btn gv-btn-success btn-sm">Dodaj komentarz</button>
+      </div>
+    </form>
+  <% } else { %>
+    <p class="gv-blog-comments-login">
+      <button type="button" class="gv-icon-btn" data-bs-toggle="modal" data-bs-target="#signInModal">Zaloguj się</button>, aby dodać komentarz.
+    </p>
+  <% } %>
+
+  <% if (comments.length === 0) { %>
+    <p class="gv-empty-state gv-blog-comments-empty">Nikt jeszcze nie skomentował tego wpisu. Bądź pierwszy(-a)!</p>
+  <% } %>
+
+  <ul class="gv-blog-comment-list">
+    <% comments.forEach(function(c) { %>
+      <li class="gv-blog-comment" id="comment-<%= c.id %>">
+        <div class="gv-blog-comment-head">
+          <a href="/<%= encodeURIComponent(c.username) %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
+          <small><%= new Date(c.createdAt).toLocaleString('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }) %></small>
+          <span class="gv-blog-comment-actions">
+            <% if (currentUser && currentUser.id !== c.userId) { %>
+              <button type="button" class="gv-icon-btn gv-report-btn" title="Zgłoś komentarz"
+                      data-bs-toggle="modal" data-bs-target="#reportModal"
+                      data-report-type="comment"
+                      data-report-url="/reports/comment/<%= c.id %>"
+                      data-report-author="<%= c.username %>">
+                <i class="bi bi-flag"></i>
+              </button>
+            <% } %>
+            <% if (currentUser && (currentUser.id === c.userId || __isAdmin)) { %>
+              <form action="/blog/<%= post.id %>/comments/<%= c.id %>/delete" method="POST"
+                    onsubmit="return confirm('Usunąć ten komentarz?');" class="d-inline">
+                <button type="submit" class="gv-icon-btn gv-delete-btn" title="<%= currentUser.id === c.userId ? 'Usuń komentarz' : 'Usuń komentarz (moderacja)' %>">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            <% } %>
+          </span>
+        </div>
+        <p class="gv-blog-comment-text"><%= c.text %></p>
+      </li>
+    <% }) %>
+  </ul>
+</section>

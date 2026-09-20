@@ -3,33 +3,55 @@
 <div class="gv-admin-toolbar">
   <a href="/blog/new" class="btn gv-btn-success"><i class="bi bi-plus-lg"></i> Nowy wpis</a>
 </div>
+
+<nav class="gv-blog-filters gv-chips-tight" aria-label="Stan wpisów">
+  <a href="/admin/blog" class="gv-blog-chip <%= !filter ? 'active' : '' %>">Wszystkie <span><%= total %></span></a>
+  <a href="/admin/blog?state=published" class="gv-blog-chip <%= filter === 'published' ? 'active' : '' %>">Opublikowane <span><%= stateCounts.published %></span></a>
+  <a href="/admin/blog?state=draft" class="gv-blog-chip <%= filter === 'draft' ? 'active' : '' %>">Szkice <span><%= stateCounts.draft %></span></a>
+  <a href="/admin/blog?state=scheduled" class="gv-blog-chip <%= filter === 'scheduled' ? 'active' : '' %>">Zaplanowane <span><%= stateCounts.scheduled %></span></a>
+</nav>
 <p class="gv-admin-count"><%= posts.length %> <%= posts.length === 1 ? 'wpis' : 'wpisów' %></p>
 
 <div class="gv-table-wrap">
   <table class="gv-table">
     <thead>
-      <tr><th>Tytuł</th><th>Kategoria</th><th>Autor</th><th>Data</th><th>Akcje</th></tr>
+      <tr><th>Tytuł</th><th>Stan</th><th>Kategoria i tagi</th><th>Autor</th><th>Data</th><th>Komentarze</th><th>Akcje</th></tr>
     </thead>
     <tbody>
       <% posts.forEach(function(p) { %>
         <tr>
           <td class="gv-cell-text"><a href="/blog/<%= p.id %>"><b><%= p.title %></b></a></td>
-          <td><span class="gv-badge"><%= p.category %></span></td>
+          <td>
+            <% if (p.state === 'draft') { %><span class="gv-badge gv-badge-draft"><i class="bi bi-file-earmark-text"></i> Szkic</span>
+            <% } else if (p.state === 'scheduled') { %><span class="gv-badge gv-badge-scheduled"><i class="bi bi-calendar-event"></i> Zaplanowany</span>
+            <% } else { %><span class="gv-badge gv-badge-live"><i class="bi bi-broadcast"></i> Opublikowany</span><% } %>
+          </td>
+          <td>
+            <span class="gv-badge"><%= p.category %></span>
+            <% if (p.tags.length) { %><br><small class="gv-muted"><%= p.tags.map(function(t) { return '#' + t; }).join(' ') %></small><% } %>
+          </td>
           <td><%= p.author %></td>
           <td>
-            <%= new Date(p.createdAt).toLocaleDateString('pl-PL') %>
+            <% if (p.state === 'scheduled') { %>
+              <%= new Date(p.publishAt).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) %>
+            <% } else { %>
+              <%= new Date(p.publishedAt).toLocaleDateString('pl-PL') %>
+            <% } %>
             <% if (p.updatedAt) { %><br><small class="gv-muted">edytowano <%= new Date(p.updatedAt).toLocaleDateString('pl-PL') %></small><% } %>
+          </td>
+          <td>
+            <% if (commentCounts.get(p.id)) { %><a href="/admin/comments?source=blog"><%= commentCounts.get(p.id) %></a><% } else { %><span class="gv-muted">0</span><% } %>
           </td>
           <td class="gv-cell-actions">
             <a href="/blog/<%= p.id %>/edit" class="gv-mini-btn"><i class="bi bi-pencil-fill"></i> Edytuj</a>
-            <form method="POST" action="/admin/blog/<%= p.id %>/delete" onsubmit="return confirm('Usunąć ten wpis?');">
+            <form method="POST" action="/admin/blog/<%= p.id %>/delete" onsubmit="return confirm('Usunąć ten wpis razem z komentarzami?');">
               <button type="submit" class="gv-mini-btn gv-mini-danger"><i class="bi bi-trash3-fill"></i> Usuń</button>
             </form>
           </td>
         </tr>
       <% }) %>
       <% if (posts.length === 0) { %>
-        <tr><td colspan="5" class="gv-admin-empty">Brak wpisów na blogu.</td></tr>
+        <tr><td colspan="7" class="gv-admin-empty">Brak wpisów<%= filter ? ' w tym stanie' : ' na blogu' %>.</td></tr>
       <% } %>
     </tbody>
   </table>

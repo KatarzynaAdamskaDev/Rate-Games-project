@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <%- include('../partials/head') %>
+  <link rel="stylesheet" href="/css/app-extra.css" />
+</head>
+<body>
+  <%- include('../partials/navbar') %>
+  <%- include('../partials/flash') %>
+
+  <main class="gv-section">
+    <div class="wrap gv-page-wrap">
+      <nav class="gv-breadcrumbs" aria-label="Okruszki"><a href="/">GameVerse</a> <i class="bi bi-chevron-right"></i> <span>Pomoc</span></nav>
+
+      <header class="gv-about-hero">
+        <h1 class="gv-page-title">Pomoc i najczęstsze pytania</h1>
+        <p class="gv-about-lead">Krótkie odpowiedzi o ocenach, recenzjach, wyszukiwarce, profilach i moderacji w GameVerse. Więcej o serwisie znajdziesz na stronie <a href="/aboutus">O GameVerse</a>.</p>
+      </header>
+
+      <section class="gv-faq" aria-label="Najczęstsze pytania">
+        <% faq.forEach(function(item, index) { %>
+          <details class="gv-faq-item" <%= index === 0 ? 'open' : '' %>>
+            <summary><h2><%= item.q %></h2></summary>
+            <p><%= item.a %></p>
+          </details>
+        <% }) %>
+      </section>
+    </div>
+  </main>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

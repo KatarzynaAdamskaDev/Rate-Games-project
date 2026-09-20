@@ -25,6 +25,12 @@ const NOTIFICATION_TYPES = [
     description: 'Ktoś skomentował Twoją recenzję.',
   },
   {
+    id: 'blog-comment',
+    icon: 'bi-journal-text',
+    label: 'Komentarze pod wpisami bloga',
+    description: 'Ktoś skomentował wpis, który napisałeś(-aś).',
+  },
+  {
     id: 'comment-like',
     icon: 'bi-hand-thumbs-up-fill',
     label: 'Polubienia komentarzy',

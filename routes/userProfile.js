@@ -34,6 +34,13 @@ router.get('/:username', async (req, res, next) => {
 
   res.render('profile/show', {
     title: `Profil: ${user.username}`,
+    seo: {
+      type: 'profile',
+      title: `${user.username} - profil w GameVerse`,
+      description: user.bio ? String(user.bio).replace(/\s+/g, ' ').trim().slice(0, 200) : `Profil gracza ${user.username} w GameVerse: recenzje, ulubione gry i aktywność.`,
+      image: user.avatarUrl || '/images/og-default.png',
+      card: user.avatarUrl ? 'summary' : 'summary_large_image',
+    },
     ...vm,
     ...tabData,
     isOwnProfile: false,

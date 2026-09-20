@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const ReviewLike = require('../models/ReviewLike');
 const ReviewComment = require('../models/ReviewComment');
+const BlogComment = require('../models/BlogComment');
 const CommentLike = require('../models/CommentLike');
 const ReviewReport = require('../models/ReviewReport');
 const ContentReport = require('../models/ContentReport');
@@ -31,6 +32,7 @@ async function findOrphanUserIds() {
   await collect(Review, 'userId');
   await collect(ReviewLike, 'userId');
   await collect(ReviewComment, 'userId');
+  await collect(BlogComment, 'userId');
   await collect(CommentLike, 'userId');
   await collect(ReviewReport, 'reporterId');
   await collect(ContentReport, 'reporterId');

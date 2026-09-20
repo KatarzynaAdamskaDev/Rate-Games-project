@@ -1,6 +1,12 @@
 <%- include('partials/top') %>
 
+<nav class="gv-blog-filters gv-chips-tight" aria-label="Źródło komentarzy">
+  <a href="/admin/comments" class="gv-blog-chip <%= source === 'reviews' ? 'active' : '' %>">Pod recenzjami <span><%= sourceCounts.reviews %></span></a>
+  <a href="/admin/comments?source=blog" class="gv-blog-chip <%= source === 'blog' ? 'active' : '' %>">Pod wpisami bloga <span><%= sourceCounts.blog %></span></a>
+</nav>
+
 <form method="GET" class="gv-admin-filters">
+  <input type="hidden" name="source" value="<%= source %>">
   <input type="search" name="q" value="<%= q %>" class="form-control gv-input" placeholder="Szukaj w treści lub po autorze..." maxlength="100">
   <button type="submit" class="btn gv-btn-primary"><i class="bi bi-search"></i> Szukaj</button>
 </form>
@@ -9,7 +15,7 @@
 <div class="gv-table-wrap">
   <table class="gv-table">
     <thead>
-      <tr><th>Autor</th><th>Komentarz</th><th>Data</th><th>Recenzja</th><th>Akcje</th></tr>
+      <tr><th>Autor</th><th>Komentarz</th><th>Data</th><th><%= source === 'blog' ? 'Wpis' : 'Recenzja' %></th><th>Akcje</th></tr>
     </thead>
     <tbody>
       <% comments.forEach(function(c) { %>
@@ -18,7 +24,7 @@
           <td class="gv-cell-text"><%= c.text.length > 160 ? c.text.slice(0, 160) + '…' : c.text %></td>
           <td><%= new Date(c.createdAt).toLocaleDateString('pl-PL') %></td>
           <td>
-            <% if (c.gameId) { %><a href="/games/<%= c.gameId %>#review-<%= c.reviewId %>">Otwórz <i class="bi bi-arrow-right"></i></a><% } else { %><span class="gv-muted">usunięta</span><% } %>
+            <% if (c.link) { %><a href="<%= c.link %>"><%= source === 'blog' ? (c.where || 'Otwórz') : 'Otwórz' %> <i class="bi bi-arrow-right"></i></a><% } else { %><span class="gv-muted"><%= source === 'blog' ? 'wpis usunięty' : 'usunięta' %></span><% } %>
           </td>
           <td>
             <form method="POST" action="/admin/comments/<%= c.id %>/delete" onsubmit="return confirm('Usunąć ten komentarz?');">

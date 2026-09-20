@@ -19,6 +19,9 @@
           <h1 class="gv-page-title mt-2"><%= game.title %></h1>
           <p class="gv-detail-meta"><%= game.platform %> · <%= game.releaseYear %></p>
           <p class="gv-detail-desc"><%= game.description %></p>
+          <button type="button" class="gv-mini-btn mb-3" data-share data-share-title="<%= game.title %>" data-share-url="<%= absoluteUrl('/games/' + game.id) %>">
+            <i class="bi bi-share-fill"></i> <span data-share-label>Udostępnij grę</span>
+          </button>
 
           <div class="gv-detail-rating">
             <% if (averageRating) { %>
@@ -112,6 +115,12 @@
                 <button type="button" class="gv-icon-btn gv-comments-toggle" data-target="comments-body-<%= review.id %>" title="Komentarze">
                   <i class="bi bi-chat-dots"></i>
                   <span class="gv-count"><%= review.comments.length %></span>
+                </button>
+
+                <button type="button" class="gv-icon-btn" title="Udostępnij recenzję"
+                        data-share data-share-title="Recenzja gry <%= game.title %> od <%= review.username %>"
+                        data-share-url="<%= absoluteUrl('/games/' + game.id + '?review=' + review.id) %>#review-<%= review.id %>">
+                  <i class="bi bi-share"></i>
                 </button>
 
                 <% if (currentUser && currentUser.id !== review.userId) { %>

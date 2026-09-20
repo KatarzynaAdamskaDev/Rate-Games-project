@@ -23,6 +23,45 @@
   })();
 </script>
 <title><%= title %> | GameVerse</title>
+<%
+  // SEO i podgląd linku w mediach społecznościowych (Open Graph, Twitter Card). Strona może przekazać obiekt `seo`:
+  // { title, description, image, imageAlt, type, card, url, noindex, publishedTime, modifiedTime, section, tags, jsonLd }.
+  const __seo = locals.seo || {};
+  const __toAbs = locals.absoluteUrl || function (value) { return value; };
+  const __ogTitle = __seo.title || title;
+  const __description = __seo.description || 'GameVerse - oceniaj gry, pisz recenzje i odkrywaj tytuły polecane przez społeczność graczy.';
+  const __pageUrl = __seo.url || locals.canonicalUrl || '';
+  const __image = __toAbs(__seo.image || '/images/og-default.png');
+  const __noindex = __seo.noindex !== undefined ? __seo.noindex : !!locals.noindex;
+%>
+<meta name="description" content="<%= __description %>" />
+<meta name="robots" content="<%= __noindex ? 'noindex, nofollow' : 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1' %>" />
+<meta name="author" content="<%= __seo.author || 'GameVerse' %>" />
+<% if (__pageUrl) { %><link rel="canonical" href="<%= __pageUrl %>" /><% } %>
+<meta property="og:site_name" content="GameVerse" />
+<meta property="og:locale" content="pl_PL" />
+<meta property="og:type" content="<%= __seo.type || 'website' %>" />
+<meta property="og:title" content="<%= __ogTitle %>" />
+<meta property="og:description" content="<%= __description %>" />
+<% if (__pageUrl) { %><meta property="og:url" content="<%= __pageUrl %>" /><% } %>
+<meta property="og:image" content="<%= __image %>" />
+<% if (__seo.imageAlt) { %><meta property="og:image:alt" content="<%= __seo.imageAlt %>" /><% } %>
+<% if (!__seo.image) { %><meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" /><% } %>
+<link rel="alternate" type="application/rss+xml" title="GameVerse - Blog" href="/feed.xml" />
+<link rel="alternate" type="text/markdown" title="GameVerse - opis dla modeli językowych (llms.txt)" href="/llms.txt" />
+<% (__seo.alternates || []).forEach(function (alt) { %><link rel="alternate" type="<%= alt.type %>" href="<%= alt.href %>" />
+<% }) %>
+<meta name="twitter:card" content="<%= __seo.card || 'summary_large_image' %>" />
+<meta name="twitter:title" content="<%= __ogTitle %>" />
+<meta name="twitter:description" content="<%= __description %>" />
+<meta name="twitter:image" content="<%= __image %>" />
+<% if (__seo.publishedTime) { %><meta property="article:published_time" content="<%= __seo.publishedTime %>" /><% } %>
+<% if (__seo.modifiedTime) { %><meta property="article:modified_time" content="<%= __seo.modifiedTime %>" /><% } %>
+<% if (__seo.section) { %><meta property="article:section" content="<%= __seo.section %>" /><% } %>
+<% (__seo.tags || []).forEach(function (tag) { %><meta property="article:tag" content="<%= tag %>" />
+<% }) %>
+<% if (__seo.jsonLd && locals.jsonLd) { %><script type="application/ld+json"><%- locals.jsonLd(__seo.jsonLd) %></script><% } %>
 <link rel="icon" type="image/png" href="/images/Game2.png">
 <link
   href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"

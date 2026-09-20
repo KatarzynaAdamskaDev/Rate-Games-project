@@ -15,6 +15,7 @@ const { blockIfMuted } = require('../middleware/muted');
 const { REASONS_BY_TYPE, findReason, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 const ReviewComment = require('../models/ReviewComment');
 const { getGenres, PLATFORM_OPTIONS } = require('../utils/igdbService');
+const { plainText, isoDate, breadcrumbLd } = require('../utils/seo');
 const {
   listGames,
   findGenre,
@@ -65,6 +66,22 @@ router.get('/', async (req, res, next) => {
 
     res.render('games/list', {
       title: 'Gry',
+      seo: {
+        description: 'Katalog gier w GameVerse: filtruj po kategorii, platformie i roku, czytaj opinie graczy i wystawiaj własne oceny.',
+        // Widoki z filtrem, sortowaniem lub frazą nie konkurują z główną listą w wynikach wyszukiwania.
+        noindex: !!(category || platform || year || sort || String(q || '').trim()),
+        jsonLd: {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Gry w katalogu GameVerse',
+          itemListElement: result.games.map((g, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: g.title,
+            url: `${res.locals.siteUrl}/games/${g.id}`,
+          })),
+        },
+      },
       games: result.games,
       genres: await getGenres(),
       platforms: PLATFORM_OPTIONS,
@@ -144,8 +161,62 @@ router.get('/:id', async (req, res, next) => {
 
     const myReview = meId ? reviews.find((r) => r.userId === meId) : null;
 
+    const plural = (n) => (n === 1 ? 'opinia' : n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14) ? 'opinie' : 'opinii');
+    const platforms = game.platformsFull && game.platformsFull.length ? game.platformsFull.join(', ') : game.platform;
+    const ratingLine = averageRating
+      ? `Ocena graczy: ${averageRating}/5 (${reviews.length} ${plural(reviews.length)}).`
+      : 'Zostań pierwszą osobą, która oceni tę grę.';
+    const gameSummary = plainText(game.description, 150);
+    const cover = game.coverImage;
+
+    // Link do konkretnej recenzji (?review=...) ma własny podgląd: autor, ocena i początek tekstu.
+    const sharedReview = req.query.review ? reviews.find((r) => r.id === String(req.query.review)) : null;
+    const seo = sharedReview
+      ? {
+          title: `Recenzja gry ${game.title} od ${sharedReview.username} - ${Number(sharedReview.rating)}/5`,
+          description: plainText(sharedReview.text, 200),
+          type: 'article',
+          publishedTime: isoDate(sharedReview.createdAt),
+        }
+      : {
+          title: `${game.title} - opinie i oceny graczy`,
+          description: `${game.title}${game.releaseYear ? ` (${game.releaseYear})` : ''} - ${platforms}. ${ratingLine} ${gameSummary}`.trim(),
+        };
+    Object.assign(seo, {
+      image: cover,
+      imageAlt: `Okładka gry ${game.title}`,
+      card: 'summary', // okładki są pionowe - mała karta wygląda lepiej niż duża, przycinana
+      noindex: !!sharedReview, // podgląd recenzji nie ma być drugim wynikiem dla tej samej strony gry
+      jsonLd: [{
+        '@context': 'https://schema.org',
+        '@type': 'VideoGame',
+        name: game.title,
+        description: plainText(game.description, 300),
+        image: res.locals.absoluteUrl(cover),
+        genre: game.category || undefined,
+        gamePlatform: platforms || undefined,
+        datePublished: Number.isInteger(Number(game.releaseYear)) ? String(game.releaseYear) : undefined,
+        aggregateRating: averageRating
+          ? { '@type': 'AggregateRating', ratingValue: averageRating, ratingCount: reviews.length, bestRating: 5, worstRating: 0.5 }
+          : undefined,
+        review: reviews.length === 0 ? undefined : reviews.slice(0, 5).map((r) => ({
+          '@type': 'Review',
+          author: { '@type': 'Person', name: r.username },
+          datePublished: isoDate(r.createdAt),
+          reviewBody: plainText(r.text, 300),
+          reviewRating: { '@type': 'Rating', ratingValue: Number(r.rating), bestRating: 5, worstRating: 0.5 },
+        })),
+      },
+      breadcrumbLd(res.locals.siteUrl, [
+        { name: 'GameVerse', path: '/' },
+        { name: 'Gry', path: '/games' },
+        { name: game.title, path: `/games/${game.id}` },
+      ])],
+    });
+
     res.render('games/detail', {
       title: game.title,
+      seo,
       // Na stronie gry pokazujemy pełną listę platform (na kartach - skrót).
       game: {
         ...game,
