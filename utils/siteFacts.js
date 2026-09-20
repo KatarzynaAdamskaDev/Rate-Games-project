@@ -9,7 +9,7 @@
  */
 const User = require('../models/User');
 const Review = require('../models/Review');
-const { getPosts } = require('./blogHelpers');
+const { countPosts } = require('./blogHelpers');
 
 const SITE = {
   name: 'GameVerse',
@@ -123,7 +123,7 @@ async function getSiteStats() {
     Review.count(),
     Review.count({ distinct: true, col: 'gameId' }),
   ]);
-  const value = { users, reviews, ratedGames, blogPosts: getPosts().length, at: new Date().toISOString() };
+  const value = { users, reviews, ratedGames, blogPosts: await countPosts({ published: true }), at: new Date().toISOString() };
   statsCache = { at: Date.now(), value };
   return value;
 }

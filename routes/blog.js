@@ -31,7 +31,6 @@ const {
   countCommentsForPosts,
   addComment,
   deleteComment,
-  deleteCommentsForPost,
 } = require('../utils/blogCommentHelpers');
 const {
   CATEGORIES,
@@ -120,7 +119,7 @@ router.get('/', async (req, res, next) => {
   try {
     const category = CATEGORIES.includes(req.query.category) ? req.query.category : '';
     const tag = tagKey(req.query.tag);
-    const all = getPosts();
+    const all = await getPosts({ content: false });
     const filtered = all.filter(
       (post) => (!category || post.category === category) && (!tag || post.tags.some((t) => tagKey(t) === tag)),
     );
@@ -183,7 +182,8 @@ function publicationNote({ status, publishAt }) {
   return undefined;
 }
 
-function renderForm(res, { post, formData, error, status = 200 }) {
+async function renderForm(res, { post, formData, error, status = 200 }) {
+  const suggestedTags = countTags(await getAllPosts({ content: false })).slice(0, 12).map((item) => item.tag);
   res.status(status).render('blog/form', {
     title: post ? 'Edytuj wpis' : 'Nowy wpis na blogu',
     post: post || null,
@@ -197,7 +197,7 @@ function renderForm(res, { post, formData, error, status = 200 }) {
     // Okładka automatyczna: domyślnie włączona dla nowych wpisów i wpisów bez własnej okładki.
     autoCoverDefault: post ? !!post.coverAuto || !post.coverImage || post.coverImage === COVER_PLACEHOLDER : true,
     // Popularne tagi - do szybkiego dodawania w edytorze.
-    suggestedTags: countTags(getAllPosts()).slice(0, 12).map((item) => item.tag),
+    suggestedTags,
     formError: error || null,
   });
 }
@@ -393,7 +393,7 @@ router.post('/media/:id/delete', ensureAuthenticated, ensureAdmin, async (req, r
     const items = await media.listMedia(500);
     const item = items.find((entry) => entry.id === req.params.id);
     if (!item) return res.status(404).json({ error: 'Nie znaleziono zdjęcia.' });
-    const usedIn = media.mediaUsage(item.url);
+    const usedIn = await media.mediaUsage(item.url);
     if (usedIn.length) {
       return res.status(409).json({ error: `Zdjęcie jest użyte we wpisach: ${usedIn.join(', ')}. Najpierw usuń je z treści.` });
     }
@@ -415,7 +415,7 @@ async function knownGames() {
   ];
 }
 
-const existingTagNames = () => countTags(getAllPosts()).map((item) => item.tag);
+const existingTagNames = async () => countTags(await getAllPosts({ content: false })).map((item) => item.tag);
 const assistantInput = (body) => ({
   title: String(body.title || '').slice(0, MAX_TITLE),
   content: String(body.content || '').slice(0, MAX_CONTENT),
@@ -426,7 +426,7 @@ router.post('/assist', ensureAuthenticated, ensureAdmin, async (req, res, next) 
   try {
     const { title, content } = assistantInput(req.body);
     const tags = parseTags(req.body.tags);
-    const keywords = assistant.extractKeywords({ title, content, games: await knownGames(), existingTags: existingTagNames(), tags });
+    const keywords = assistant.extractKeywords({ title, content, games: await knownGames(), existingTags: await existingTagNames(), tags });
 
     res.json({
       tags: assistant.suggestTags({ keywords, taken: tags, maxTagLength: MAX_TAG_LENGTH }),
@@ -450,7 +450,7 @@ router.post('/autoformat', ensureAuthenticated, ensureAdmin, async (req, res, ne
   try {
     const { title, content } = assistantInput(req.body);
     if (!content.trim()) return res.json({ content, changed: false, changes: [] });
-    res.json(assistant.autoFormat({ title, content, games: await knownGames(), existingTags: existingTagNames(), tags: parseTags(req.body.tags) }));
+    res.json(assistant.autoFormat({ title, content, games: await knownGames(), existingTags: await existingTagNames(), tags: parseTags(req.body.tags) }));
   } catch (err) {
     next(err);
   }
@@ -482,125 +482,164 @@ router.post('/preview', ensureAuthenticated, ensureAdmin, async (req, res, next)
   }
 });
 
-router.get('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
-  renderForm(res, { formData: { category: DEFAULT_CATEGORY, publishMode: 'now' } });
+router.get('/new', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    await renderForm(res, { formData: { category: DEFAULT_CATEGORY, publishMode: 'now' } });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/new', ensureAuthenticated, ensureAdmin, handleCoverUpload, async (req, res) => {
-  const fields = buildPostFields(req, null);
-  const publication = parsePublication(req, null);
-  const error = validate(fields, req) || publication.error;
-  if (error) {
-    if (fields.uploadedCover) removeUploadedCover(fields.uploadedCover);
-    return renderForm(res, { formData: req.body, error, status: 400 });
+router.post('/new', ensureAuthenticated, ensureAdmin, handleCoverUpload, async (req, res, next) => {
+  let fields;
+  let saved = false;
+  try {
+    fields = buildPostFields(req, null);
+    const publication = parsePublication(req, null);
+    const error = validate(fields, req) || publication.error;
+    if (error) {
+      if (fields.uploadedCover) removeUploadedCover(fields.uploadedCover);
+      return await renderForm(res, { formData: req.body, error, status: 400 });
+    }
+
+    await applyGeneratedCover(fields, null);
+
+    const post = {
+      id: uuidv4(),
+      title: fields.title,
+      author: req.session.user.username,
+      category: fields.category,
+      tags: fields.tags,
+      excerpt: fields.excerpt,
+      content: fields.content,
+      coverImage: fields.coverImage,
+      coverAuto: fields.coverAuto,
+      coverSpec: fields.coverSpec,
+      coverVariant: fields.coverVariant,
+      status: publication.status,
+      publishAt: publication.publishAt,
+      createdAt: new Date().toISOString(),
+    };
+    await savePost(post);
+    saved = true;
+    resetSitemapCache();
+    await logAdminAction(req, 'blog.create', 'blog', post.title, publicationNote(publication));
+
+    req.flash('success', publicationMessage(publication));
+    res.redirect(`/blog/${post.id}`);
+  } catch (err) {
+    // Wpis się nie zapisał - okładka (wgrana albo wygenerowana) nie ma właściciela, więc jej nie zostawiamy na dysku.
+    if (!saved && fields) removeUploadedCover(fields.coverImage);
+    next(err);
   }
-
-  await applyGeneratedCover(fields, null);
-
-  const post = {
-    id: uuidv4(),
-    title: fields.title,
-    author: req.session.user.username,
-    category: fields.category,
-    tags: fields.tags,
-    excerpt: fields.excerpt,
-    content: fields.content,
-    coverImage: fields.coverImage,
-    coverAuto: fields.coverAuto,
-    coverSpec: fields.coverSpec,
-    coverVariant: fields.coverVariant,
-    status: publication.status,
-    publishAt: publication.publishAt,
-    createdAt: new Date().toISOString(),
-  };
-  savePost(post);
-  resetSitemapCache();
-  await logAdminAction(req, 'blog.create', 'blog', post.title, publicationNote(publication));
-
-  req.flash('success', publicationMessage(publication));
-  res.redirect(`/blog/${post.id}`);
 });
 
 /* ------------------------------ EDYCJA ------------------------------ */
 
-router.get('/:id/edit', ensureAuthenticated, ensureAdmin, (req, res, next) => {
-  const post = findPost(req.params.id);
-  if (!post) return next();
-  renderForm(res, { post, formData: formDataFromPost(post) });
+router.get('/:id/edit', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    const post = await findPost(req.params.id);
+    if (!post) return next();
+    await renderForm(res, { post, formData: formDataFromPost(post) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/:id/edit', ensureAuthenticated, ensureAdmin, handleCoverUpload, async (req, res, next) => {
-  const post = findPost(req.params.id);
-  if (!post) return next();
+  let fields;
+  let post;
+  let saved = false;
+  try {
+    post = await findPost(req.params.id);
+    if (!post) {
+      if (req.file) removeUploadedCover(`${UPLOAD_URL_PREFIX}${req.file.filename}`);
+      return next();
+    }
 
-  const fields = buildPostFields(req, post);
-  const publication = parsePublication(req, post);
-  const error = validate(fields, req) || publication.error;
-  if (error) {
-    if (fields.uploadedCover) removeUploadedCover(fields.uploadedCover);
-    return renderForm(res, { post, formData: { ...formDataFromPost(post), ...req.body }, error, status: 400 });
+    fields = buildPostFields(req, post);
+    const publication = parsePublication(req, post);
+    const error = validate(fields, req) || publication.error;
+    if (error) {
+      if (fields.uploadedCover) removeUploadedCover(fields.uploadedCover);
+      return await renderForm(res, { post, formData: { ...formDataFromPost(post), ...req.body }, error, status: 400 });
+    }
+
+    await applyGeneratedCover(fields, post);
+
+    await savePost({
+      ...post,
+      title: fields.title,
+      category: fields.category,
+      tags: fields.tags,
+      excerpt: fields.excerpt,
+      content: fields.content,
+      coverImage: fields.coverImage,
+      coverAuto: fields.coverAuto,
+      coverSpec: fields.wantsAuto ? fields.coverSpec : undefined,
+      coverVariant: fields.wantsAuto || fields.coverAuto ? fields.coverVariant : post.coverVariant,
+      status: publication.status,
+      publishAt: publication.publishAt,
+      updatedAt: new Date().toISOString(),
+    });
+    saved = true;
+
+    // Poprzednia wgrana okładka nie jest już potrzebna, gdy wpis dostał inną (usuwamy ją dopiero po zapisie).
+    if (fields.coverImage !== post.coverImage) removeUploadedCover(post.coverImage);
+
+    resetSitemapCache();
+    await logAdminAction(req, 'blog.edit', 'blog', fields.title, publicationNote(publication));
+
+    const changedVisibility = publication.status === 'draft' || post.state !== 'published';
+    req.flash('success', changedVisibility ? publicationMessage(publication) : 'Zmiany we wpisie zostały zapisane.');
+    res.redirect(`/blog/${post.id}`);
+  } catch (err) {
+    // Zapis się nie udał: nowa okładka nie jest przypisana do wpisu, stara zostaje.
+    if (!saved && fields && post && fields.coverImage !== post.coverImage) removeUploadedCover(fields.coverImage);
+    next(err);
   }
-
-  await applyGeneratedCover(fields, post);
-
-  // Poprzednia wgrana okładka nie jest już potrzebna, gdy wpis dostał inną.
-  if (fields.coverImage !== post.coverImage) removeUploadedCover(post.coverImage);
-
-  savePost({
-    ...post,
-    title: fields.title,
-    category: fields.category,
-    tags: fields.tags,
-    excerpt: fields.excerpt,
-    content: fields.content,
-    coverImage: fields.coverImage,
-    coverAuto: fields.coverAuto,
-    coverSpec: fields.wantsAuto ? fields.coverSpec : undefined,
-    coverVariant: fields.wantsAuto || fields.coverAuto ? fields.coverVariant : post.coverVariant,
-    status: publication.status,
-    publishAt: publication.publishAt,
-    updatedAt: new Date().toISOString(),
-  });
-  resetSitemapCache();
-  await logAdminAction(req, 'blog.edit', 'blog', fields.title, publicationNote(publication));
-
-  const changedVisibility = publication.status === 'draft' || post.state !== 'published';
-  req.flash('success', changedVisibility ? publicationMessage(publication) : 'Zmiany we wpisie zostały zapisane.');
-  res.redirect(`/blog/${post.id}`);
 });
 
 router.post('/:id/delete', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
-  const removed = removePost(req.params.id);
-  if (!removed) return next();
-  await deleteCommentsForPost(removed.id);
-  resetSitemapCache();
-  await logAdminAction(req, 'blog.delete', 'blog', removed.title);
-  req.flash('success', 'Wpis został usunięty.');
-  res.redirect('/blog');
+  try {
+    // removePost usuwa też tagi i komentarze wpisu.
+    const removed = await removePost(req.params.id);
+    if (!removed) return next();
+    resetSitemapCache();
+    await logAdminAction(req, 'blog.delete', 'blog', removed.title);
+    req.flash('success', 'Wpis został usunięty.');
+    res.redirect('/blog');
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ------------------------------ WPIS ------------------------------ */
 
 // Czysty Markdown wpisu (/blog/ID.md) - dla modeli językowych, czytników i archiwizacji.
-router.get('/:id.md', (req, res, next) => {
-  const post = findPost(req.params.id);
-  if (!post || post.state !== 'published') return next();
-  res
-    .type('text/markdown; charset=utf-8')
-    .set('Cache-Control', 'public, max-age=1800')
-    .send(postToMarkdown(post, `${res.locals.siteUrl}/blog/${post.id}`));
+router.get('/:id.md', async (req, res, next) => {
+  try {
+    const post = await findPost(req.params.id);
+    if (!post || post.state !== 'published') return next();
+    res
+      .type('text/markdown; charset=utf-8')
+      .set('Cache-Control', 'public, max-age=1800')
+      .send(postToMarkdown(post, `${res.locals.siteUrl}/blog/${post.id}`));
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const post = findPost(req.params.id);
+    const post = await findPost(req.params.id);
     if (!post) return next();
 
     // Szkic i zaplanowany wpis (jeszcze niepubliczny) widzi tylko administrator.
     const isAdmin = !!(req.session.user && req.session.user.role === 'admin');
     if (post.state !== 'published' && !isAdmin) return next();
 
-    const posts = getPosts();
+    const posts = await getPosts({ content: false });
     const index = posts.findIndex((p) => p.id === post.id);
     const related = posts
       .filter((p) => p.id !== post.id)
@@ -673,7 +712,7 @@ router.get('/:id', async (req, res, next) => {
 // zgłaszanie (routes/reports.js) oraz usuwanie przez autora i administratora.
 router.post('/:id/comments', ensureAuthenticated, blockIfMuted, limiters.comment, async (req, res, next) => {
   try {
-    const post = findPost(req.params.id);
+    const post = await findPost(req.params.id);
     if (!post || post.state !== 'published') return next();
 
     const back = `/blog/${post.id}#comments`;

@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const path = require('path');
+const storage = require('./config/storage');
 const express = require('express');
 const morgan = require('morgan');
 const session = require('express-session');
@@ -51,6 +52,8 @@ if (isProduction) app.set('trust proxy', 1);
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Wgrane pliki z katalogu poza aplikacją (UPLOADS_DIR) udostępniamy pod tym samym adresem /images/..., co pliki z public/.
+if (storage.isCustomRoot) app.use('/images', express.static(storage.UPLOADS_ROOT, { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(

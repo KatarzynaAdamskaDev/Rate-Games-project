@@ -1,0 +1,20 @@
+[
+  {
+    "id": "b1",
+    "title": "5 gier RPG, które musisz znać w tym roku",
+    "author": "Redakcja GameVerse",
+    "coverImage": "/images/blog/rpg-list.svg",
+    "excerpt": "Przygotowaliśmy zestawienie najciekawszych premier RPG ostatnich miesięcy.",
+    "content": "Przygotowaliśmy zestawienie najciekawszych premier RPG ostatnich miesięcy. Od rozbudowanych światów otwartych po kameralne, fabularne perełki - każdy fan gatunku znajdzie coś dla siebie.",
+    "createdAt": "2026-07-01T09:00:00.000Z"
+  },
+  {
+    "id": "b2",
+    "title": "Jak pisać dobre recenzje gier?",
+    "author": "Redakcja GameVerse",
+    "coverImage": "/images/blog/writing-reviews.svg",
+    "excerpt": "Kilka wskazówek, jak podzielić się swoją opinią w sposób pomocny dla innych graczy.",
+    "content": "Dobra recenzja to nie tylko ocena w skali 1-5. To opis doświadczenia - co zaskoczyło, co zawiodło i komu dana gra się spodoba. W tym artykule dzielimy się wskazówkami, jak pisać recenzje, które realnie pomagają innym graczom.",
+    "createdAt": "2026-07-15T09:00:00.000Z"
+  }
+]

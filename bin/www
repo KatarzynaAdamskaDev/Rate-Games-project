@@ -10,6 +10,7 @@ const { purgeOrphanedData } = require('../utils/cleanupHelpers');
 const { startModerationSettings } = require('../utils/moderationSettings');
 const { startModerationCleanup } = require('../utils/moderationStatus');
 const { warmPopularPool } = require('../utils/gamePopularity');
+const { seedBlogIfEmpty } = require('../utils/blogImport');
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
@@ -31,6 +32,8 @@ sequelize
   })
   // sync() nie dodaje nowych kolumn do istniejących tabel - robi to poniższy krok.
   .then(() => addMissingColumns())
+  // Wpisy bloga są w bazie; przy pierwszym starcie wczytujemy je z pliku JSON (dawny magazyn albo wpisy startowe).
+  .then(() => seedBlogIfEmpty())
   // Usuwa dane kont, których już nie ma (recenzje, wiadomości, obserwowania...).
   .then(() => purgeOrphanedData())
   .then((count) => {

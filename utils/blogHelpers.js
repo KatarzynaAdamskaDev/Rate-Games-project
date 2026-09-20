@@ -1,5 +1,5 @@
 /**
- * Wpisy bloga (plik data/blog.json): odczyt, zapis, kategorie, tagi, szkice i zaplanowana publikacja
+ * Wpisy bloga (tabele blog_posts i blog_post_tags): odczyt, zapis, kategorie, tagi, szkice i zaplanowana publikacja
  * oraz bezpieczne renderowanie treści z prostym formatowaniem.
  *
  * Stan wpisu: "draft" (szkic, widzi go tylko administrator), "scheduled" (opublikowany z datą w przyszłości -
@@ -13,11 +13,16 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { readCollection, writeCollection } = require('./dataStore');
+const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
+const BlogPost = require('../models/BlogPost');
+const BlogPostTag = require('../models/BlogPostTag');
+const BlogComment = require('../models/BlogComment');
+const { BLOG_COVER_DIR } = require('../config/storage');
 
 const COVER_PLACEHOLDER = '/images/game-placeholder.svg';
 const UPLOAD_URL_PREFIX = '/images/blog/uploads/';
-const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'images', 'blog', 'uploads');
+const UPLOAD_DIR = BLOG_COVER_DIR;
 
 const CATEGORIES = ['Aktualności', 'Poradniki', 'Zestawienia', 'Recenzje', 'Społeczność', 'Inne'];
 const DEFAULT_CATEGORY = 'Aktualności';
@@ -53,6 +58,13 @@ function postState(post, now = Date.now()) {
   return 'published';
 }
 
+const DEFAULT_AUTHOR = 'Redakcja GameVerse';
+
+/** Czas czytania w minutach (ok. 200 słów na minutę). */
+function readMinutesOf(content) {
+  return Math.max(1, Math.round(String(content || '').split(/\s+/).filter(Boolean).length / 200));
+}
+
 /** Dopełnia pola, których nie mają starsze wpisy (kategoria, czas czytania, tagi, stan publikacji). */
 function normalizePost(post) {
   const content = String(post.content || '');
@@ -67,25 +79,102 @@ function normalizePost(post) {
     // Data, od której wpis jest widoczny (i wg której układamy listę).
     publishedAt: post.publishAt || post.createdAt,
     state: postState(post),
-    readMinutes: Math.max(1, Math.round(content.split(/\s+/).filter(Boolean).length / 200)),
+    readMinutes: post.readMinutes || readMinutesOf(content),
   };
 }
 
-/** Wszystkie wpisy, także szkice i zaplanowane (dla administratora), od najnowszych. */
-function getAllPosts() {
-  return readCollection('blog')
-    .map(normalizePost)
-    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+/* ------------------------- zapis i odczyt (baza danych) ------------------------- */
+
+const toIso = (value) => (value ? new Date(value).toISOString() : null);
+
+function parseSpec(text) {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    return undefined;
+  }
 }
 
-/** Wpisy widoczne dla wszystkich: opublikowane i takie, których termin już minął. */
-function getPosts() {
-  return getAllPosts().filter((post) => post.state === 'published');
+function rowToPost(row, tags) {
+  const data = row.get ? row.get({ plain: true }) : row;
+  return normalizePost({
+    id: data.id,
+    title: data.title,
+    author: data.author,
+    category: data.category,
+    excerpt: data.excerpt,
+    content: data.content,
+    readMinutes: data.readMinutes,
+    coverImage: data.coverImage || undefined,
+    coverAuto: !!data.coverAuto,
+    coverSpec: parseSpec(data.coverSpec),
+    coverVariant: data.coverVariant,
+    status: data.status,
+    publishAt: toIso(data.publishAt),
+    createdAt: toIso(data.createdAt),
+    updatedAt: toIso(data.updatedAt) || undefined,
+    tags,
+  });
+}
+
+const TAG_QUERY_CHUNK = 400;
+
+/** Tagi wpisów: Map(id wpisu -> [tag, ...]) w kolejności z formularza. */
+async function loadTags(ids) {
+  const byPost = new Map();
+  for (let i = 0; i < ids.length; i += TAG_QUERY_CHUNK) {
+    const rows = await BlogPostTag.findAll({
+      where: { postId: ids.slice(i, i + TAG_QUERY_CHUNK) },
+      order: [['position', 'ASC'], ['id', 'ASC']],
+      raw: true,
+    });
+    rows.forEach((row) => {
+      if (!byPost.has(row.postId)) byPost.set(row.postId, []);
+      byPost.get(row.postId).push(row.tag);
+    });
+  }
+  return byPost;
+}
+
+/** Wpisy od najnowszych; content: false pomija treść (listy jej nie potrzebują, a czas czytania jest zapisany). */
+async function loadPosts({ where, limit, content = true } = {}) {
+  const rows = await BlogPost.findAll({
+    where,
+    limit,
+    attributes: content ? undefined : { exclude: ['content'] },
+    order: [['publishedAt', 'DESC'], ['createdAt', 'DESC']],
+  });
+  const tags = await loadTags(rows.map((row) => row.id));
+  return rows.map((row) => rowToPost(row, tags.get(row.id) || []));
+}
+
+/** Warunek "widoczny dla wszystkich": nie szkic i bez terminu w przyszłości. */
+function publishedWhere(now = new Date()) {
+  return { status: { [Op.ne]: 'draft' }, [Op.or]: [{ publishAt: null }, { publishAt: { [Op.lte]: now } }] };
+}
+
+/** Wszystkie wpisy, także szkice i zaplanowane (dla administratora), od najnowszych. */
+function getAllPosts(options = {}) {
+  return loadPosts(options);
+}
+
+/** Wpisy widoczne dla wszystkich: opublikowane i takie, których termin już minął. Opcje: { limit, content }. */
+function getPosts(options = {}) {
+  return loadPosts({ ...options, where: publishedWhere() });
+}
+
+/** Liczba wpisów: wszystkich albo tylko widocznych dla wszystkich ({ published: true }). */
+function countPosts({ published = false } = {}) {
+  return BlogPost.count({ where: published ? publishedWhere() : undefined });
 }
 
 /** Wpis po id w dowolnym stanie (do edycji i podglądu przez administratora). */
-function findPost(id) {
-  return getAllPosts().find((post) => post.id === id) || null;
+async function findPost(id) {
+  if (!id) return null;
+  const row = await BlogPost.findByPk(String(id).slice(0, 64));
+  if (!row) return null;
+  return rowToPost(row, (await loadTags([row.id])).get(row.id) || []);
 }
 
 /** Tagi z liczbą wpisów, od najczęstszych: [{ tag, key, count }]. */
@@ -102,23 +191,68 @@ function countTags(posts) {
   return [...map.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'pl'));
 }
 
-/** Zapisuje nowy albo istniejący wpis (po id). */
-function savePost(post) {
-  const posts = readCollection('blog');
-  const index = posts.findIndex((p) => p.id === post.id);
-  // Pola wyliczane przy odczycie (czas czytania, stan, data publikacji) nie trafiają do pliku.
-  const { readMinutes, state, publishedAt, ...toStore } = post;
-  if (index === -1) posts.push(toStore);
-  else posts[index] = toStore;
-  writeCollection('blog', posts);
+// Zapisy wpisów wykonujemy po kolei: dwa równoległe zapisy tego samego wpisu nie pomieszają jego tagów,
+// a lokalny SQLite nie zgłasza błędu "database is locked".
+let writeQueue = Promise.resolve();
+function inWriteQueue(task) {
+  const run = writeQueue.then(task, task);
+  writeQueue = run.catch(() => {});
+  return run;
 }
 
-/** Usuwa wpis wraz z wgraną okładką (okładki podane jako adres zostają bez zmian). */
-function removePost(id) {
-  const posts = readCollection('blog');
-  const post = posts.find((p) => p.id === id);
+/** Zapisuje nowy albo istniejący wpis (po id); wpis i jego tagi zapisują się razem, w jednej transakcji. */
+function savePost(post) {
+  return inWriteQueue(() => writePost(post));
+}
+
+async function writePost(post) {
+  const content = String(post.content || '');
+  const createdAt = post.createdAt ? new Date(post.createdAt) : new Date();
+  const publishAt = post.publishAt ? new Date(post.publishAt) : null;
+  const tags = parseTags(post.tags);
+  const values = {
+    title: String(post.title || ''),
+    author: post.author || DEFAULT_AUTHOR,
+    category: CATEGORIES.includes(post.category) ? post.category : DEFAULT_CATEGORY,
+    excerpt: String(post.excerpt || content.slice(0, 140)),
+    content,
+    readMinutes: readMinutesOf(content),
+    coverImage: post.coverImage || null,
+    coverAuto: !!post.coverAuto,
+    coverSpec: post.coverSpec ? JSON.stringify(post.coverSpec) : null,
+    coverVariant: Number.isInteger(post.coverVariant) ? post.coverVariant : 0,
+    status: post.status === 'draft' ? 'draft' : 'published',
+    publishAt,
+    publishedAt: publishAt || createdAt,
+    updatedAt: post.updatedAt ? new Date(post.updatedAt) : null,
+  };
+
+  await sequelize.transaction(async (transaction) => {
+    const existing = await BlogPost.findByPk(post.id, { transaction });
+    if (existing) await existing.update(values, { transaction });
+    else await BlogPost.create({ id: post.id, createdAt, ...values }, { transaction });
+
+    await BlogPostTag.destroy({ where: { postId: post.id }, transaction });
+    if (tags.length) {
+      await BlogPostTag.bulkCreate(
+        tags.map((tag, position) => ({ postId: post.id, tag, tagKey: tagKey(tag), position })),
+        { transaction },
+      );
+    }
+  });
+}
+
+/** Usuwa wpis razem z tagami i komentarzami oraz wgraną okładką (okładki podane jako adres zostają bez zmian). */
+async function removePost(id) {
+  const post = await findPost(id);
   if (!post) return null;
-  writeCollection('blog', posts.filter((p) => p.id !== id));
+  await inWriteQueue(() =>
+    sequelize.transaction(async (transaction) => {
+      await BlogComment.destroy({ where: { postId: post.id }, transaction });
+      await BlogPostTag.destroy({ where: { postId: post.id }, transaction });
+      await BlogPost.destroy({ where: { id: post.id }, transaction });
+    }),
+  );
   removeUploadedCover(post.coverImage);
   return post;
 }
@@ -306,6 +440,7 @@ module.exports = {
   postState,
   countTags,
   getAllPosts,
+  countPosts,
   COVER_PLACEHOLDER,
   UPLOAD_DIR,
   UPLOAD_URL_PREFIX,

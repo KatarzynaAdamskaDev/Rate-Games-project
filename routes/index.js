@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-const { getPosts } = require('../utils/blogHelpers');
 const { SITE } = require('../utils/siteFacts');
 const { organizationLd } = require('../utils/seo');
 const {
@@ -56,9 +55,6 @@ router.get('/', async (req, res, next) => {
       getOverallStats(),
     ]);
 
-    // Tylko wpisy już opublikowane (bez szkiców i zaplanowanych).
-    const latestPosts = getPosts().slice(0, 3);
-
     res.render('index', {
       title: 'GameVerse - opinie o grach',
       seo: {
@@ -85,7 +81,6 @@ router.get('/', async (req, res, next) => {
       trending,
       weeklyReview,
       stats,
-      latestPosts,
     });
   } catch (err) {
     next(err);

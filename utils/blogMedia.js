@@ -9,9 +9,10 @@ const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const BlogMedia = require('../models/BlogMedia');
 const { sanitizeImage } = require('./imageSafety');
-const { getAllPosts } = require('./blogHelpers');
+const { Op } = require('sequelize');
+const BlogPost = require('../models/BlogPost');
 
-const MEDIA_DIR = path.join(__dirname, '..', 'public', 'images', 'blog', 'media');
+const { BLOG_MEDIA_DIR: MEDIA_DIR } = require('../config/storage');
 const MEDIA_URL_PREFIX = '/images/blog/media/';
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_SIZE = 2400; // dłuższy bok po zmniejszeniu (infografiki bywają wysokie)
@@ -64,10 +65,14 @@ async function updateMedia(id, { alt, caption }) {
 }
 
 /** Tytuły wpisów (także szkiców), w których użyto obrazu. */
-function mediaUsage(url) {
-  return getAllPosts()
-    .filter((post) => String(post.content || '').includes(url) || post.coverImage === url)
-    .map((post) => post.title);
+async function mediaUsage(url) {
+  // LIKE zawęża wyniki w bazie, a dokładne dopasowanie (znaki % i _ w adresie) sprawdzamy jeszcze w kodzie.
+  const rows = await BlogPost.findAll({
+    where: { [Op.or]: [{ coverImage: url }, { content: { [Op.like]: `%${url}%` } }] },
+    attributes: ['title', 'content', 'coverImage'],
+    order: [['publishedAt', 'DESC']],
+  });
+  return rows.filter((post) => post.coverImage === url || String(post.content || '').includes(url)).map((post) => post.title);
 }
 
 async function removeMedia(id) {

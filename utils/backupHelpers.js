@@ -15,7 +15,6 @@ const BlogComment = require('../models/BlogComment');
 const ReviewReport = require('../models/ReviewReport');
 const ContentReport = require('../models/ContentReport');
 const AdminLog = require('../models/AdminLog');
-const { readCollection } = require('./dataStore');
 const { toCsv } = require('./csv');
 
 const EXPORTS = {
@@ -177,7 +176,6 @@ async function buildJsonBackup() {
     dialect: sequelize.getDialect(),
     counts,
     tables,
-    files: { blog: readCollection('blog') },
   };
   return { filename: `gameverse-backup-${timestamp()}.json`, content: JSON.stringify(payload, null, 2), counts };
 }

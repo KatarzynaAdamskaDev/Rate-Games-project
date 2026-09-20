@@ -97,7 +97,7 @@ async function collectUrls(base) {
     if (!urls.has(loc)) urls.set(loc, { lastmod: lastmod ? isoDate(lastmod) : undefined, changefreq, priority });
   };
 
-  const posts = getPosts();
+  const posts = await getPosts({ content: false });
   add('/', { changefreq: 'daily', priority: '1.0' });
   add('/games', { changefreq: 'daily', priority: '0.9' });
   add('/reviews', { changefreq: 'daily', priority: '0.8' });
@@ -197,7 +197,7 @@ function gameLine(base, game, withDescription) {
 
 async function buildLlmsTxt(base) {
   const [games, stats] = await Promise.all([popularGamesWithRatings(LLMS_GAMES), getSiteStats()]);
-  const posts = getPosts().slice(0, 10);
+  const posts = await getPosts({ limit: 10, content: false });
 
   const lines = [
     `# ${SITE.name}`,
@@ -240,7 +240,7 @@ async function buildLlmsTxt(base) {
 
 async function buildLlmsFullTxt(base) {
   const [games, stats] = await Promise.all([popularGamesWithRatings(LLMS_FULL_GAMES), getSiteStats()]);
-  const posts = getPosts().slice(0, LLMS_FULL_POSTS);
+  const posts = await getPosts({ limit: LLMS_FULL_POSTS });
 
   const lines = [
     `# ${SITE.name} - pełny opis dla modeli językowych`,
@@ -299,8 +299,8 @@ router.get('/llms-full.txt', async (req, res, next) => {
 
 /* ------------------------------ feed.xml (RSS) ------------------------------ */
 
-function buildFeed(base) {
-  const posts = getPosts().slice(0, FEED_ITEMS);
+async function buildFeed(base) {
+  const posts = await getPosts({ limit: FEED_ITEMS });
   const cdata = (html) => `<![CDATA[${String(html).replace(/\]\]>/g, ']]]]><![CDATA[>')}]]>`;
 
   const items = posts
@@ -345,7 +345,7 @@ ${items}
 router.get('/feed.xml', async (req, res, next) => {
   try {
     const base = siteBase(req);
-    const xml = await cached(`feed:${base}`, async () => buildFeed(base));
+    const xml = await cached(`feed:${base}`, () => buildFeed(base));
     res.type('application/rss+xml; charset=utf-8').set('Cache-Control', 'public, max-age=1800').send(xml);
   } catch (err) {
     next(err);

@@ -13,7 +13,8 @@ gameverse/
 ├── views/               # szablony EJS (partials, auth, games, blog)
 ├── models/              # modele Sequelize (użytkownicy, recenzje, czat, powiadomienia...)
 ├── utils/               # logika aplikacji (katalog gier IGDB, statystyki, profile, czat)
-├── data/                # blog.json oraz lokalna baza SQLite (dev.sqlite3)
+├── config/              # baza danych (database.js) i katalogi wgrywanych plików (storage.js)
+├── data/                # lokalna baza SQLite (dev.sqlite3, poza repozytorium) i wpisy startowe bloga (blog.seed.json)
 ├── app.js               # konfiguracja aplikacji Express
 ├── scripts/setup.js     # npm run setup - instalacja wszystkiego jedną komendą
 ├── create-admin.js      # skrypt CLI do utworzenia konta administratora
@@ -75,6 +76,9 @@ Uzupełnij go po instalacji (wzór: `.env.example`):
   (https://www.google.com/recaptcha/admin/create). Puste = rejestracja bez realnej weryfikacji captchy.
 - `EMAIL_USER` / `EMAIL_PASS` - opcjonalnie, konto Gmail i hasło aplikacji do maili z resetem hasła.
 - `AZURE_SQL_*` i `NODE_ENV=production` - tylko na produkcji (baza Azure SQL).
+- `UPLOADS_DIR` - opcjonalnie, katalog na pliki wgrywane przez użytkowników (awatary, okładki, zdjęcia z bloga,
+  okładki gier). Puste = `public/images`. Na serwerze wdrażanym paczką ustaw trwały katalog poza aplikacją
+  (Azure App Service: `/home/uploads`) - patrz "Wdrożenie na Azure".
 
 ## Uruchomienie
 
@@ -148,10 +152,37 @@ w `.env`); gry dodane ręcznie przez administratora trafiają do tabeli
 (np. "CS2") uruchamia podpowiedzi z IGDB: po wybraniu gry formularz sam uzupełnia platformy, rok,
 kategorię, opis i okładkę (okładka jest pobierana, sprawdzana i zapisywana lokalnie jako WebP).
 Bez kluczy IGDB formularz działa jak dotychczas - dane wpisuje się ręcznie.
-Jedynie wpisy na blogu są nadal w pliku `data/blog.json`.
+Wpisy na blogu też są w bazie: tabele `blog_posts` (treść, okładka, status, termin publikacji) i `blog_post_tags`
+(tagi), a komentarze pod wpisami w `blog_comments`. Usunięcie wpisu kasuje jego tagi, komentarze i wgraną okładkę.
+Dawny plik `data/blog.json` nie jest już używany na bieżąco: przy pierwszym starcie z pustą tabelą aplikacja
+jednorazowo wczytuje z niego wpisy (a gdy go nie ma - dwa wpisy startowe z `data/blog.seed.json`). Wpisy z innego
+pliku, także do bazy produkcyjnej (z `.env` albo zmiennymi `AZURE_SQL_*`), wczytasz ręcznie:
+
+```bash
+npm run blog:import -- sciezka/do/blog.json            # pomija wpisy, które już są w bazie
+npm run blog:import -- sciezka/do/blog.json --overwrite # nadpisuje wpisy o tych samych id
+```
+
+Kopia zapasowa z panelu admina (JSON) obejmuje tabele bloga razem z resztą bazy.
 
 Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
 zapisywane jawnie.
+
+## Wdrożenie na Azure (App Service)
+
+Workflow `.github/workflows/main_gameverse.yml` wdraża całą paczkę (kod bez plików z `.gitignore`) po każdym pushu
+do `main`. Katalog aplikacji jest przy tym podmieniany (a przy włączonym `WEBSITE_RUN_FROM_PACKAGE` jest tylko do
+odczytu), więc **niczego, co ma przetrwać wdrożenie, nie wolno trzymać w plikach aplikacji**. Dlatego:
+
+- dane (użytkownicy, recenzje, wpisy bloga, komentarze, sesje) są w Azure SQL - `NODE_ENV=production` i `AZURE_SQL_*`
+  w Ustawieniach aplikacji (Configuration -> Application settings),
+- pliki wgrywane przez użytkowników mają trwały katalog poza aplikacją: ustaw `UPLOADS_DIR=/home/uploads`
+  (Linux; katalog `/home` App Service jest trwały i wspólny dla instancji). Aplikacja poda te pliki pod tymi samymi
+  adresami `/images/...`,
+- ustaw też `SESSION_SECRET`, `SITE_URL` oraz klucze IGDB.
+
+Pierwszy start po wdrożeniu tworzy brakujące tabele (także `blog_posts` i `blog_post_tags`) i wczytuje wpisy startowe.
+Własne wpisy z komputera przenieś poleceniem `npm run blog:import` (patrz "Dane").
 
 ## Funkcje
 
@@ -209,8 +240,7 @@ zapisywane jawnie.
 ## Czego brakuje / co warto dodać dalej
 
 - Realna wysyłka e-maili przy resecie hasła (np. `nodemailer`)
-- Upload obrazków (obecnie okładki gier/wpisów to ścieżki do plików w `public/images`)
+- Pliki wgrywane przez użytkowników leżą na dysku serwera (`UPLOADS_DIR`); docelowo warto przenieść je do Azure Blob
+  Storage (zapis idzie przez jedno miejsce w kodzie: funkcje zapisujące przekodowany obraz w `routes/` i `utils/blogMedia.js`)
 - Edycja/usuwanie własnych opinii
 - Paginacja przy większej liczbie gier/wpisów
-- Migracja z plików JSON na prawdziwą bazę danych, gdy liczba użytkowników wzrośnie
-  (obecne rozwiązanie nie jest bezpieczne przy równoczesnym zapisie z wielu procesów)

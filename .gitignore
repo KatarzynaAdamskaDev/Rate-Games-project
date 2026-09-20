@@ -5,6 +5,8 @@ node_modules/
 .env..local
 
 data/dev.sqlite3
+# Dawny magazyn wpisów bloga (teraz są w bazie danych; plik wczytywany jest jednorazowo przy starcie)
+data/blog.json
 data/dev.sqlite3-journal
 
 npm-debug.log

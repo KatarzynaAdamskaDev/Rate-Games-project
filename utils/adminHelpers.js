@@ -14,7 +14,7 @@ const ContentReport = require('../models/ContentReport');
 const CustomGame = require('../models/CustomGame');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
-const { readCollection } = require('./dataStore');
+const { countPosts } = require('./blogHelpers');
 const { activeBanWhere } = require('./moderationStatus');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -92,7 +92,7 @@ async function getDashboardStats() {
 
   const [
     users, admins, banned, reviews, comments, likes, pendingReports,
-    customGames, conversations, messages, newUsers, newReviews, userRows, reviewRows,
+    customGames, conversations, messages, newUsers, newReviews, userRows, reviewRows, blogPosts,
   ] = await Promise.all([
     User.count(),
     User.count({ where: { role: 'admin' } }),
@@ -111,12 +111,13 @@ async function getDashboardStats() {
     Review.count({ where: { createdAt: { [Op.gte]: weekAgo } } }),
     User.findAll({ where: { createdAt: { [Op.gte]: chartSince } }, attributes: ['createdAt'], raw: true }),
     Review.findAll({ where: { createdAt: { [Op.gte]: chartSince } }, attributes: ['createdAt'], raw: true }),
+    countPosts(),
   ]);
 
   return {
     users, admins, banned, reviews, comments, likes, pendingReports,
     customGames, conversations, messages, newUsers, newReviews,
-    blogPosts: readCollection('blog').length,
+    blogPosts,
     usersChart: bucketByDay(userRows, chartDays),
     reviewsChart: bucketByDay(reviewRows, chartDays),
   };

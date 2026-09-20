@@ -56,7 +56,7 @@ function settingsUrl(tab) {
 
 /* --------------------------- UPLOAD AWATARA --------------------------- */
 
-const AVATAR_DIR = path.join(__dirname, '..', 'public', 'images', 'avatars');
+const { AVATAR_DIR } = require('../config/storage');
 // Git nie przechowuje pustych katalogów, więc na świeżym klonie projektu
 // katalog nie istnieje, a multer nie tworzy go sam (błąd ENOENT przy uploadzie).
 fs.mkdirSync(AVATAR_DIR, { recursive: true });

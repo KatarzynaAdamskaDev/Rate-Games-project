@@ -51,7 +51,7 @@ const SiteSetting = require('../models/SiteSetting');
 const AdminIdea = require('../models/AdminIdea');
 const { IDEAS, AREAS, DECISIONS, findIdea } = require('../utils/adminIdeas');
 const { getAllPosts, removePost: removeBlogPost } = require('../utils/blogHelpers');
-const { deleteCommentsForPost: deleteBlogComments, countCommentsForPosts: countBlogComments } = require('../utils/blogCommentHelpers');
+const { countCommentsForPosts: countBlogComments } = require('../utils/blogCommentHelpers');
 
 const PAGE_SIZE = 15;
 
@@ -874,7 +874,7 @@ router.get('/comments', async (req, res, next) => {
 
     let comments;
     if (source === 'blog') {
-      const titles = new Map(getAllPosts().map((post) => [post.id, post.title]));
+      const titles = new Map((await getAllPosts({ content: false })).map((post) => [post.id, post.title]));
       comments = rows.map((c) => ({ ...c, link: `/blog/${c.postId}#comment-${c.id}`, where: titles.get(c.postId) || null }));
     } else {
       const reviews = await Review.findAll({ where: { id: rows.map((c) => c.reviewId) }, attributes: ['id', 'gameId'] });
@@ -943,7 +943,7 @@ router.get('/games', async (req, res, next) => {
 
 /* ---- formularz gry: okładka wgrywana jako plik, platformy i rok do wyboru ---- */
 
-const GAME_COVER_DIR = path.join(__dirname, '..', 'public', 'images', 'games', 'uploads');
+const { GAME_COVER_DIR } = require('../config/storage');
 const GAME_COVER_URL = '/images/games/uploads/';
 const COVER_PLACEHOLDER = '/images/game-placeholder.svg';
 fs.mkdirSync(GAME_COVER_DIR, { recursive: true });
@@ -1143,7 +1143,7 @@ router.post('/games/:id/delete', async (req, res, next) => {
 
 router.get('/blog', async (req, res, next) => {
   try {
-    const all = getAllPosts();
+    const all = await getAllPosts({ content: false });
     const filter = ['draft', 'scheduled', 'published'].includes(req.query.state) ? req.query.state : '';
     const stateCounts = { draft: 0, scheduled: 0, published: 0 };
     all.forEach((post) => {
@@ -1157,16 +1157,20 @@ router.get('/blog', async (req, res, next) => {
   }
 });
 
-router.post('/blog/:id/delete', async (req, res) => {
-  const post = removeBlogPost(req.params.id);
-  if (!post) {
-    req.flash('error', 'Nie znaleziono wpisu.');
-    return res.redirect('/admin/blog');
+router.post('/blog/:id/delete', async (req, res, next) => {
+  try {
+    // removePost usuwa też tagi i komentarze wpisu.
+    const post = await removeBlogPost(req.params.id);
+    if (!post) {
+      req.flash('error', 'Nie znaleziono wpisu.');
+      return res.redirect('/admin/blog');
+    }
+    await logAdminAction(req, 'blog.delete', 'blog', post.title);
+    req.flash('success', 'Wpis został usunięty.');
+    res.redirect('/admin/blog');
+  } catch (err) {
+    next(err);
   }
-  await deleteBlogComments(post.id);
-  await logAdminAction(req, 'blog.delete', 'blog', post.title);
-  req.flash('success', 'Wpis został usunięty.');
-  res.redirect('/admin/blog');
 });
 
 /* ------------------------------ czat (moderacja) ------------------------------ */

@@ -8,7 +8,8 @@
     "dev": "nodemon ./bin/www",
     "setup": "node scripts/setup.js",
     "create-admin": "node create-admin.js",
-    "set-level": "node set-level.js"
+    "set-level": "node set-level.js",
+    "blog:import": "node scripts/import-blog.js"
   },
   "dependencies": {
     "axios": "^1.20.0",
