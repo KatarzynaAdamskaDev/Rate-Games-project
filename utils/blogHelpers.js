@@ -144,6 +144,11 @@ function escapeHtml(text) {
 /** Formatowanie w obrębie linii (tekst jest już zabezpieczony przed HTML). */
 function inline(escaped) {
   return escaped
+    // Obraz w tekście: ![opis](/images/... albo https://...). Tekst jest już zescapowany, więc cudzysłów nie wyjdzie z atrybutu.
+    .replace(
+      /!\[([^\]]*)\]\((\/(?!\/)[^\s)]*|https:\/\/[^\s)]+)\)/g,
+      '<img src="$2" alt="$1" class="gv-inline-img" loading="lazy" decoding="async">',
+    )
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     // Linki wewnętrzne (np. do gry z katalogu: [Elden Ring](/games/123)) otwierają się w tej samej karcie.
     .replace(/\[([^\]]+)\]\((\/(?!\/)[^\s)]*)\)/g, '<a href="$2">$1</a>')
@@ -151,14 +156,93 @@ function inline(escaped) {
     .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
 }
 
-/** Zamienia treść wpisu na bezpieczny HTML. */
-function renderContent(text) {
+/* --- rozszerzenia edytora (mini CMS): zdjęcia, filmy, karty gier, ramki --- */
+
+// Adres obrazka: własny plik serwisu (/...) albo https - żadnych innych schematów (np. javascript:).
+const SAFE_SRC = /^(?:\/(?!\/)[^\s"'<>]*|https:\/\/[^\s"'<>]+)$/;
+const IMAGE_BLOCK = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{([a-z]+)\})?$/;
+const IMAGE_ANY = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+const IMAGE_LAYOUTS = new Set(['wide', 'small', 'left', 'right']);
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
+const GAME_EMBED = /^\[\[game:([A-Za-z0-9-]{1,40})\]\]$/;
+const CALLOUTS = {
+  INFO: { label: 'Warto wiedzieć', icon: 'bi-info-circle-fill' },
+  TIP: { label: 'Wskazówka', icon: 'bi-lightbulb-fill' },
+  WARNING: { label: 'Uwaga', icon: 'bi-exclamation-triangle-fill' },
+  NOTE: { label: 'Notatka', icon: 'bi-journal-text' },
+};
+
+/** Zdjęcia użyte w treści: [{ alt, src }] (do oceny SEO i danych strukturalnych). */
+function extractImages(content) {
+  return [...String(content || '').matchAll(IMAGE_ANY)]
+    .map((match) => ({ alt: match[1].trim(), src: match[2] }))
+    .filter((image) => SAFE_SRC.test(image.src));
+}
+
+/** Identyfikatory gier wstawionych jako karty ([[game:ID]]). */
+function collectGameEmbeds(content) {
+  const ids = [];
+  String(content || '')
+    .split(/\n/)
+    .forEach((line) => {
+      const match = line.trim().match(GAME_EMBED);
+      if (match && !ids.includes(match[1])) ids.push(match[1]);
+    });
+  return ids;
+}
+
+function figureHtml(match) {
+  const [, alt, src, caption, layout] = match;
+  if (!SAFE_SRC.test(src)) return `<p>${escapeHtml(alt)}</p>`;
+  const size = IMAGE_LAYOUTS.has(layout) ? layout : 'center';
+  const image = `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`;
+  const text = caption ? `<figcaption>${inline(escapeHtml(caption))}</figcaption>` : '';
+  return `<figure class="gv-fig gv-fig-${size}"><a href="${escapeHtml(src)}" class="gv-fig-zoom" data-zoom title="Powiększ zdjęcie">${image}</a>${text}</figure>`;
+}
+
+function gameCardHtml(id, game) {
+  const href = `/games/${encodeURIComponent(id)}`;
+  if (!game) return `<p><a href="${href}">Zobacz grę w katalogu GameVerse</a></p>`;
+  const rating = game.averageRating ? `Ocena graczy: ${game.averageRating}/5 (${game.reviewCount})` : 'Jeszcze bez ocen graczy';
+  const facts = [game.platform, game.releaseYear && game.releaseYear !== 'Brak danych' ? game.releaseYear : null].filter(Boolean).join(' · ');
+  return (
+    `<a class="gv-gamecard" href="${href}">` +
+    `<img src="${escapeHtml(game.coverImage)}" alt="Okładka gry ${escapeHtml(game.title)}" loading="lazy" decoding="async">` +
+    `<span class="gv-gamecard-body"><b>${escapeHtml(game.title)}</b><small>${escapeHtml(facts)}</small><em>${escapeHtml(rating)}</em></span>` +
+    `<span class="gv-gamecard-cta">Zobacz w katalogu <i class="bi bi-arrow-right"></i></span></a>`
+  );
+}
+
+/**
+ * Zamienia treść wpisu na bezpieczny HTML.
+ * @param {string} text treść w Markdownie wpisów
+ * @param {{ games?: Map<string, object> }} [options] gry do kart ([[game:ID]]) - wczytuje je trasa przed renderowaniem
+ */
+function renderContent(text, options = {}) {
+  const games = options.games || new Map();
   const blocks = String(text || '').replace(/\r\n/g, '\n').trim().split(/\n{2,}/);
 
   return blocks
     .map((block) => {
       const lines = block.split('\n').map((line) => line.trimEnd());
       const first = lines[0];
+      const single = lines.length === 1 ? first.trim() : '';
+
+      if (single && /^(?:-{3,}|\*{3,}|_{3,})$/.test(single)) return '<hr>';
+
+      const image = single && single.match(IMAGE_BLOCK);
+      if (image) return figureHtml(image);
+
+      const video = single && single.match(/^@\[youtube\]\(([^)\s]+)\)$/);
+      if (video && YOUTUBE_ID.test(video[1])) {
+        return (
+          `<div class="gv-embed"><iframe src="https://www.youtube-nocookie.com/embed/${video[1]}" title="Film z YouTube" ` +
+          'loading="lazy" allow="accelerometer; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>'
+        );
+      }
+
+      const embed = single && single.match(GAME_EMBED);
+      if (embed) return gameCardHtml(embed[1], games.get(embed[1]));
 
       if (/^##\s+/.test(first)) {
         const heading = `<h2>${inline(escapeHtml(first.replace(/^##\s+/, '')))}</h2>`;
@@ -172,7 +256,17 @@ function renderContent(text) {
         return `<ol>${lines.map((line) => `<li>${inline(escapeHtml(line.replace(/^\d+\.\s+/, '')))}</li>`).join('')}</ol>`;
       }
       if (lines.every((line) => /^>\s?/.test(line))) {
-        return `<blockquote>${inline(escapeHtml(lines.map((line) => line.replace(/^>\s?/, '')).join('\n'))).replace(/\n/g, '<br>')}</blockquote>`;
+        const quoted = lines.map((line) => line.replace(/^>\s?/, ''));
+        const callout = quoted[0].match(/^\[!(INFO|TIP|WARNING|NOTE)\]\s*(.*)$/i);
+        if (callout) {
+          const kind = CALLOUTS[callout[1].toUpperCase()];
+          const body = [callout[2], ...quoted.slice(1)].join('\n').trim();
+          return (
+            `<aside class="gv-callout gv-callout-${callout[1].toLowerCase()}"><i class="bi ${kind.icon}"></i>` +
+            `<div><b>${kind.label}</b><p>${inline(escapeHtml(body)).replace(/\n/g, '<br>')}</p></div></aside>`
+          );
+        }
+        return `<blockquote>${inline(escapeHtml(quoted.join('\n'))).replace(/\n/g, '<br>')}</blockquote>`;
       }
       return `<p>${inline(escapeHtml(lines.join('\n'))).replace(/\n/g, '<br>')}</p>`;
     })
@@ -200,6 +294,8 @@ function postToMarkdown(post, url) {
 }
 
 module.exports = {
+  extractImages,
+  collectGameEmbeds,
   postToMarkdown,
   CATEGORIES,
   DEFAULT_CATEGORY,

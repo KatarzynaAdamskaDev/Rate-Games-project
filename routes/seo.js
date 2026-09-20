@@ -307,7 +307,9 @@ function buildFeed(base) {
     .map((post) => {
       const link = `${base}/blog/${encodeURIComponent(post.id)}`;
       const cover = post.coverImage.startsWith('http') ? post.coverImage : `${base}${post.coverImage}`;
-      const html = `<p><img src="${cover}" alt="${escapeXml(post.title)}"></p>\n${renderContent(post.content)}`;
+      // W kanale RSS adresy muszą być bezwzględne (czytnik nie zna adresu serwisu).
+      const body = renderContent(post.content).replace(/(src|href)="\/(?!\/)/g, `$1="${base}/`);
+      const html = `<p><img src="${cover}" alt="${escapeXml(post.title)}"></p>\n${body}`;
       return [
         '    <item>',
         `      <title>${escapeXml(post.title)}</title>`,

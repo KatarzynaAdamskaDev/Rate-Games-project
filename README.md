@@ -182,6 +182,11 @@ zapisywane jawnie.
 - Okładki bloga tworzone automatycznie (`utils/blogCoverGenerator.js`): grafika 1200x630 z tytułu, kategorii i tagów -
   kolory zależą od kategorii, wzór tła od tytułu, przycisk "Inny wariant" losuje nowy wygląd. Działa bez zewnętrznych
   usług i tak samo na każdym serwerze (tekst jest zamieniany na krzywe). Własny plik lub adres zastępuje okładkę
+- Edytor wpisów jako mini CMS (`/blog/new`): zdjęcia i infografiki z tekstem alternatywnym, podpisem i układem (wgrywane
+  z komputera, wklejane ze schowka albo z biblioteki multimediów - `utils/blogMedia.js`, pliki sprawdzane i zapisywane jako
+  WebP), okno linków z wyszukiwarką gier z katalogu, karty gier (`[[game:ID]]`), filmy YouTube w trybie prywatności
+  (`@[youtube](ID)`), ramki (`> [!TIP] ...`), linia pozioma i powiększanie zdjęć we wpisie. Składnia zdjęcia:
+  `![opis](/images/...  "podpis"){wide}` (układy: wide, small, left, right)
 - Asystent SEO w edytorze wpisów (`utils/seoAssistant.js`, liczony lokalnie, bez zewnętrznych usług): propozycje tagów
   z treści (tytuły gier z katalogu, platformy, gatunki, nazwy własne, powtarzające się frazy), ocena SEO z listą
   kontrolną i podpowiedziami oraz przycisk "Formatuj pod SEO" - pogrubia pierwsze wystąpienie najważniejszych fraz,

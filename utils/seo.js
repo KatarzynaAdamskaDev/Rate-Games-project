@@ -10,6 +10,9 @@ const DEFAULT_IMAGE = '/images/og-default.png';
 /** Zwykły tekst do opisu: bez formatowania (Markdown wpisów), w jednej linii, ucięty na granicy słowa. */
 function plainText(text, max = 200) {
   const clean = String(text || '')
+    .replace(/^\s*(?:!\[[^\]]*\]\([^)]*\)(?:\{[a-z]+\})?|@\[youtube\]\([^)]*\)|\[\[game:[^\]]*\]\]|-{3,})\s*$/gm, ' ')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/^\s*>\s*\[![A-Z]+\]\s*/gm, '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/^\s*(?:#{1,6}|>|[-*]|\d+\.)\s+/gm, '')
     .replace(/[*_`]+/g, '')

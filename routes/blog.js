@@ -18,6 +18,9 @@ const { plainText, isoDate, breadcrumbLd } = require('../utils/seo');
 const { generateBlogCover } = require('../utils/blogCoverGenerator');
 const assistant = require('../utils/seoAssistant');
 const { getPopularPool } = require('../utils/gamePopularity');
+const { getGamesByIds } = require('../utils/gameCatalog');
+const { withRatings } = require('../utils/gameHelpers');
+const media = require('../utils/blogMedia');
 const CustomGame = require('../models/CustomGame');
 const { resetSitemapCache } = require('./seo');
 const User = require('../models/User');
@@ -49,6 +52,8 @@ const {
   removeUploadedCover,
   renderContent,
   postToMarkdown,
+  extractImages,
+  collectGameEmbeds,
 } = require('../utils/blogHelpers');
 
 const PAGE_SIZE = 9;
@@ -240,7 +245,7 @@ function buildPostFields(req, current) {
   const title = String(req.body.title || '').trim().slice(0, MAX_TITLE);
   const content = String(req.body.content || '').trim();
   const category = CATEGORIES.includes(req.body.category) ? req.body.category : DEFAULT_CATEGORY;
-  const excerpt = String(req.body.excerpt || '').trim().slice(0, MAX_EXCERPT) || plainText(content, 160);
+  const excerpt = String(req.body.excerpt || '').trim().slice(0, MAX_EXCERPT) || assistant.makeExcerpt(assistant.toPlain(content).text, 140);
 
   let coverImage = current ? current.coverImage : COVER_PLACEHOLDER;
   const coverUrl = String(req.body.coverUrl || '').trim();
@@ -315,6 +320,90 @@ function validate(fields, req) {
   return null;
 }
 
+/* ------------------------- treść wpisu: karty gier ------------------------- */
+
+/** HTML treści wpisu; karty gier ([[game:ID]]) wczytują dane z katalogu i średnie oceny graczy. */
+async function renderPostContent(content) {
+  const ids = collectGameEmbeds(content).slice(0, 12);
+  const games = new Map();
+  if (ids.length) {
+    const found = await getGamesByIds(ids);
+    (await withRatings([...found.values()])).forEach((game) => games.set(String(game.id), game));
+  }
+  return renderContent(content, { games });
+}
+
+/* ------------------------- biblioteka multimediów (edytor) ------------------------- */
+
+const mediaUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: media.MAX_BYTES, files: 1 } }).single('image');
+
+// Wgrywanie zdjęcia lub infografiki. Token CSRF idzie w nagłówku (fetch), więc sprawdzamy go przed odczytem pliku.
+router.post(
+  '/media',
+  ensureAuthenticated,
+  ensureAdmin,
+  (req, res, next) => (isValid(req) ? next() : reject(req, res)),
+  (req, res, next) =>
+    mediaUpload(req, res, (err) => {
+      if (err) {
+        const message = err.code === 'LIMIT_FILE_SIZE' ? 'Plik jest za duży (maksymalnie 8 MB).' : 'Nie udało się odczytać pliku.';
+        return res.status(400).json({ error: message });
+      }
+      next();
+    }),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Wybierz plik ze zdjęciem.' });
+    try {
+      const saved = await media.saveMedia({
+        buffer: req.file.buffer,
+        originalName: req.file.originalname,
+        alt: req.body && req.body.alt,
+        caption: req.body && req.body.caption,
+        username: req.session.user.username,
+      });
+      res.json({ media: saved });
+    } catch (err) {
+      if (err.userFacing) return res.status(400).json({ error: err.message });
+      console.error('[blog] błąd zapisu zdjęcia:', err);
+      res.status(500).json({ error: 'Nie udało się zapisać zdjęcia.' });
+    }
+  },
+);
+
+router.get('/media', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    res.json({ media: await media.listMedia() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/media/:id', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    const updated = await media.updateMedia(req.params.id, { alt: req.body.alt, caption: req.body.caption });
+    if (!updated) return res.status(404).json({ error: 'Nie znaleziono zdjęcia.' });
+    res.json({ media: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/media/:id/delete', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    const items = await media.listMedia(500);
+    const item = items.find((entry) => entry.id === req.params.id);
+    if (!item) return res.status(404).json({ error: 'Nie znaleziono zdjęcia.' });
+    const usedIn = media.mediaUsage(item.url);
+    if (usedIn.length) {
+      return res.status(409).json({ error: `Zdjęcie jest użyte we wpisach: ${usedIn.join(', ')}. Najpierw usuń je z treści.` });
+    }
+    await media.removeMedia(item.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* ------------------------- asystent SEO (edytor wpisu) ------------------------- */
 
 /** Gry znane serwisowi (popularne z IGDB i dodane ręcznie) - do rozpoznawania tytułów w treści. */
@@ -337,7 +426,7 @@ router.post('/assist', ensureAuthenticated, ensureAdmin, async (req, res, next) 
   try {
     const { title, content } = assistantInput(req.body);
     const tags = parseTags(req.body.tags);
-    const keywords = assistant.extractKeywords({ title, content, games: await knownGames(), existingTags: existingTagNames() });
+    const keywords = assistant.extractKeywords({ title, content, games: await knownGames(), existingTags: existingTagNames(), tags });
 
     res.json({
       tags: assistant.suggestTags({ keywords, taken: tags, maxTagLength: MAX_TAG_LENGTH }),
@@ -361,7 +450,7 @@ router.post('/autoformat', ensureAuthenticated, ensureAdmin, async (req, res, ne
   try {
     const { title, content } = assistantInput(req.body);
     if (!content.trim()) return res.json({ content, changed: false, changes: [] });
-    res.json(assistant.autoFormat({ title, content, games: await knownGames(), existingTags: existingTagNames() }));
+    res.json(assistant.autoFormat({ title, content, games: await knownGames(), existingTags: existingTagNames(), tags: parseTags(req.body.tags) }));
   } catch (err) {
     next(err);
   }
@@ -384,9 +473,13 @@ router.post('/cover-preview', ensureAuthenticated, ensureAdmin, async (req, res)
 });
 
 // Podgląd treści na żywo w edytorze: ten sam renderer, którego użyje strona wpisu.
-router.post('/preview', ensureAuthenticated, ensureAdmin, (req, res) => {
-  const content = String(req.body.content || '').slice(0, MAX_CONTENT);
-  res.json({ html: content.trim() ? renderContent(content) : '' });
+router.post('/preview', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    const content = String(req.body.content || '').slice(0, MAX_CONTENT);
+    res.json({ html: content.trim() ? await renderPostContent(content) : '' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get('/new', ensureAuthenticated, ensureAdmin, (req, res) => {
@@ -539,7 +632,9 @@ router.get('/:id', async (req, res, next) => {
             '@type': 'BlogPosting',
             headline: post.title,
             description,
-            image: res.locals.absoluteUrl(post.coverImage),
+            image: [post.coverImage, ...extractImages(post.content).map((img) => img.src)]
+              .slice(0, 4)
+              .map((src) => res.locals.absoluteUrl(src)),
             datePublished: isoDate(post.publishedAt),
             dateModified: isoDate(post.updatedAt || post.publishedAt),
             inLanguage: 'pl',
@@ -558,7 +653,7 @@ router.get('/:id', async (req, res, next) => {
         ],
       },
       post,
-      contentHtml: renderContent(post.content),
+      contentHtml: await renderPostContent(post.content),
       newer: index > 0 ? posts[index - 1] : null,
       older: index !== -1 && index < posts.length - 1 ? posts[index + 1] : null,
       related,

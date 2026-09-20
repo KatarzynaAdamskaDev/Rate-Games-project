@@ -53,5 +53,26 @@
     "status": "draft",
     "publishAt": null,
     "createdAt": "2026-09-20T21:35:05.503Z"
+  },
+  {
+    "id": "4bb8a636-d640-4eb8-9824-719faf22a3d4",
+    "title": "Korzystanie z myślenia w CS2 na przykładzie znanych osób",
+    "author": "test",
+    "category": "Społeczność",
+    "tags": [
+      "CS2",
+      "mammon",
+      "brain"
+    ],
+    "excerpt": "czy gracze CS2 w ogóle wiedzą w co grają? [[game:242408]] odpowiadamy że tak! Ale nie zawsze potrafią wykorzystać swój mózg w grze CS2.",
+    "content": "> [!TIP] Nie brać przykładu z tego gracza\r\n\r\n## czy gracze CS2 w ogóle wiedzą w co grają?\r\n\r\n[[game:242408]]\r\n\r\nodpowiadamy że tak! Ale nie zawsze potrafią wykorzystać swój mózg w grze **CS2**. Co obrazują filmiki wrzucane do sieci\r\n\r\n@[youtube](qgr-J0KI6cI)\r\n\r\nWarto też odnotować to, że gra jest bezpłatna i nikt nie weryfikuje czy użytkownik posiada sprawny narząd odpowiedzialny za myślenie\r\n\r\n![mammon policjant](/images/blog/media/0e43f9d6-29de-499c-949c-c5c09232092d.webp){right}\r\n\r\n---\r\n\r\nPoczynania wielu upośledzonych graczy CS2 można śledzić między innymi na ich kanałach społecznościowych np. Twitch: [Wózkowy marnuje prąd](https://www.twitch.tv/mamm0n)",
+    "coverImage": "/images/blog/uploads/d1ff26bf-60e5-4ebc-826d-9fdf1486608e.webp",
+    "coverAuto": true,
+    "coverSpec": "[\"Korzystanie z myślenia w CS2 na przykładzie znanych osób\",\"Społeczność\",[\"CS2\",\"mammon\",\"brain\"],0]",
+    "coverVariant": 0,
+    "status": "published",
+    "publishAt": null,
+    "createdAt": "2026-09-20T22:37:54.920Z",
+    "updatedAt": "2026-09-20T22:41:31.987Z"
   }
 ]

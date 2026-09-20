@@ -99,6 +99,14 @@
               <button type="button" data-cmd="quote" title="Cytat"><i class="bi bi-quote"></i></button>
               <span class="gv-blogedit-sep"></span>
               <button type="button" data-cmd="link" title="Link (Ctrl+K)"><i class="bi bi-link-45deg"></i></button>
+              <button type="button" data-cmd="image" title="Zdjęcie lub infografika (z tekstem alternatywnym)"><i class="bi bi-image"></i></button>
+              <button type="button" data-cmd="game" title="Karta gry z katalogu"><i class="bi bi-controller"></i></button>
+              <button type="button" data-cmd="video" title="Film z YouTube"><i class="bi bi-youtube"></i></button>
+              <span class="gv-blogedit-sep"></span>
+              <button type="button" data-cmd="info" title="Ramka: Warto wiedzieć"><i class="bi bi-info-circle"></i></button>
+              <button type="button" data-cmd="tip" title="Ramka: Wskazówka"><i class="bi bi-lightbulb"></i></button>
+              <button type="button" data-cmd="warning" title="Ramka: Uwaga"><i class="bi bi-exclamation-triangle"></i></button>
+              <button type="button" data-cmd="hr" title="Linia pozioma"><i class="bi bi-hr"></i></button>
               <button type="button" data-cmd="seo" class="gv-blogedit-seobtn" title="Pogrubi najważniejsze frazy, doda linki do gier z katalogu oraz uporządkuje listy i nagłówki"><i class="bi bi-magic"></i> Formatuj pod SEO</button>
             </div>
 
@@ -260,6 +268,145 @@
     </div>
   </section>
 
+  <!-- Okna edytora: zdjęcia i infografiki, linki, karty gier i filmy -->
+  <div class="modal fade" id="mediaModal" tabindex="-1" aria-labelledby="mediaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="mediaModalLabel"><i class="bi bi-image"></i> Wstaw zdjęcie lub infografikę</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <div id="mediaStepPick">
+            <div class="gv-blogedit-tabs mb-3" role="tablist">
+              <button type="button" class="active" data-media-tab="upload"><i class="bi bi-cloud-arrow-up"></i> Wgraj</button>
+              <button type="button" data-media-tab="library"><i class="bi bi-images"></i> Biblioteka</button>
+              <button type="button" data-media-tab="url"><i class="bi bi-link-45deg"></i> Adres URL</button>
+            </div>
+
+            <div id="mediaPaneUpload">
+              <label class="gv-dropzone" for="mediaFile" id="mediaDropzone">
+                <i class="bi bi-cloud-arrow-up-fill"></i>
+                <b>Przeciągnij zdjęcie lub infografikę albo kliknij, aby wybrać</b>
+                <small>PNG, JPG, WEBP lub GIF, do 8 MB. Obraz zostanie sprawdzony i zoptymalizowany (WebP). Możesz też wkleić obraz ze schowka bezpośrednio w treść wpisu.</small>
+              </label>
+              <input type="file" id="mediaFile" accept="image/png,image/jpeg,image/webp,image/gif" class="gv-visually-hidden">
+            </div>
+
+            <div id="mediaPaneLibrary" class="d-none">
+              <div class="gv-media-grid" id="mediaGrid"></div>
+              <p class="gv-muted gv-media-empty d-none" id="mediaEmpty">Biblioteka jest jeszcze pusta - wgraj pierwsze zdjęcie.</p>
+            </div>
+
+            <div id="mediaPaneUrl" class="d-none">
+              <label class="gv-label" for="mediaUrl">Adres obrazka (https://... albo /images/...)</label>
+              <div class="gv-blogedit-excerptrow">
+                <input type="text" id="mediaUrl" class="form-control gv-input" placeholder="https://..." autocomplete="off">
+                <button type="button" class="gv-btn-outline" id="mediaUrlUse">Użyj</button>
+              </div>
+              <div class="gv-edit-hint">Zdjęcie z cudzej strony może zniknąć albo być chronione prawem autorskim - najlepiej wgraj własny plik.</div>
+            </div>
+
+            <div class="gv-media-status d-none" id="mediaStatus" role="status"></div>
+          </div>
+
+          <div id="mediaStepDetails" class="d-none">
+            <div class="gv-media-details">
+              <div class="gv-media-preview"><img id="mediaPreview" alt="Podgląd wstawianego zdjęcia"></div>
+              <div class="gv-media-fields">
+                <label class="gv-label" for="mediaAlt">Tekst alternatywny (opis zdjęcia) <span class="gv-counter" id="mediaAltCount">0/200</span></label>
+                <input type="text" id="mediaAlt" class="form-control gv-input" maxlength="200" placeholder="np. Mapa Limgrave z zaznaczonymi lokacjami bossów" autocomplete="off">
+                <div class="gv-edit-hint">Opisz, co widać na zdjęciu. Czytają to wyszukiwarki i czytniki ekranu, a zdjęcie bez opisu słabiej działa w SEO.
+                  <button type="button" class="gv-linkbtn" id="mediaAltSuggest">Podpowiedz z tytułu wpisu</button></div>
+
+                <label class="gv-label mt-3" for="mediaCaption">Podpis pod zdjęciem (opcjonalnie)</label>
+                <input type="text" id="mediaCaption" class="form-control gv-input" maxlength="200" placeholder="np. Źródło: własny zrzut ekranu" autocomplete="off">
+
+                <label class="gv-label mt-3" for="mediaLayout">Układ</label>
+                <select id="mediaLayout" class="form-select gv-select">
+                  <option value="">Standardowy (na środku)</option>
+                  <option value="wide">Szeroki - pełna szerokość (dobry dla infografik)</option>
+                  <option value="small">Mały (połowa szerokości)</option>
+                  <option value="left">Do lewej, tekst opływa</option>
+                  <option value="right">Do prawej, tekst opływa</option>
+                </select>
+                <div class="gv-media-error d-none" id="mediaError" role="alert"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost d-none" id="mediaBack"><i class="bi bi-arrow-left"></i> Wróć</button>
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-success d-none" id="mediaInsert"><i class="bi bi-check-lg"></i> Wstaw do treści</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="linkModal" tabindex="-1" aria-labelledby="linkModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="linkModalLabel"><i class="bi bi-link-45deg"></i> Wstaw link</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <label class="gv-label" for="linkText">Tekst linku</label>
+          <input type="text" id="linkText" class="form-control gv-input" placeholder="np. oficjalna strona gry" autocomplete="off">
+          <label class="gv-label mt-3" for="linkUrl">Adres</label>
+          <input type="text" id="linkUrl" class="form-control gv-input" placeholder="https://... albo /games/123" autocomplete="off">
+          <div class="gv-edit-hint">Link zewnętrzny otworzy się w nowej karcie, link do gry z katalogu - w tej samej.</div>
+
+          <label class="gv-label mt-3" for="linkGameSearch">albo znajdź grę w katalogu GameVerse</label>
+          <input type="search" id="linkGameSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off">
+          <ul class="gv-gamepick" id="linkGameList"></ul>
+          <div class="gv-media-error d-none" id="linkError" role="alert"></div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-success" id="linkInsert"><i class="bi bi-check-lg"></i> Wstaw link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="embedModal" tabindex="-1" aria-labelledby="embedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="embedModalLabel"><i class="bi bi-plus-square"></i> Wstaw element</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+          <div class="gv-blogedit-tabs mb-3" role="tablist">
+            <button type="button" class="active" data-embed-tab="game"><i class="bi bi-controller"></i> Karta gry</button>
+            <button type="button" data-embed-tab="video"><i class="bi bi-youtube"></i> Film YouTube</button>
+          </div>
+
+          <div id="embedPaneGame">
+            <label class="gv-label" for="embedGameSearch">Wyszukaj grę w katalogu</label>
+            <input type="search" id="embedGameSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off">
+            <ul class="gv-gamepick" id="embedGameList"></ul>
+            <div class="gv-edit-hint">Karta pokazuje okładkę, platformy, rok i średnią ocenę graczy, a kliknięcie prowadzi do strony gry w katalogu (dobry link wewnętrzny).</div>
+          </div>
+
+          <div id="embedPaneVideo" class="d-none">
+            <label class="gv-label" for="embedVideoUrl">Adres filmu z YouTube</label>
+            <input type="text" id="embedVideoUrl" class="form-control gv-input" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+            <div class="gv-media-status d-none" id="embedVideoPreview"></div>
+            <div class="gv-edit-hint">Film osadzamy w trybie prywatności (youtube-nocookie) - bez śledzenia, dopóki czytelnik go nie odtworzy.</div>
+            <div class="gv-media-error d-none" id="embedVideoError" role="alert"></div>
+          </div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-success d-none" id="embedVideoInsert"><i class="bi bi-check-lg"></i> Wstaw film</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var form = document.getElementById('blogForm');
@@ -277,17 +424,38 @@
       function toLocalValue(date) {
         return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
       }
-      function plain(text, max) {
-        var clean = String(text || '')
+      // Zwykły tekst z Markdownu: bez zdjęć, filmów, kart gier i znaczników formatowania.
+      function plainText(text) {
+        return String(text || '')
+          .replace(/^\s*(?:!\[[^\]]*\]\([^)]*\)(?:\{[a-z]+\})?|@\[youtube\]\([^)]*\)|\[\[game:[^\]]*\]\]|-{3,})\s*$/gm, ' ')
+          .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
           .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+          .replace(/^\s*>\s*\[![A-Z]+\]\s*/gm, '')
           .replace(/^\s*(?:#{1,6}|>|[-*]|\d+\.)\s+/gm, '')
           .replace(/[*_`]+/g, '')
           .replace(/\s+/g, ' ')
           .trim();
+      }
+      function plain(text, max) {
+        var clean = plainText(text);
         if (clean.length <= max) return clean;
         var cut = clean.slice(0, max - 1);
         var space = cut.lastIndexOf(' ');
         return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:!-]+$/, '') + '…';
+      }
+      // Krótki opis z pełnych zdań (do ok. 140 znaków) - krótszy niż sztywne obcięcie tekstu.
+      function excerptFrom(text) {
+        var clean = plainText(text);
+        var max = 140;
+        if (clean.length <= max) return clean;
+        var sentences = clean.split(/(?<=[.!?…])\s+(?=[\p{Lu}"„(\d])/u);
+        var result = '';
+        for (var i = 0; i < sentences.length; i += 1) {
+          var next = result ? result + ' ' + sentences[i] : sentences[i];
+          if (next.length > max) break;
+          result = next;
+        }
+        return result.length >= 60 ? result : plain(clean, max);
       }
       function words(text) { return (String(text).match(/\S+/g) || []).length; }
       function selectedCategory() {
@@ -436,18 +604,6 @@
         fire();
       }
 
-      function insertLink() {
-        var start = content.selectionStart;
-        var end = content.selectionEnd;
-        var text = content.value.slice(start, end) || 'tekst linku';
-        var snippet = '[' + text + '](https://)';
-        content.focus();
-        content.setRangeText(snippet, start, end, 'end');
-        var urlStart = start + text.length + 3;
-        content.setSelectionRange(urlStart, urlStart + 8);
-        fire();
-      }
-
       var commands = {
         h2: function () { blockFormat('h2'); },
         bold: function () { wrapInline('**', '**', 'pogrubienie'); },
@@ -455,7 +611,14 @@
         ul: function () { blockFormat('ul'); },
         ol: function () { blockFormat('ol'); },
         quote: function () { blockFormat('quote'); },
-        link: insertLink
+        link: function () { openLinkDialog(); },
+        image: function () { openMediaDialog(); },
+        game: function () { openEmbedDialog('game'); },
+        video: function () { openEmbedDialog('video'); },
+        info: function () { insertBlock('> [!INFO] Wpisz treść ramki', 'Wpisz treść ramki'); },
+        tip: function () { insertBlock('> [!TIP] Wpisz treść wskazówki', 'Wpisz treść wskazówki'); },
+        warning: function () { insertBlock('> [!WARNING] Wpisz treść ostrzeżenia', 'Wpisz treść ostrzeżenia'); },
+        hr: function () { insertBlock('---'); }
       };
       $('toolbar').addEventListener('click', function (event) {
         var button = event.target.closest('button[data-cmd]');
@@ -643,7 +806,7 @@
 
       /* ------------------------------ krótki opis ------------------------------ */
       $('excerptAuto').addEventListener('click', function () {
-        excerpt.value = plain(content.value, parseInt(excerpt.getAttribute('maxlength'), 10) || 200);
+        excerpt.value = excerptFrom(content.value);
         excerpt.dispatchEvent(new Event('input', { bubbles: true }));
       });
 
@@ -692,7 +855,7 @@
         var wordCount = words(text);
         var minutes = Math.max(1, Math.round(wordCount / 200));
         var max = parseInt(excerpt.getAttribute('maxlength'), 10) || 200;
-        var auto = plain(text, 140);
+        var auto = excerptFrom(text);
 
         $('titleCount').textContent = title.value.length + '/' + title.getAttribute('maxlength');
         $('excerptCount').textContent = excerpt.value.length + '/' + max;
@@ -820,6 +983,342 @@
         submit.disabled = true;
       });
 
+      /* ------------------- mini CMS: zdjęcia, linki, karty gier, filmy ------------------- */
+      var bootstrapApi = window.bootstrap;
+      function modal(id) { return bootstrapApi.Modal.getOrCreateInstance($(id)); }
+      var savedRange = null;
+      function rememberSelection() { savedRange = { start: content.selectionStart, end: content.selectionEnd }; }
+      function show(el, visible) { el.classList.toggle('d-none', !visible); }
+
+      /** Wstawia blok (zdjęcie, film, ramkę...) jako osobny akapit - z pustymi liniami wokół. */
+      function insertBlock(markdown, selectText) {
+        var range = savedRange || { start: content.selectionStart, end: content.selectionEnd };
+        savedRange = null;
+        var value = content.value;
+        var before = value.slice(0, range.start);
+        var after = value.slice(range.end);
+        var prefix = before && !/\n\n$/.test(before) ? (/\n$/.test(before) ? '\n' : '\n\n') : '';
+        var suffix = !after || /^\n\n/.test(after) ? '\n\n' : (/^\n/.test(after) ? '\n' : '\n\n');
+        var text = prefix + markdown + suffix;
+        content.focus();
+        content.setRangeText(text, range.start, range.end, 'end');
+        if (selectText) {
+          var at = range.start + prefix.length + markdown.indexOf(selectText);
+          content.setSelectionRange(at, at + selectText.length);
+        }
+        fire();
+      }
+
+      /** Wyszukiwarka gier w katalogu (ta sama, której używa okno ulubionej gry na profilu). */
+      function bindGameSearch(input, list, onPick) {
+        var timer = null;
+        var seq = 0;
+        input.addEventListener('input', function () {
+          clearTimeout(timer);
+          var q = input.value.trim();
+          if (q.length < 2) { list.innerHTML = ''; return; }
+          timer = setTimeout(function () {
+            var mine = ++seq;
+            list.innerHTML = '<li class="gv-gamepick-note"><i class="bi bi-arrow-repeat gv-spin"></i> Szukam...</li>';
+            fetch('/games/search-json?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } })
+              .then(function (response) { return response.json(); })
+              .then(function (data) {
+                if (mine !== seq) return;
+                list.innerHTML = '';
+                if (!data.games || !data.games.length) { list.innerHTML = '<li class="gv-gamepick-note">Nie znaleziono takiej gry w katalogu.</li>'; return; }
+                data.games.forEach(function (game) {
+                  var item = document.createElement('li');
+                  var button = document.createElement('button');
+                  button.type = 'button';
+                  var image = document.createElement('img');
+                  image.src = game.coverImage;
+                  image.alt = '';
+                  image.loading = 'lazy';
+                  var text = document.createElement('span');
+                  var name = document.createElement('b');
+                  name.textContent = game.title;
+                  var meta = document.createElement('small');
+                  meta.textContent = [game.releaseYear, game.platform].filter(Boolean).join(' · ');
+                  text.appendChild(name);
+                  text.appendChild(meta);
+                  button.appendChild(image);
+                  button.appendChild(text);
+                  button.addEventListener('click', function () { onPick(game); });
+                  item.appendChild(button);
+                  list.appendChild(item);
+                });
+              })
+              .catch(function () { if (mine === seq) list.innerHTML = '<li class="gv-gamepick-note">Nie udało się wyszukać gier.</li>'; });
+          }, 350);
+        });
+      }
+
+      /* --- link --- */
+      var linkText = $('linkText');
+      var linkUrl = $('linkUrl');
+      var linkError = $('linkError');
+      function openLinkDialog() {
+        rememberSelection();
+        linkText.value = content.value.slice(savedRange.start, savedRange.end);
+        linkUrl.value = '';
+        $('linkGameSearch').value = '';
+        $('linkGameList').innerHTML = '';
+        show(linkError, false);
+        modal('linkModal').show();
+      }
+      $('linkModal').addEventListener('shown.bs.modal', function () { (linkText.value ? linkUrl : linkText).focus(); });
+      bindGameSearch($('linkGameSearch'), $('linkGameList'), function (game) {
+        linkUrl.value = '/games/' + game.id;
+        if (!linkText.value.trim()) linkText.value = game.title;
+        $('linkGameList').innerHTML = '';
+        $('linkGameSearch').value = game.title;
+      });
+      $('linkInsert').addEventListener('click', function () {
+        var url = linkUrl.value.trim();
+        var label = linkText.value.trim();
+        if (url && !/^(?:https?:\/\/|\/(?!\/))/i.test(url) && /^[^\s\/]+\.[a-z]{2,}(?:\/\S*)?$/i.test(url)) url = 'https://' + url;
+        if (!/^(?:https?:\/\/[^\s)]+|\/(?!\/)[^\s)]*)$/i.test(url)) {
+          linkError.textContent = 'Podaj poprawny adres: https://... albo /games/123.';
+          show(linkError, true);
+          return;
+        }
+        if (!label) {
+          try { label = url.charAt(0) === '/' ? 'zobacz więcej' : new URL(url).hostname.replace(/^www\./, ''); } catch (err) { label = url; }
+        }
+        var range = savedRange || { start: content.selectionStart, end: content.selectionEnd };
+        savedRange = null;
+        var snippet = '[' + label.replace(/[\[\]]/g, '') + '](' + url + ')';
+        content.focus();
+        content.setRangeText(snippet, range.start, range.end, 'end');
+        modal('linkModal').hide();
+        fire();
+      });
+
+      /* --- zdjęcia i infografiki --- */
+      var media = { id: null, url: '', alt: '', caption: '' };
+      var mediaLoaded = false;
+      var mediaAlt = $('mediaAlt');
+      var mediaCaption = $('mediaCaption');
+      var mediaStatus = $('mediaStatus');
+      var mediaError = $('mediaError');
+
+      function mediaTab(name) {
+        document.querySelectorAll('[data-media-tab]').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.mediaTab === name); });
+        show($('mediaPaneUpload'), name === 'upload');
+        show($('mediaPaneLibrary'), name === 'library');
+        show($('mediaPaneUrl'), name === 'url');
+        if (name === 'library' && !mediaLoaded) loadLibrary();
+      }
+      function mediaSays(text, isError) {
+        mediaStatus.textContent = text || '';
+        mediaStatus.classList.toggle('error', !!isError);
+        show(mediaStatus, !!text);
+      }
+      function mediaStep(details) {
+        show($('mediaStepPick'), !details);
+        show($('mediaStepDetails'), details);
+        show($('mediaBack'), details);
+        show($('mediaInsert'), details);
+      }
+      function openMediaDialog(file) {
+        rememberSelection();
+        mediaStep(false);
+        mediaTab('upload');
+        mediaSays('');
+        $('mediaFile').value = '';
+        modal('mediaModal').show();
+        if (file) uploadMedia(file);
+      }
+      function showMediaDetails(item) {
+        media = { id: item.id || null, url: item.url, alt: item.alt || '', caption: item.caption || '' };
+        $('mediaPreview').src = item.url;
+        mediaAlt.value = media.alt;
+        mediaCaption.value = media.caption;
+        $('mediaLayout').value = '';
+        show(mediaError, false);
+        updateAltCount();
+        mediaStep(true);
+        setTimeout(function () { mediaAlt.focus(); }, 150);
+      }
+      function updateAltCount() { $('mediaAltCount').textContent = mediaAlt.value.length + '/200'; }
+      mediaAlt.addEventListener('input', updateAltCount);
+
+      function uploadMedia(file) {
+        if (!/^image\//.test(file.type)) { mediaSays('To nie jest obraz - wybierz plik PNG, JPG, WEBP lub GIF.', true); return; }
+        mediaSays('Wgrywam i sprawdzam obraz...');
+        var data = new FormData();
+        data.append('image', file);
+        fetch('/blog/media', { method: 'POST', headers: { Accept: 'application/json' }, body: data })
+          .then(function (response) { return response.json().then(function (body) { return { ok: response.ok, body: body }; }); })
+          .then(function (result) {
+            if (!result.ok) { mediaSays(result.body.error || 'Nie udało się wgrać obrazu.', true); return; }
+            mediaLoaded = false;
+            mediaSays('');
+            showMediaDetails(result.body.media);
+          })
+          .catch(function () { mediaSays('Nie udało się wgrać obrazu. Spróbuj ponownie.', true); });
+      }
+      $('mediaFile').addEventListener('change', function () { if (this.files && this.files[0]) uploadMedia(this.files[0]); });
+      var mediaDrop = $('mediaDropzone');
+      ['dragenter', 'dragover'].forEach(function (name) {
+        mediaDrop.addEventListener(name, function (event) { event.preventDefault(); mediaDrop.classList.add('dragging'); });
+      });
+      ['dragleave', 'drop'].forEach(function (name) {
+        mediaDrop.addEventListener(name, function (event) { event.preventDefault(); mediaDrop.classList.remove('dragging'); });
+      });
+      mediaDrop.addEventListener('drop', function (event) {
+        if (event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) uploadMedia(event.dataTransfer.files[0]);
+      });
+
+      function loadLibrary() {
+        var grid = $('mediaGrid');
+        grid.innerHTML = '<p class="gv-muted"><i class="bi bi-arrow-repeat gv-spin"></i> Wczytuję bibliotekę...</p>';
+        fetch('/blog/media', { headers: { Accept: 'application/json' } })
+          .then(function (response) { return response.json(); })
+          .then(function (data) {
+            mediaLoaded = true;
+            grid.innerHTML = '';
+            show($('mediaEmpty'), !data.media.length);
+            data.media.forEach(function (item) {
+              var cell = document.createElement('div');
+              cell.className = 'gv-media-item';
+              var pick = document.createElement('button');
+              pick.type = 'button';
+              pick.title = item.alt || item.originalName || 'Wybierz zdjęcie';
+              var image = document.createElement('img');
+              image.src = item.url;
+              image.alt = item.alt || '';
+              image.loading = 'lazy';
+              pick.appendChild(image);
+              pick.addEventListener('click', function () { showMediaDetails(item); });
+              var remove = document.createElement('button');
+              remove.type = 'button';
+              remove.className = 'gv-media-remove';
+              remove.title = 'Usuń z biblioteki';
+              remove.innerHTML = '<i class="bi bi-trash3-fill"></i>';
+              remove.addEventListener('click', function () {
+                if (!window.confirm('Usunąć to zdjęcie z biblioteki?')) return;
+                post('/blog/media/' + item.id + '/delete', {})
+                  .then(function () { cell.remove(); show($('mediaEmpty'), !grid.children.length); })
+                  .catch(function () { mediaSays('Nie można usunąć - zdjęcie jest użyte we wpisie.', true); mediaTab('library'); });
+              });
+              cell.appendChild(pick);
+              cell.appendChild(remove);
+              grid.appendChild(cell);
+            });
+          })
+          .catch(function () { grid.innerHTML = '<p class="gv-muted">Nie udało się wczytać biblioteki.</p>'; });
+      }
+      document.querySelectorAll('[data-media-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () { mediaSays(''); mediaTab(tab.dataset.mediaTab); });
+      });
+      $('mediaUrlUse').addEventListener('click', function () {
+        var url = $('mediaUrl').value.trim();
+        if (!/^(?:https:\/\/[^\s)]+|\/(?!\/)[^\s)]*)$/.test(url)) { mediaSays('Podaj adres zaczynający się od https:// albo /images/...', true); return; }
+        mediaSays('');
+        showMediaDetails({ url: url, alt: '', caption: '' });
+      });
+      $('mediaBack').addEventListener('click', function () { mediaStep(false); });
+      $('mediaAltSuggest').addEventListener('click', function () {
+        var base = title.value.trim() || 'Ilustracja do wpisu';
+        mediaAlt.value = (mediaCaption.value.trim() || base).slice(0, 200);
+        updateAltCount();
+      });
+      $('mediaInsert').addEventListener('click', function () {
+        var alt = mediaAlt.value.replace(/[\[\]\n]/g, ' ').replace(/\s+/g, ' ').trim();
+        var caption = mediaCaption.value.replace(/"/g, "'").replace(/\s+/g, ' ').trim();
+        if (alt.length < 3) {
+          mediaError.textContent = 'Opisz zdjęcie (tekst alternatywny) - to ważne dla SEO i osób korzystających z czytników ekranu.';
+          show(mediaError, true);
+          mediaAlt.focus();
+          return;
+        }
+        var layout = $('mediaLayout').value;
+        var markdown = '![' + alt + '](' + media.url + (caption ? ' "' + caption + '"' : '') + ')' + (layout ? '{' + layout + '}' : '');
+        // Opis i podpis zapamiętujemy w bibliotece - przy kolejnym użyciu obrazu będą podpowiedziane.
+        if (media.id && (alt !== media.alt || caption !== media.caption)) {
+          post('/blog/media/' + media.id, { alt: alt, caption: caption }).catch(function () {});
+          mediaLoaded = false;
+        }
+        modal('mediaModal').hide();
+        insertBlock(markdown);
+      });
+
+      // Wklejenie lub upuszczenie obrazu w treść wpisu otwiera okno wstawiania (z wgraniem pliku).
+      function imageFrom(files) {
+        for (var i = 0; files && i < files.length; i += 1) if (/^image\//.test(files[i].type)) return files[i];
+        return null;
+      }
+      content.addEventListener('paste', function (event) {
+        var file = imageFrom(event.clipboardData && event.clipboardData.files);
+        if (!file) return;
+        event.preventDefault();
+        openMediaDialog(file);
+      });
+      content.addEventListener('dragover', function (event) {
+        if (event.dataTransfer && Array.prototype.some.call(event.dataTransfer.types || [], function (t) { return t === 'Files'; })) event.preventDefault();
+      });
+      content.addEventListener('drop', function (event) {
+        var file = imageFrom(event.dataTransfer && event.dataTransfer.files);
+        if (!file) return;
+        event.preventDefault();
+        openMediaDialog(file);
+      });
+
+      /* --- karta gry i film YouTube --- */
+      var embedVideoId = '';
+      function embedTab(name) {
+        document.querySelectorAll('[data-embed-tab]').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.embedTab === name); });
+        show($('embedPaneGame'), name === 'game');
+        show($('embedPaneVideo'), name === 'video');
+        show($('embedVideoInsert'), name === 'video' && !!embedVideoId);
+        setTimeout(function () { (name === 'game' ? $('embedGameSearch') : $('embedVideoUrl')).focus(); }, 200);
+      }
+      function openEmbedDialog(tab) {
+        rememberSelection();
+        $('embedGameSearch').value = '';
+        $('embedGameList').innerHTML = '';
+        $('embedVideoUrl').value = '';
+        embedVideoId = '';
+        show($('embedVideoPreview'), false);
+        show($('embedVideoError'), false);
+        embedTab(tab);
+        modal('embedModal').show();
+      }
+      document.querySelectorAll('[data-embed-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () { embedTab(tab.dataset.embedTab); });
+      });
+      bindGameSearch($('embedGameSearch'), $('embedGameList'), function (game) {
+        modal('embedModal').hide();
+        insertBlock('[[game:' + game.id + ']]');
+      });
+      function youtubeId(text) {
+        var value = String(text || '').trim();
+        if (/^[A-Za-z0-9_-]{11}$/.test(value)) return value;
+        var match = value.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+        return match ? match[1] : '';
+      }
+      $('embedVideoUrl').addEventListener('input', function () {
+        embedVideoId = youtubeId(this.value);
+        var preview = $('embedVideoPreview');
+        show($('embedVideoError'), !!this.value.trim() && !embedVideoId);
+        $('embedVideoError').textContent = 'Nie rozpoznaję tego adresu - wklej link do filmu z YouTube.';
+        preview.innerHTML = '';
+        if (embedVideoId) {
+          var image = document.createElement('img');
+          image.src = 'https://img.youtube.com/vi/' + embedVideoId + '/hqdefault.jpg';
+          image.alt = 'Miniatura filmu';
+          preview.appendChild(image);
+        }
+        show(preview, !!embedVideoId);
+        show($('embedVideoInsert'), !!embedVideoId);
+      });
+      $('embedVideoInsert').addEventListener('click', function () {
+        if (!embedVideoId) return;
+        modal('embedModal').hide();
+        insertBlock('@[youtube](' + embedVideoId + ')');
+      });
+
       /* ----------------- asystent SEO: propozycje tagów, ocena, formatowanie ----------------- */
       var assistTimer = null;
       var assistSeq = 0;
@@ -888,44 +1387,83 @@
           primary.classList.add('d-none');
         }
 
+        // Najpierw to, co do poprawy (z podpowiedziami); spełnione punkty zwinięte pod spodem.
         var list = $('seoChecks');
         list.innerHTML = '';
+        var passed = [];
         analysis.checks.forEach(function (check) {
+          if (check.ok) { passed.push(check); return; }
           var item = document.createElement('li');
-          item.className = check.ok ? 'ok' : 'bad';
+          item.className = 'bad';
           var icon = document.createElement('i');
-          icon.className = 'bi ' + (check.ok ? 'bi-check-circle-fill' : 'bi-exclamation-circle');
+          icon.className = 'bi bi-exclamation-circle';
           var text = document.createElement('span');
           text.textContent = check.label;
+          var hint = document.createElement('small');
+          hint.textContent = check.hint;
+          text.appendChild(hint);
           item.appendChild(icon);
           item.appendChild(text);
-          if (!check.ok) {
-            var hint = document.createElement('small');
-            hint.textContent = check.hint;
-            text.appendChild(hint);
-          }
           list.appendChild(item);
         });
+        if (passed.length) {
+          var wrap = document.createElement('li');
+          wrap.className = 'passed';
+          var details = document.createElement('details');
+          var summary = document.createElement('summary');
+          summary.textContent = 'Spełnione (' + passed.length + ')';
+          details.appendChild(summary);
+          var inner = document.createElement('ul');
+          passed.forEach(function (check) {
+            var item = document.createElement('li');
+            item.className = 'ok';
+            var icon = document.createElement('i');
+            icon.className = 'bi bi-check-circle-fill';
+            var text = document.createElement('span');
+            text.textContent = check.label;
+            item.appendChild(icon);
+            item.appendChild(text);
+            inner.appendChild(item);
+          });
+          details.appendChild(inner);
+          wrap.appendChild(details);
+          list.appendChild(wrap);
+        }
       }
 
       var formatNote = $('formatNote');
       var undoContent = null;
-      function showFormatNote(lines, undoable) {
+      function noteList(title, lines) {
+        var block = document.createElement('div');
+        var head = document.createElement('b');
+        head.textContent = title;
+        block.appendChild(head);
+        var ul = document.createElement('ul');
+        lines.forEach(function (line) { var li = document.createElement('li'); li.textContent = line; ul.appendChild(li); });
+        block.appendChild(ul);
+        return block;
+      }
+      /** Wynik formatowania: zmiany (z "Cofnij") i uwagi do ręcznej poprawy. */
+      function showFormatNote(data) {
         formatNote.innerHTML = '';
+        var applied = !!(data.changes && data.changes.length && data.changed);
         var icon = document.createElement('i');
-        icon.className = 'bi ' + (undoable ? 'bi-magic' : 'bi-info-circle');
+        icon.className = 'bi ' + (applied ? 'bi-magic' : 'bi-info-circle');
         formatNote.appendChild(icon);
         var body = document.createElement('div');
-        var head = document.createElement('b');
-        head.textContent = undoable ? 'Sformatowano pod SEO' : lines[0];
-        body.appendChild(head);
-        if (undoable) {
-          var ul = document.createElement('ul');
-          lines.forEach(function (line) { var li = document.createElement('li'); li.textContent = line; ul.appendChild(li); });
-          body.appendChild(ul);
+        if (applied) body.appendChild(noteList('Sformatowano pod SEO', data.changes.map(function (change) { return change.label; })));
+        else {
+          var head = document.createElement('b');
+          head.textContent = data.message || 'Nie znalazłem w tekście nic do automatycznego poprawienia.';
+          body.appendChild(head);
+        }
+        if (data.notes && data.notes.length) {
+          var extra = noteList('Do poprawy ręcznie', data.notes);
+          extra.className = 'gv-formatnote-manual';
+          body.appendChild(extra);
         }
         formatNote.appendChild(body);
-        if (undoable) {
+        if (applied) {
           var undo = document.createElement('button');
           undo.type = 'button';
           undo.className = 'gv-mini-btn';
@@ -942,18 +1480,21 @@
       }
       function runAutoFormat() {
         var button = toolbar.querySelector('[data-cmd="seo"]');
-        if (!content.value.trim()) { showFormatNote(['Najpierw napisz treść wpisu.'], false); return; }
+        if (!content.value.trim()) { showFormatNote({ message: 'Najpierw napisz treść wpisu.' }); return; }
         button.disabled = true;
-        post('/blog/autoformat', { title: title.value, content: content.value })
+        post('/blog/autoformat', { title: title.value, content: content.value, tags: tags.join(', ') })
           .then(function (data) {
-            if (!data.changed) { showFormatNote(['Tekst jest już dobrze sformatowany - nie ma czego poprawiać.'], false); return; }
-            undoContent = content.value;
-            content.value = data.content;
-            fire();
-            showFormatNote(data.changes.map(function (change) { return change.label; }), true);
-            if (!preview.classList.contains('d-none')) loadPreview();
+            if (data.changed) {
+              undoContent = content.value;
+              content.value = data.content;
+              fire();
+              if (!preview.classList.contains('d-none')) loadPreview();
+            } else {
+              data.message = 'Tekst jest już dobrze sformatowany - nie ma czego zmieniać automatycznie.';
+            }
+            showFormatNote(data);
           })
-          .catch(function () { showFormatNote(['Nie udało się sformatować tekstu. Spróbuj ponownie.'], false); })
+          .catch(function () { showFormatNote({ message: 'Nie udało się sformatować tekstu. Spróbuj ponownie.' }); })
           .then(function () { button.disabled = false; });
       }
       commands.seo = runAutoFormat;
