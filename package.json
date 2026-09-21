@@ -9,7 +9,10 @@
     "setup": "node scripts/setup.js",
     "create-admin": "node create-admin.js",
     "set-level": "node set-level.js",
-    "blog:import": "node scripts/import-blog.js"
+    "blog:import": "node scripts/import-blog.js",
+    "db:push": "node scripts/db-sync.js push",
+    "db:pull": "node scripts/db-sync.js pull",
+    "db:list": "node scripts/db-sync.js list"
   },
   "dependencies": {
     "axios": "^1.20.0",

@@ -168,6 +168,26 @@ Kopia zapasowa z panelu admina (JSON) obejmuje tabele bloga razem z resztą bazy
 Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
 zapisywane jawnie.
 
+## Kopiowanie danych: lokalna SQLite <-> Azure SQL
+
+Skrypt `scripts/db-sync.js` kopiuje dane w obie strony. Domyślnie tylko pokazuje raport (nic nie zapisuje), a zapis
+włącza dopiero `--apply`. Dane są scalane: wiersze, które już są w bazie docelowej, zostają bez zmian, a konflikty
+(np. ta sama nazwa użytkownika pod innym id) są pomijane i wypisane w raporcie. Zapis to jedna transakcja, tabela
+`sessions` nie jest kopiowana, a przed zapisem powstaje lista zmian w `data/backups/` (przy lokalnej bazie także jej kopia).
+
+```bash
+npm run db:push -- --env-file=.env.azure            # podgląd: lokalna SQLite -> Azure SQL
+npm run db:push -- --env-file=.env.azure --apply    # zapis w Azure
+npm run db:pull -- --env-file=.env.azure            # podgląd: Azure SQL -> lokalna SQLite
+npm run db:pull -- --env-file=.env.azure --apply    # zapis w lokalnej bazie
+```
+
+Dane logowania do Azure trzymaj w `.env.azure` (`AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, `AZURE_SQL_USER`,
+`AZURE_SQL_PASSWORD`; plik jest w `.gitignore`), a w portalu Azure dodaj swój adres IP do zapory serwera SQL.
+Inne opcje: `--tables=users,reviews`, `--exclude=admin_logs`, `--local=plik.sqlite3` oraz `--replace --confirm=NAZWA`
+(zastępuje zawartość wybranych tabel, np. żeby lustrzanie odtworzyć bazę; NAZWA to nazwa bazy docelowej albo pliku).
+`npm run db:list` wypisuje tabele. Pliki wgrane przez użytkowników nie są w bazie - kopiuje się je osobno (`UPLOADS_DIR`).
+
 ## Wdrożenie na Azure (App Service)
 
 Workflow `.github/workflows/main_gameverse.yml` wdraża całą paczkę (kod bez plików z `.gitignore`) po każdym pushu
