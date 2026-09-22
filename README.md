@@ -89,6 +89,19 @@ npm run dev      # z nodemon (auto-restart)
 
 Aplikacja domyślnie startuje na `http://localhost:3000`.
 
+## Testy
+
+```bash
+npm test                  # wszystkie testy (jednostkowe i integracyjne), ok. 200 testów w kilka sekund
+npm run test:coverage     # to samo + raport pokrycia w coverage/index.html
+```
+
+Testy uruchamiają się na własnej, tymczasowej bazie SQLite i nie potrzebują żadnych kluczy API ani
+internetu - nie dotykają `data/dev.sqlite3` ani prawdziwych danych. GitHub Actions ([workflow
+wdrożeniowy](.github/workflows/main_gameverse.yml)) uruchamia je automatycznie przy każdym pushu do `main`
+i zatrzymuje wdrożenie, jeśli któryś test nie przejdzie. Więcej w [tests/README.md](tests/README.md)
+(jak dodać nowy test, czego testy świadomie nie sprawdzają).
+
 ## Konto administratora
 
 Panel administratora, dodawanie gier ręcznie i wpisów na blogu wymagają roli `admin`.
@@ -216,6 +229,7 @@ Dane logowania do Azure trzymaj w `.env.azure` (`AZURE_SQL_SERVER`, `AZURE_SQL_D
 Inne opcje: `--tables=users,reviews`, `--exclude=admin_logs`, `--local=plik.sqlite3` oraz `--replace --confirm=NAZWA`
 (zastępuje zawartość wybranych tabel, np. żeby lustrzanie odtworzyć bazę; NAZWA to nazwa bazy docelowej albo pliku).
 `npm run db:list` wypisuje tabele. Pliki wgrane przez użytkowników nie są w bazie - kopiuje się je osobno (`UPLOADS_DIR`).
+Lista zmian i kopia bazy sprzed zapisu lądują w `data/backups/` - inny katalog wskażesz zmienną `DB_SYNC_BACKUP_DIR`.
 
 ## Wdrożenie na Azure (App Service)
 

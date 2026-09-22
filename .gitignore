@@ -16,6 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 
+# Raport pokrycia testów (npm run test:coverage) - odtwarzalny, nie trzeba go trzymać w repo.
+coverage/
+
 .vscode/
 .DS_Store
 Thumbs.db

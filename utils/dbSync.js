@@ -21,7 +21,9 @@ const { Sequelize } = require('sequelize');
 
 const ROOT = path.join(__dirname, '..');
 const MODELS_DIR = path.join(ROOT, 'models');
-const BACKUP_DIR = path.join(ROOT, 'data', 'backups');
+// DB_SYNC_BACKUP_DIR pozwala wskazać inny katalog (np. tests/setup/testApp.js kieruje tu pliki testowe,
+// żeby żaden test nie zostawiał śladów w prawdziwym data/backups/).
+const BACKUP_DIR = process.env.DB_SYNC_BACKUP_DIR || path.join(ROOT, 'data', 'backups');
 
 const DEFAULT_EXCLUDE = ['sessions'];
 const CHUNK = 200;

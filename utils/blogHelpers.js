@@ -36,7 +36,8 @@ function parseTags(input) {
   const seen = new Set();
   const tags = [];
   for (const item of raw) {
-    const tag = String(item).replace(/^#+/, '').replace(/\s+/g, ' ').trim().slice(0, MAX_TAG_LENGTH);
+    // trim() na początku, żeby "#" zostało usunięte, także gdy przed nim jest spacja (np. "rpg, #akcja").
+    const tag = String(item).trim().replace(/^#+/, '').replace(/\s+/g, ' ').trim().slice(0, MAX_TAG_LENGTH);
     const key = tag.toLowerCase();
     if (!tag || seen.has(key)) continue;
     seen.add(key);
