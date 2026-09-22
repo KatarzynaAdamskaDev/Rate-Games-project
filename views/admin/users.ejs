@@ -121,6 +121,19 @@
 
           <% if (!isMe) { %>
             <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-envelope-fill"></i> Napisz wiadomość</h3>
+              <p class="gv-admin-note">Nie musicie się wzajemnie obserwować - jako administrator możesz napisać do każdego.</p>
+              <form method="POST" action="/admin/users/<%= u.id %>/message">
+                <textarea name="text" class="form-control gv-input" rows="2" maxlength="1000" placeholder="Treść wiadomości..." required></textarea>
+                <label class="gv-chip-check mt-2">
+                  <input type="checkbox" name="allowReply" checked>
+                  <span>Użytkownik może odpowiedzieć</span>
+                </label>
+                <button type="submit" class="gv-mini-btn mt-2"><i class="bi bi-send-fill"></i> Wyślij</button>
+              </form>
+            </section>
+
+            <section class="gv-admin-modal-section">
               <h3><i class="bi bi-shield-lock-fill"></i> Rola i dostęp</h3>
               <div class="gv-admin-modal-row">
                 <% if (u.roleChange.ok) { %>

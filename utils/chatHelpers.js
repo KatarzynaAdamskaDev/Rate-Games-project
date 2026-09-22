@@ -37,7 +37,11 @@ async function canAccessConversation(userId, conversationId) {
   return !!conv && conv.memberIds.includes(userId);
 }
 
-async function getOrCreateDM(userA, userB) {
+/**
+ * @param {{ canReply?: boolean }} [options] tylko przy tworzeniu NOWEJ rozmowy (np. admin piszący
+ *   bez wzajemnej obserwacji) - jeśli rozmowa już istnieje, jej dotychczasowe ustawienie zostaje bez zmian.
+ */
+async function getOrCreateDM(userA, userB, { canReply = true } = {}) {
   const rows = await Conversation.findAll({ where: { type: 'dm' } });
   const existing = rows
     .map(serializeConversation)
@@ -52,6 +56,7 @@ async function getOrCreateDM(userA, userB) {
   const instance = await Conversation.create({
     type: 'dm',
     name: null,
+    canReply,
     memberIds: JSON.stringify([userA.id, userB.id]),
     memberNames: JSON.stringify({
       [userA.id]: userA.username,

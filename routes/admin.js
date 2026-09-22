@@ -26,7 +26,7 @@ const { createNotification } = require('../utils/notificationHelpers');
 const { buildProfileViewModel } = require('../utils/profileViewModel');
 const { deleteReviewData } = require('../utils/reviewSocialHelpers');
 const { syncUserProgress, setUserLevel } = require('../utils/progressHelpers');
-const { clearMessages, deleteConversation } = require('../utils/chatHelpers');
+const { clearMessages, deleteConversation, getOrCreateDM, addMessage } = require('../utils/chatHelpers');
 const { getGamesByIds, getGameById } = require('../utils/gameCatalog');
 const { enrichReviews } = require('../utils/reviewStatsHelpers');
 const { buildPagerLinks } = require('../utils/gameListing');
@@ -469,6 +469,40 @@ router.post('/users/:id/unlock', async (req, res, next) => {
         : `${target.username} wraca do odblokowań wynikających z poziomu i aktywności.`
     );
     res.redirect(backTo(req, '/admin/users'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------------------ wiadomość od administratora ------------------------------ */
+
+// Administrator może napisać do dowolnego użytkownika, nawet bez wzajemnej obserwacji (normalnie
+// wymaganej w routes/chat.js), i zdecydować, czy druga strona będzie mogła odpowiedzieć. Jeśli
+// rozmowa z tą osobą już istnieje, wiadomość dopisuje się do niej (jej dotychczasowe ustawienie
+// odpowiedzi zostaje bez zmian - nie zamieniamy istniejącej rozmowy w jednostronną).
+router.post('/users/:id/message', async (req, res, next) => {
+  try {
+    const target = await User.findByPk(req.params.id);
+    if (!guardTarget(req, res, target, { allowAdmin: true })) return;
+
+    const text = String(req.body.text || '').trim().slice(0, 1000);
+    if (!text) {
+      req.flash('error', 'Treść wiadomości nie może być pusta.');
+      return res.redirect(backTo(req, '/admin/users'));
+    }
+    const allowReply = req.body.allowReply === 'on';
+
+    const conversation = await getOrCreateDM(req.session.user, target, { canReply: allowReply });
+    await addMessage({
+      conversationId: conversation.id,
+      senderId: req.session.user.id,
+      senderUsername: req.session.user.username,
+      text,
+    });
+    await logAdminAction(req, 'user.message', 'user', target.username, allowReply ? 'Wiadomość (z możliwością odpowiedzi)' : 'Wiadomość (bez możliwości odpowiedzi)');
+
+    req.flash('success', `Wiadomość do ${target.username} została wysłana.`);
+    res.redirect(`/chat?c=${conversation.id}`);
   } catch (err) {
     next(err);
   }
