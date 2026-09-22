@@ -89,6 +89,19 @@ npm run dev      # z nodemon (auto-restart)
 
 Aplikacja domyślnie startuje na `http://localhost:3000`.
 
+## Testy
+
+```bash
+npm test                  # wszystkie testy (jednostkowe i integracyjne), ok. 200 testów w kilka sekund
+npm run test:coverage     # to samo + raport pokrycia w coverage/index.html
+```
+
+Testy uruchamiają się na własnej, tymczasowej bazie SQLite i nie potrzebują żadnych kluczy API ani
+internetu - nie dotykają `data/dev.sqlite3` ani prawdziwych danych. GitHub Actions ([workflow
+wdrożeniowy](.github/workflows/main_gameverse.yml)) uruchamia je automatycznie przy każdym pushu do `main`
+i zatrzymuje wdrożenie, jeśli któryś test nie przejdzie. Więcej w [tests/README.md](tests/README.md)
+(jak dodać nowy test, czego testy świadomie nie sprawdzają).
+
 ## Konto administratora
 
 Panel administratora, dodawanie gier ręcznie i wpisów na blogu wymagają roli `admin`.
@@ -167,6 +180,56 @@ Kopia zapasowa z panelu admina (JSON) obejmuje tabele bloga razem z resztą bazy
 
 Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
 zapisywane jawnie.
+
+## Pomocnik pisania artykułów (blog)
+
+W edytorze wpisów przycisk **Pomocnik pisania** otwiera okno, w którym podajesz temat, rodzaj artykułu (poradnik,
+recenzja, zestawienie, aktualność, porównanie, felieton), punkty, które ma zawierać, gry z katalogu, ton i długość.
+Z tego powstaje **kompletny artykuł gotowy do publikacji**: tytuł, krótki opis, tagi, kategoria i treść ułożona pod SEO
+i wyszukiwarki AI (fraza kluczowa we wstępie, śródtytuły, część jako pytania, FAQ, linki i karty gier, podsumowanie),
+razem ze zdjęciami i filmem. Wynik można obejrzeć, poprawić i wstawić do edytora (Ctrl+Z cofa wstawienie).
+
+Etapy (postęp widać na żywo w oknie): sprawdzenie faktów w internecie -> napisanie tekstu -> dobór zdjęć -> film -> złożenie.
+
+- **Tekst** pisze Claude (klucz `ANTHROPIC_API_KEY`, model z `ANTHROPIC_MODEL`, domyślnie `claude-opus-5`). Model nie zmyśla
+  faktów i nie udaje osobistych doświadczeń; przy recenzjach i felietonach pojawia się uwaga, że AI w grę nie grała.
+- **Fakty**: przed pisaniem model szuka w internecie (wyszukiwarka Claude; wymaga włączenia web search w ustawieniach
+  konta Anthropic). Źródła trafiają do sekcji „Źródła”. Wyłączysz to w oknie albo przez `WRITER_WEB_SEARCH=0`.
+- **Zdjęcia** wyłącznie na wolnych licencjach (CC0, domena publiczna, CC BY, CC BY-SA; bez NC i ND) z Wikimedia Commons
+  i Openverse. Model ocenia miniatury i wybiera pasujące (odrzuca przypadkowe i nieodpowiednie). Zdjęcia są pobierane do
+  biblioteki multimediów (WebP, tekst alternatywny), a autor i licencja trafiają do podpisu i sekcji „Źródła zdjęć”.
+  Opcjonalnie zrzuty ekranu z IGDB - to materiały wydawców, a nie wolna licencja, więc opcja jest domyślnie wyłączona.
+- **Film**: zwiastun z IGDB dla wskazanej gry, osadzony przez odtwarzacz YouTube (tryb prywatności) po sprawdzeniu przez
+  oEmbed, że jest publiczny i pozwala na osadzanie. Bez gry z katalogu film znajdzie wyszukiwarka YouTube, jeśli
+  ustawisz `YOUTUBE_API_KEY`.
+- **Bez klucza Anthropic** powstaje tylko szkielet artykułu z prawdziwymi danymi z katalogu i miejscami `[UZUPEŁNIJ: ...]`
+  (wpisu z takimi znacznikami nie da się opublikować, tylko zapisać jako szkielet/szkic). Kompletny tekst wymaga AI.
+- Koszty pilnują limity `WRITER_MAX_PER_HOUR` (na administratora) i `WRITER_MAX_PER_DAY` (cały serwis); każde użycie trafia do
+  dziennika działań (tokeny, wyszukiwania, liczba zdjęć). Do API Anthropic trafia treść zadania, dane wybranych gier,
+  wyniki wyszukiwania i miniatury kandydatów na zdjęcia - bez danych kont.
+- Bezpieczeństwo: wynik jest czyszczony (bez HTML i obcych linków), pobieranie plików ma limity i dopuszcza tylko wskazane
+  hosty (ochrona przed SSRF), a wyniki wyszukiwania są dla modelu wyłącznie danymi.
+
+## Kopiowanie danych: lokalna SQLite <-> Azure SQL
+
+Skrypt `scripts/db-sync.js` kopiuje dane w obie strony. Domyślnie tylko pokazuje raport (nic nie zapisuje), a zapis
+włącza dopiero `--apply`. Dane są scalane: wiersze, które już są w bazie docelowej, zostają bez zmian, a konflikty
+(np. ta sama nazwa użytkownika pod innym id) są pomijane i wypisane w raporcie. Zapis to jedna transakcja, tabela
+`sessions` nie jest kopiowana, a przed zapisem powstaje lista zmian w `data/backups/` (przy lokalnej bazie także jej kopia).
+
+```bash
+npm run db:push -- --env-file=.env.azure            # podgląd: lokalna SQLite -> Azure SQL
+npm run db:push -- --env-file=.env.azure --apply    # zapis w Azure
+npm run db:pull -- --env-file=.env.azure            # podgląd: Azure SQL -> lokalna SQLite
+npm run db:pull -- --env-file=.env.azure --apply    # zapis w lokalnej bazie
+```
+
+Dane logowania do Azure trzymaj w `.env.azure` (`AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, `AZURE_SQL_USER`,
+`AZURE_SQL_PASSWORD`; plik jest w `.gitignore`), a w portalu Azure dodaj swój adres IP do zapory serwera SQL.
+Inne opcje: `--tables=users,reviews`, `--exclude=admin_logs`, `--local=plik.sqlite3` oraz `--replace --confirm=NAZWA`
+(zastępuje zawartość wybranych tabel, np. żeby lustrzanie odtworzyć bazę; NAZWA to nazwa bazy docelowej albo pliku).
+`npm run db:list` wypisuje tabele. Pliki wgrane przez użytkowników nie są w bazie - kopiuje się je osobno (`UPLOADS_DIR`).
+Lista zmian i kopia bazy sprzed zapisu lądują w `data/backups/` - inny katalog wskażesz zmienną `DB_SYNC_BACKUP_DIR`.
 
 ## Wdrożenie na Azure (App Service)
 

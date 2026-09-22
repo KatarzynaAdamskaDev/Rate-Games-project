@@ -86,6 +86,7 @@
                 <button type="button" class="active" role="tab" aria-selected="true" data-tab="write"><i class="bi bi-pencil"></i> Pisz</button>
                 <button type="button" role="tab" aria-selected="false" data-tab="preview"><i class="bi bi-eye"></i> Podgląd</button>
               </div>
+              <button type="button" class="gv-blogedit-writerbtn" id="writerOpen" title="Podaj temat i punkty - pomocnik przygotuje tytuł, opis, tagi i treść pod SEO"><i class="bi bi-stars"></i> Pomocnik pisania</button>
               <span class="gv-blogedit-stats" id="contentStats" aria-live="polite"></span>
             </div>
 
@@ -107,6 +108,7 @@
               <button type="button" data-cmd="tip" title="Ramka: Wskazówka"><i class="bi bi-lightbulb"></i></button>
               <button type="button" data-cmd="warning" title="Ramka: Uwaga"><i class="bi bi-exclamation-triangle"></i></button>
               <button type="button" data-cmd="hr" title="Linia pozioma"><i class="bi bi-hr"></i></button>
+              <button type="button" data-cmd="todo" title="Przejdź do następnego miejsca oznaczonego [UZUPEŁNIJ: ...]"><i class="bi bi-cursor-text"></i></button>
               <button type="button" data-cmd="seo" class="gv-blogedit-seobtn" title="Pogrubi najważniejsze frazy, doda linki do gier z katalogu oraz uporządkuje listy i nagłówki"><i class="bi bi-magic"></i> Formatuj pod SEO</button>
             </div>
 
@@ -402,6 +404,126 @@
         <div class="modal-footer gv-modal-footer">
           <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
           <button type="button" class="btn gv-btn-success d-none" id="embedVideoInsert"><i class="bi bi-check-lg"></i> Wstaw film</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="writerModal" tabindex="-1" aria-labelledby="writerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="writerModalLabel"><i class="bi bi-stars"></i> Pomocnik pisania</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <div class="modal-body">
+
+          <div id="writerPaneForm">
+            <p class="gv-writer-mode <%= writerOptions.enabled ? 'ai' : '' %>">
+              <% if (writerOptions.enabled) { %>
+                <i class="bi bi-stars"></i> Tryb AI: artykuł napisze Claude na podstawie Twojego zadania i danych z katalogu gier.
+              <% } else { %>
+                <i class="bi bi-list-check"></i> Tryb bez AI: dostaniesz szkielet artykułu pod SEO z danymi z katalogu i miejscami do uzupełnienia. Pełny tekst wygeneruje AI po ustawieniu <code>ANTHROPIC_API_KEY</code> na serwerze.
+              <% } %>
+            </p>
+
+            <label class="gv-label" for="writerTopic">O czym ma być artykuł?</label>
+            <input type="text" id="writerTopic" class="form-control gv-input" maxlength="200" placeholder="np. Poradnik dla początkujących do Elden Ring" autocomplete="off">
+
+            <span class="gv-label mt-3 d-block">Rodzaj artykułu</span>
+            <div class="gv-chip-check-row" role="radiogroup" aria-label="Rodzaj artykułu">
+              <% writerOptions.types.forEach(function(item, i) { %>
+                <label class="gv-chip-check">
+                  <input type="radio" name="writerType" value="<%= item.key %>" <%= i === 0 ? 'checked' : '' %>>
+                  <span><%= item.label %></span>
+                </label>
+              <% }) %>
+            </div>
+
+            <label class="gv-label mt-3" for="writerPoints">Co ma zawierać? <span class="gv-muted">(jeden punkt w linii - z nich powstaną śródtytuły)</span></label>
+            <textarea id="writerPoints" class="form-control gv-input" rows="4" maxlength="1800" placeholder="wymagania sprzętowe&#10;najlepsze klasy na start&#10;najczęstsze błędy początkujących"></textarea>
+
+            <label class="gv-label mt-3" for="writerGameSearch">Gry z katalogu, o których piszesz <span class="gv-muted">(opcjonalnie, do 5)</span></label>
+            <input type="search" id="writerGameSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off">
+            <ul class="gv-gamepick" id="writerGameList"></ul>
+            <div class="gv-writer-games" id="writerGames"></div>
+            <div class="gv-edit-hint">Dane wybranych gier (platformy, rok, gatunek, oceny graczy) trafią do artykułu jako sprawdzone fakty, a w tekście pojawią się linki i karty tych gier.</div>
+
+            <div class="gv-writer-row mt-3">
+              <div>
+                <label class="gv-label" for="writerKeyword">Główna fraza kluczowa <span class="gv-muted">(opcjonalnie)</span></label>
+                <input type="text" id="writerKeyword" class="form-control gv-input" maxlength="60" placeholder="dobierzemy z tematu" autocomplete="off">
+              </div>
+              <div>
+                <label class="gv-label" for="writerTone">Ton</label>
+                <select id="writerTone" class="form-select gv-input">
+                  <% writerOptions.tones.forEach(function(item) { %><option value="<%= item.key %>"><%= item.label %></option><% }) %>
+                </select>
+              </div>
+              <div>
+                <label class="gv-label" for="writerLength">Długość</label>
+                <select id="writerLength" class="form-select gv-input">
+                  <% writerOptions.lengths.forEach(function(item) { %><option value="<%= item.key %>" <%= item.key === 'medium' ? 'selected' : '' %>><%= item.label %></option><% }) %>
+                </select>
+              </div>
+            </div>
+
+            <label class="gv-chip-check mt-3">
+              <input type="checkbox" id="writerFaq" checked>
+              <span>Dodaj sekcję „Najczęściej zadawane pytania” (dobra dla wyszukiwarek i asystentów AI)</span>
+            </label>
+
+            <span class="gv-label mt-3 d-block">Zdjęcia, film i fakty</span>
+            <div class="gv-chip-check-row" role="group" aria-label="Dodatki do artykułu">
+              <label class="gv-chip-check"><input type="checkbox" id="writerImages" checked><span><i class="bi bi-image"></i> Zdjęcia na wolnych licencjach</span></label>
+              <label class="gv-chip-check"><input type="checkbox" id="writerVideo" checked><span><i class="bi bi-youtube"></i> Film z YouTube</span></label>
+              <label class="gv-chip-check"><input type="checkbox" id="writerResearch" <%= writerOptions.enabled && writerOptions.webSearch ? 'checked' : 'disabled' %>><span><i class="bi bi-search"></i> Sprawdź fakty w internecie</span></label>
+              <label class="gv-chip-check"><input type="checkbox" id="writerScreens"><span><i class="bi bi-controller"></i> Zrzuty ekranu z IGDB</span></label>
+            </div>
+            <div class="gv-edit-hint">Zdjęcia pochodzą z Wikimedia Commons i Openverse (CC0, domena publiczna, CC BY, CC BY-SA) - autor i licencja trafiają do podpisu i sekcji „Źródła zdjęć”. Film to osadzony odtwarzacz YouTube (zwiastun gry z IGDB). Zrzuty ekranu z IGDB to materiały wydawców, a nie wolna licencja - włączaj je tylko przy omawianiu gier, z podaniem źródła. Sprawdzanie faktów w internecie działa w trybie AI.</div>
+
+            <div class="gv-media-error d-none" id="writerError" role="alert"></div>
+            <div class="gv-writer-progress d-none" id="writerProgress" role="status" aria-live="polite">
+              <p><i class="bi bi-stars"></i> Przygotowuję artykuł - to może potrwać kilka minut. Nie zamykaj tego okna.</p>
+              <ul class="gv-writer-steps" id="writerSteps"></ul>
+            </div>
+          </div>
+
+          <div id="writerPaneResult" class="d-none">
+            <div class="gv-writer-meta">
+              <span class="gv-writer-badge" id="writerBadge"></span>
+              <span id="writerWords"></span>
+              <span class="gv-writer-score" id="writerScore"></span>
+            </div>
+            <ul class="gv-writer-notes" id="writerNotes"></ul>
+            <div class="gv-writer-mediainfo d-none" id="writerMediaInfo"></div>
+
+            <label class="gv-label" for="writerResTitle">Tytuł</label>
+            <input type="text" id="writerResTitle" class="form-control gv-input" maxlength="<%= maxTitle %>" autocomplete="off">
+            <label class="gv-label mt-3" for="writerResExcerpt">Krótki opis (do wyszukiwarek i podglądów linków)</label>
+            <textarea id="writerResExcerpt" class="form-control gv-input" rows="2" maxlength="<%= maxExcerpt %>"></textarea>
+            <div class="gv-writer-tags" id="writerResTags" aria-label="Proponowane tagi"></div>
+
+            <div class="gv-blogedit-tabs my-3" role="tablist">
+              <button type="button" class="active" data-writer-tab="preview"><i class="bi bi-eye"></i> Podgląd</button>
+              <button type="button" data-writer-tab="text"><i class="bi bi-pencil"></i> Edytuj tekst</button>
+            </div>
+            <div class="gv-post-body gv-writer-preview" id="writerResPreview"></div>
+            <textarea id="writerResContent" class="form-control gv-input gv-blogedit-textarea d-none" rows="16" maxlength="<%= maxContent %>"></textarea>
+
+            <label class="gv-chip-check mt-3">
+              <input type="checkbox" id="writerApplyMeta" checked>
+              <span>Ustaw też tytuł, krótki opis, tagi i kategorię wpisu</span>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer gv-modal-footer">
+          <button type="button" class="btn gv-btn-ghost" data-bs-dismiss="modal">Anuluj</button>
+          <button type="button" class="btn gv-btn-ghost d-none" id="writerBack"><i class="bi bi-arrow-left"></i> Zmień zadanie</button>
+          <button type="button" class="btn gv-btn-success" id="writerGenerate"><i class="bi bi-stars"></i> Wygeneruj artykuł</button>
+          <button type="button" class="btn gv-btn-ghost d-none" id="writerRegenerate"><i class="bi bi-arrow-repeat"></i> Wygeneruj ponownie</button>
+          <button type="button" class="btn gv-btn-ghost d-none" id="writerAppend"><i class="bi bi-box-arrow-in-down"></i> Dopisz na końcu</button>
+          <button type="button" class="btn gv-btn-success d-none" id="writerInsert"><i class="bi bi-check-lg"></i> Wstaw do edytora</button>
         </div>
       </div>
     </div>
@@ -1451,7 +1573,7 @@
         icon.className = 'bi ' + (applied ? 'bi-magic' : 'bi-info-circle');
         formatNote.appendChild(icon);
         var body = document.createElement('div');
-        if (applied) body.appendChild(noteList('Sformatowano pod SEO', data.changes.map(function (change) { return change.label; })));
+        if (applied) body.appendChild(noteList(data.title || 'Sformatowano pod SEO', data.changes.map(function (change) { return change.label; })));
         else {
           var head = document.createElement('b');
           head.textContent = data.message || 'Nie znalazłem w tekście nic do automatycznego poprawienia.';
@@ -1476,6 +1598,14 @@
           });
           formatNote.appendChild(undo);
         }
+        if (data.placeholders) {
+          var find = document.createElement('button');
+          find.type = 'button';
+          find.className = 'gv-mini-btn gv-formatnote-find';
+          find.innerHTML = '<i class="bi bi-cursor-text"></i> Przejdź do [UZUPEŁNIJ] (' + data.placeholders + ')';
+          find.addEventListener('click', findPlaceholder);
+          formatNote.appendChild(find);
+        }
         formatNote.classList.remove('d-none');
       }
       function runAutoFormat() {
@@ -1498,6 +1628,323 @@
           .then(function () { button.disabled = false; });
       }
       commands.seo = runAutoFormat;
+
+      /* ------------------- pomocnik pisania: artykuł z zadania ------------------- */
+      var writerState = { games: [], result: null, busy: false };
+      var writerFields = { topic: $('writerTopic'), points: $('writerPoints'), keyword: $('writerKeyword'), tone: $('writerTone'), length: $('writerLength'), faq: $('writerFaq') };
+      var writerMaxGames = 5;
+
+      function writerType() {
+        var checked = document.querySelector('input[name="writerType"]:checked');
+        return checked ? checked.value : 'guide';
+      }
+      function writerSays(text) {
+        var box = $('writerError');
+        box.textContent = text || '';
+        show(box, !!text);
+      }
+      function renderWriterGames() {
+        var box = $('writerGames');
+        box.innerHTML = '';
+        writerState.games.forEach(function (game, index) {
+          var chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'gv-writer-game';
+          chip.title = 'Usuń grę z zadania';
+          var label = document.createElement('span');
+          label.textContent = game.title;
+          var icon = document.createElement('i');
+          icon.className = 'bi bi-x-lg';
+          chip.appendChild(label);
+          chip.appendChild(icon);
+          chip.addEventListener('click', function () { writerState.games.splice(index, 1); renderWriterGames(); });
+          box.appendChild(chip);
+        });
+      }
+      bindGameSearch($('writerGameSearch'), $('writerGameList'), function (game) {
+        var id = String(game.id);
+        if (writerState.games.length < writerMaxGames && !writerState.games.some(function (item) { return item.id === id; })) {
+          writerState.games.push({ id: id, title: game.title });
+          renderWriterGames();
+        }
+        $('writerGameList').innerHTML = '';
+        $('writerGameSearch').value = '';
+      });
+
+      function writerStep(showResult) {
+        show($('writerPaneForm'), !showResult);
+        show($('writerPaneResult'), showResult);
+        show($('writerGenerate'), !showResult);
+        show($('writerBack'), showResult);
+        show($('writerRegenerate'), showResult);
+        show($('writerInsert'), showResult);
+        show($('writerAppend'), showResult && !!content.value.trim());
+        $('writerInsert').innerHTML = '<i class="bi bi-check-lg"></i> ' + (content.value.trim() ? 'Zastąp treść w edytorze' : 'Wstaw do edytora');
+      }
+      function openWriter() {
+        if (!writerFields.topic.value.trim() && title.value.trim()) writerFields.topic.value = title.value.trim();
+        writerSays('');
+        show($('writerProgress'), false);
+        writerStep(false);
+        modal('writerModal').show();
+      }
+      $('writerModal').addEventListener('shown.bs.modal', function () { if (!$('writerPaneForm').classList.contains('d-none')) writerFields.topic.focus(); });
+      $('writerOpen').addEventListener('click', openWriter);
+      $('writerBack').addEventListener('click', function () { writerStep(false); });
+
+      function writerPayload() {
+        return {
+          topic: writerFields.topic.value.trim(),
+          type: writerType(),
+          points: writerFields.points.value,
+          games: writerState.games.map(function (game) { return game.id; }),
+          keyword: writerFields.keyword.value.trim(),
+          tone: writerFields.tone.value,
+          length: writerFields.length.value,
+          faq: writerFields.faq.checked,
+          images: $('writerImages').checked,
+          video: $('writerVideo').checked,
+          research: $('writerResearch').checked,
+          screenshots: $('writerScreens').checked
+        };
+      }
+
+      function showWriterResult(data) {
+        writerState.result = data;
+        $('writerResTitle').value = data.title || '';
+        $('writerResExcerpt').value = data.excerpt || '';
+        $('writerResContent').value = data.content || '';
+
+        var badge = $('writerBadge');
+        badge.className = 'gv-writer-badge ' + (data.mode === 'ai' ? 'ai' : 'skeleton');
+        badge.innerHTML = data.mode === 'ai' ? '<i class="bi bi-stars"></i> Napisała AI' : '<i class="bi bi-list-check"></i> Szkielet bez AI';
+        $('writerWords').textContent = data.words + ' słów';
+        var scoreBox = $('writerScore');
+        var score = data.analysis ? data.analysis.score : null;
+        scoreBox.textContent = score === null ? '' : 'Ocena SEO: ' + score + '/100';
+        scoreBox.className = 'gv-writer-score ' + (score >= 75 ? 'good' : score >= 50 ? 'mid' : 'low');
+
+        var notes = $('writerNotes');
+        notes.innerHTML = '';
+        (data.notes || []).forEach(function (note) {
+          var li = document.createElement('li');
+          var icon = document.createElement('i');
+          icon.className = 'bi bi-info-circle';
+          var text = document.createElement('span');
+          text.textContent = note;
+          li.appendChild(icon);
+          li.appendChild(text);
+          notes.appendChild(li);
+        });
+
+        var tagBox = $('writerResTags');
+        tagBox.innerHTML = '';
+        (data.tags || []).forEach(function (tag) {
+          var chip = document.createElement('span');
+          chip.className = 'gv-writer-tag';
+          chip.textContent = '#' + tag;
+          tagBox.appendChild(chip);
+        });
+
+        var mediaInfo = $('writerMediaInfo');
+        mediaInfo.innerHTML = '';
+        var found = data.media || {};
+        function mediaChip(icon, text) {
+          var chip = document.createElement('span');
+          var glyph = document.createElement('i');
+          glyph.className = 'bi ' + icon;
+          chip.appendChild(glyph);
+          chip.appendChild(document.createTextNode(' ' + text));
+          mediaInfo.appendChild(chip);
+        }
+        if (found.images && found.images.length) mediaChip('bi-image', 'Zdjęcia: ' + found.images.length + ' (autor i licencja w podpisach)');
+        if (found.video) mediaChip('bi-youtube', 'Film: ' + (found.video.title || 'YouTube'));
+        if (found.sources) mediaChip('bi-search', 'Źródła z internetu: ' + found.sources);
+        mediaInfo.classList.toggle('d-none', !mediaInfo.childNodes.length);
+
+        writerTab('preview');
+        writerStep(true);
+        refreshWriterPreview();
+      }
+
+      function writerTab(name) {
+        document.querySelectorAll('[data-writer-tab]').forEach(function (tab) { tab.classList.toggle('active', tab.dataset.writerTab === name); });
+        show($('writerResPreview'), name === 'preview');
+        show($('writerResContent'), name === 'text');
+        if (name === 'preview') refreshWriterPreview();
+      }
+      document.querySelectorAll('[data-writer-tab]').forEach(function (tab) {
+        tab.addEventListener('click', function () { writerTab(tab.dataset.writerTab); });
+      });
+      function refreshWriterPreview() {
+        var box = $('writerResPreview');
+        box.innerHTML = '<p class="gv-muted"><i class="bi bi-arrow-repeat gv-spin"></i> Wczytuję podgląd...</p>';
+        post('/blog/preview', { content: $('writerResContent').value })
+          .then(function (data) { box.innerHTML = data.html || ''; })
+          .catch(function () { box.textContent = 'Nie udało się wczytać podglądu.'; });
+      }
+
+      var writerStepIcons = { start: 'bi-arrow-repeat gv-spin', done: 'bi-check-circle-fill', skip: 'bi-dash-circle', fail: 'bi-exclamation-triangle' };
+      function writerStepUpdate(step) {
+        var list = $('writerSteps');
+        var item = list.querySelector('[data-step="' + step.id + '"]');
+        if (!item) {
+          item = document.createElement('li');
+          item.dataset.step = step.id;
+          item.appendChild(document.createElement('i'));
+          item.appendChild(document.createElement('span'));
+          item.appendChild(document.createElement('small'));
+          list.appendChild(item);
+        }
+        item.className = 'st-' + step.status;
+        item.querySelector('i').className = 'bi ' + (writerStepIcons[step.status] || 'bi-dot');
+        item.querySelector('span').textContent = step.label;
+        item.querySelector('small').textContent = step.detail ? ' - ' + step.detail : '';
+      }
+
+      /** Odczytuje odpowiedź w formacie NDJSON: linie z postępem, a na końcu wynik (albo błąd). */
+      function readWriterStream(response) {
+        var buffer = '';
+        var result = null;
+        function handle(line) {
+          if (!line.trim()) return;
+          var message;
+          try { message = JSON.parse(line); } catch (err) { return; }
+          if (message.type === 'step') writerStepUpdate(message);
+          else if (message.type === 'done') result = message.result;
+          else if (message.type === 'error') throw new Error(message.error);
+        }
+        function finish() {
+          if (buffer.trim()) handle(buffer);
+          if (!result) throw new Error('Nie udało się wygenerować artykułu. Spróbuj ponownie.');
+          return result;
+        }
+        if (!response.body || !response.body.getReader) {
+          return response.text().then(function (text) { text.split('\n').forEach(handle); return finish(); });
+        }
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder('utf-8');
+        function pump() {
+          return reader.read().then(function (chunk) {
+            if (chunk.done) return finish();
+            buffer += decoder.decode(chunk.value, { stream: true });
+            var lines = buffer.split('\n');
+            buffer = lines.pop();
+            lines.forEach(handle);
+            return pump();
+          });
+        }
+        return pump();
+      }
+
+      function generateArticle() {
+        if (writerState.busy) return;
+        var payload = writerPayload();
+        if (payload.topic.length < 3) {
+          writerStep(false);
+          writerSays('Napisz, o czym ma być artykuł (co najmniej 3 znaki).');
+          writerFields.topic.focus();
+          return;
+        }
+        writerState.busy = true;
+        writerStep(false);
+        writerSays('');
+        $('writerSteps').innerHTML = '';
+        show($('writerProgress'), true);
+        var generate = $('writerGenerate');
+        generate.disabled = true;
+        fetch('/blog/write', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' }, body: JSON.stringify(payload) })
+          .then(function (response) {
+            var streaming = /ndjson/i.test(response.headers.get('content-type') || '');
+            if (response.ok && streaming) return readWriterStream(response);
+            return response.json().catch(function () { return {}; }).then(function (data) {
+              if (!response.ok) throw new Error(data.error || data.message || 'Nie udało się wygenerować artykułu.');
+              return data;
+            });
+          })
+          .then(showWriterResult)
+          .catch(function (err) { writerSays(/failed to fetch|networkerror|load failed/i.test(err.message) ? 'Brak połączenia z serwerem. Spróbuj ponownie.' : err.message); })
+          .then(function () {
+            writerState.busy = false;
+            generate.disabled = false;
+            show($('writerProgress'), false);
+          });
+      }
+      $('writerGenerate').addEventListener('click', generateArticle);
+      $('writerRegenerate').addEventListener('click', generateArticle);
+
+      /** Wstawia tekst do edytora tak, żeby Ctrl+Z działał (execCommand), a gdy się nie uda - zwykłym przypisaniem. */
+      function setEditorText(text) {
+        content.focus();
+        content.select();
+        var done = false;
+        try { done = document.execCommand('insertText', false, text); } catch (err) { done = false; }
+        if (!done || content.value !== text) content.value = text;
+        fire();
+      }
+      function setField(input, value) {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      function applyWriterResult(append) {
+        var result = writerState.result;
+        if (!result) return;
+        var text = $('writerResContent').value.trim();
+        if (!text) return;
+        var hadText = !!content.value.trim();
+        undoContent = content.value;
+        setEditorText(append && hadText ? content.value.replace(/\s+$/, '') + '\n\n' + text : text);
+
+        var changes = ['Treść: ' + words(text) + ' słów'];
+        if ($('writerApplyMeta').checked) {
+          var newTitle = $('writerResTitle').value.trim();
+          var newExcerpt = $('writerResExcerpt').value.trim();
+          // Dopisując do istniejącego tekstu, nie nadpisujemy tytułu i opisu, które autor już ma.
+          if (newTitle && (!append || !hadText || !title.value.trim())) { setField(title, newTitle); changes.push('Tytuł wpisu'); }
+          if (newExcerpt && (!append || !hadText || !excerpt.value.trim())) { setField(excerpt, newExcerpt); changes.push('Krótki opis'); }
+          if (result.tags && result.tags.length) { addTag(result.tags.join(',')); changes.push('Tagi'); }
+          if (result.category && !append) {
+            var radio = form.querySelector('input[name="category"][value="' + result.category + '"]');
+            if (radio && !radio.checked) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); changes.push('Kategoria: ' + result.category); }
+          }
+        }
+
+        modal('writerModal').hide();
+        var writeTab = document.querySelector('[data-tab="write"]');
+        if (writeTab && !writeTab.classList.contains('active')) writeTab.click();
+        var left = (content.value.match(/\[UZUPE[ŁL]NIJ[^\]\n]*\]/gi) || []).length;
+        showFormatNote({
+          changed: true,
+          title: result.mode === 'ai' ? 'Wstawiono artykuł napisany przez AI' : 'Wstawiono szkielet artykułu',
+          changes: changes.map(function (label) { return { label: label }; }),
+          notes: (result.notes || []).filter(function (note) { return !/^To szkielet bez AI|^Tekst napisała AI/.test(note); }),
+          placeholders: left
+        });
+        formatNote.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      $('writerInsert').addEventListener('click', function () { applyWriterResult(false); });
+      $('writerAppend').addEventListener('click', function () { applyWriterResult(true); });
+
+      /** Zaznacza kolejne miejsce oznaczone [UZUPEŁNIJ: ...] (od kursora, potem od początku). */
+      function findPlaceholder() {
+        var pattern = /\[UZUPE[ŁL]NIJ[^\]\n]*\]/gi;
+        var value = content.value;
+        var from = content.selectionEnd || 0;
+        var match = null;
+        var found;
+        while ((found = pattern.exec(value))) {
+          if (found.index >= from) { match = found; break; }
+          if (!match) match = found;
+        }
+        if (!match) { showFormatNote({ message: 'Nie ma już miejsc oznaczonych [UZUPEŁNIJ: ...].' }); return; }
+        var line = value.slice(0, match.index).split('\n').length - 1;
+        content.focus();
+        content.setSelectionRange(match.index, match.index + match[0].length);
+        var height = parseFloat(getComputedStyle(content).lineHeight) || 24;
+        content.scrollTop = Math.max(0, line * height - content.clientHeight / 3);
+      }
+      commands.todo = findPlaceholder;
+
 
       renderTags();
       refreshMode();

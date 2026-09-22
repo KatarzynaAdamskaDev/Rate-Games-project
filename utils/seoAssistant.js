@@ -487,6 +487,7 @@ function analyze({ title = '', excerpt = '', content = '', tags = [], hasCover =
   const primary = keywords[0] || null;
   const headingCount = (String(content).match(/^##\s+\S/gm) || []).length;
   const hasLink = /(?<!!)\[[^\]]*\]\((?:https?:\/\/|\/)[^)]+\)/.test(content);
+  const todoCount = (String(content).match(/\[UZUPE[ŁL]NIJ[^\]\n]*\]/gi) || []).length;
   const sentences = splitSentences(plain.text);
   const avgSentence = sentences.length ? wordCount / sentences.length : 0;
   const firstWords = plain.firstParagraph.split(/\s+/).slice(0, 100).join(' ');
@@ -557,6 +558,11 @@ function analyze({ title = '', excerpt = '', content = '', tags = [], hasCover =
       id: 'readability', weight: 5, ok: avgSentence === 0 || avgSentence <= 22,
       label: avgSentence ? `Średnia długość zdania: ${Math.round(avgSentence)} słów` : 'Czytelność zdań',
       hint: 'Zdania są długie - krótsze (do ok. 20 słów) czyta się łatwiej.',
+    },
+    {
+      id: 'todo', weight: 8, ok: todoCount === 0,
+      label: todoCount ? `Miejsca do uzupełnienia: ${todoCount}` : 'Brak nieuzupełnionych miejsc',
+      hint: 'Znajdź w tekście znaczniki [UZUPEŁNIJ: ...] i wpisz własne informacje - wpisu z takimi znacznikami nie da się opublikować.',
     },
     {
       id: 'cover', weight: 2, ok: !!hasCover,

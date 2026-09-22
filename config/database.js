@@ -24,10 +24,11 @@ if (isProduction) {
     }
   );
 } else {
-  // DEV: lokalny plik SQLite, zero konfiguracji
+  // DEV: lokalny plik SQLite, zero konfiguracji. SQLITE_STORAGE pozwala testom (tests/setup/testApp.js)
+  // wskazać własny, tymczasowy plik zamiast dev.sqlite3 - bez tego każdy test czyściłby prawdziwe dane.
   sequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: path.join(__dirname, '..', 'data', 'dev.sqlite3'),
+    storage: process.env.SQLITE_STORAGE || path.join(__dirname, '..', 'data', 'dev.sqlite3'),
     logging: false,
   });
 }

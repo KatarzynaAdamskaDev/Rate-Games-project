@@ -13,14 +13,14 @@
       <h1 class="gv-page-title mb-4">Czat i grupy społeczności</h1>
 
       <div class="gv-chat-shell">
-        <div class="gv-chat-list-col">
+        <div class="gv-chat-list-col" id="chatListCol" data-active="<%= active ? active.id : '' %>">
           <div class="gv-chat-list-scroll">
 
           <form action="/chat/start/placeholder" method="POST" id="startDmForm" class="gv-chat-mini-form">
             <input type="text" id="dmUsername" name="dmUsername" list="userList" placeholder="Napisz do gracza..." autocomplete="off">
             <button type="submit" aria-label="Rozpocznij rozmowę"><i class="bi bi-send-fill"></i></button>
           </form>
-          <p class="gv-group-hint mb-2">Możesz pisać prywatnie tylko do wzajemnych znajomych.</p>
+          <p class="gv-group-hint mb-2"><%= currentUser.role === 'admin' ? 'Jako administrator możesz napisać do każdego użytkownika.' : 'Możesz pisać prywatnie tylko do wzajemnych znajomych.' %></p>
           <datalist id="userList">
             <% otherUsers.forEach(function(u) { %><option value="<%= u %>"><% }) %>
           </datalist>
@@ -33,6 +33,7 @@
           </script>
 
           <div class="gv-chat-group-label">Rozmowy</div>
+          <div id="dmConversationList">
           <% conversations.filter(function(c){return c.type === 'dm';}).forEach(function(c) { %>
             <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
               <div class="gv-c-avatar"></div>
@@ -43,8 +44,10 @@
           <% if (conversations.filter(function(c){return c.type === 'dm';}).length === 0) { %>
             <p class="gv-game-card-count px-2" style="color:var(--text-lo); font-size:11.5px;">Brak rozmów. Napisz do kogoś powyżej.</p>
           <% } %>
+          </div>
 
           <div class="gv-chat-group-label">Grupy</div>
+          <div id="groupConversationList">
           <% conversations.filter(function(c){return c.type === 'group';}).forEach(function(c) { %>
             <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
               <div class="gv-c-avatar"></div>
@@ -52,6 +55,7 @@
               <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
             </a>
           <% }) %>
+          </div>
           <button type="button" class="gv-btn-outline w-100 mt-2 mb-1" data-bs-toggle="collapse" data-bs-target="#newGroupForm">+ Nowa grupa</button>
 
           <form action="/chat/groups/new" method="POST" class="collapse" id="newGroupForm">
@@ -204,6 +208,9 @@
                 </b>
                 <div style="color:var(--text-lo); font-size:11.5px;">
                   <%= active.type === 'dm' ? 'Rozmowa prywatna' : (active.type === 'group' ? active.memberIds.length + ' członków grupy' : 'Pokój dyskusyjny gry') %>
+                  <% if (active.type === 'dm' && !active.canReply) { %>
+                    <span class="gv-badge gv-badge-warn" title="Tylko administrator może pisać w tej rozmowie">bez możliwości odpowiedzi</span>
+                  <% } %>
                 </div>
               </div>
               <div class="gv-chat-topbar-actions">
@@ -235,10 +242,15 @@
               <% }) %>
             </div>
 
-            <form class="gv-chat-input-row" id="chatForm">
-              <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
-              <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
-            </form>
+            <% var canISend = active.canReply || currentUser.role === 'admin'; %>
+            <% if (canISend) { %>
+              <form class="gv-chat-input-row" id="chatForm">
+                <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
+                <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
+              </form>
+            <% } else { %>
+              <p class="gv-group-hint px-2 py-2 mb-0"><i class="bi bi-info-circle"></i> Administrator wysłał tę wiadomość bez możliwości odpowiedzi.</p>
+            <% } %>
           <% } %>
         </div>
       </div>
@@ -248,15 +260,102 @@
   <%- include('../partials/report-modal') %>
   <%- include('../partials/footer') %>
 
+  <script>
+    // Lista rozmów po lewej (nowe rozmowy, nowe wiadomości i kolejność) odświeża się sama - bez tego
+    // widać je dopiero po ręcznym przeładowaniu strony. Działa niezależnie od tego, czy jakaś rozmowa
+    // jest akurat otwarta (patrz niżej osobny, częstszy polling samej otwartej rozmowy).
+    (function () {
+      var col = document.getElementById('chatListCol');
+      var dmBox = document.getElementById('dmConversationList');
+      var groupBox = document.getElementById('groupConversationList');
+      if (!col || !dmBox || !groupBox) return;
+      var activeId = col.dataset.active || null;
+
+      function timeAgo(iso) {
+        var seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+        if (seconds < 60) return 'przed chwilą';
+        if (seconds < 3600) return Math.floor(seconds / 60) + ' min temu';
+        if (seconds < 86400) return Math.floor(seconds / 3600) + ' godz. temu';
+        return new Date(iso).toLocaleDateString('pl-PL');
+      }
+
+      function renderItem(c) {
+        var a = document.createElement('a');
+        a.href = '/chat?c=' + encodeURIComponent(c.id);
+        a.className = 'gv-chat-item text-decoration-none' + (c.id === activeId ? ' active' : '');
+
+        var avatar = document.createElement('div');
+        avatar.className = 'gv-c-avatar';
+
+        var info = document.createElement('div');
+        var name = document.createElement('b');
+        name.textContent = c.name;
+        var meta = document.createElement('span');
+        if (c.type === 'dm') {
+          meta.textContent = 'Rozmowa prywatna';
+        } else if (c.lastMessage) {
+          meta.textContent = (c.lastMessage.mine ? 'Ty: ' : c.lastMessage.senderUsername + ': ') + c.lastMessage.text;
+        } else {
+          meta.textContent = 'Brak wiadomości';
+        }
+        info.appendChild(name);
+        info.appendChild(meta);
+
+        a.appendChild(avatar);
+        a.appendChild(info);
+        if (c.unread > 0) {
+          var badge = document.createElement('span');
+          badge.className = 'gv-chat-unread';
+          badge.textContent = String(c.unread);
+          a.appendChild(badge);
+        }
+        return a;
+      }
+
+      function renderList(box, items, emptyText) {
+        box.innerHTML = '';
+        if (items.length === 0) {
+          if (!emptyText) return;
+          var empty = document.createElement('p');
+          empty.className = 'gv-game-card-count px-2';
+          empty.style.color = 'var(--text-lo)';
+          empty.style.fontSize = '11.5px';
+          empty.textContent = emptyText;
+          box.appendChild(empty);
+          return;
+        }
+        items.forEach(function (c) { box.appendChild(renderItem(c)); });
+      }
+
+      function refreshSidebar() {
+        fetch('/chat/api/list', { headers: { Accept: 'application/json' } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data) return;
+            var items = data.conversations || [];
+            renderList(dmBox, items.filter(function (c) { return c.type === 'dm'; }), 'Brak rozmów. Napisz do kogoś powyżej.');
+            renderList(groupBox, items.filter(function (c) { return c.type === 'group'; }), null);
+          })
+          .catch(function () {});
+      }
+
+      setInterval(refreshSidebar, 6000);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) refreshSidebar();
+      });
+    })();
+  </script>
+
   <% if (active) { %>
   <script>
     (function () {
       var conversationId = <%- JSON.stringify(active.id) %>;
       var meId = <%- JSON.stringify(currentUser.id) %>;
       var chatBody = document.getElementById('chatBody');
+      // Formularza nie ma, gdy administrator wyłączył odpowiedź w tej rozmowie, a nie jesteś adminem.
       var form = document.getElementById('chatForm');
       var input = document.getElementById('chatText');
-      var sendBtn = form.querySelector('button[type="submit"]');
+      var sendBtn = form ? form.querySelector('button[type="submit"]') : null;
       var lastTimestamp = <%- JSON.stringify(messages.length ? messages[messages.length - 1].createdAt : null) %>;
       var seenIds = {};
       var isSending = false;
@@ -312,39 +411,41 @@
         chatBody.scrollTop = chatBody.scrollHeight;
       }
 
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        if (isSending) return; // blokada podwójnego Entera/kliknięcia
+      if (form) {
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          if (isSending) return; // blokada podwójnego Entera/kliknięcia
 
-        var text = input.value.trim();
-        if (!text) return;
+          var text = input.value.trim();
+          if (!text) return;
 
-        isSending = true;
-        sendBtn.disabled = true;
-        input.value = ''; // czyścimy od razu, nie czekając na odpowiedź serwera
+          isSending = true;
+          sendBtn.disabled = true;
+          input.value = ''; // czyścimy od razu, nie czekając na odpowiedź serwera
 
-        fetch('/chat/' + conversationId + '/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'text=' + encodeURIComponent(text),
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (data.message) {
-              appendMessage(data.message);
-              lastTimestamp = data.message.createdAt;
-            } else if (data.error) {
-              // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
-              if (window.showToast) showToast(data.error, false);
-              input.value = text;
-            }
+          fetch('/chat/' + conversationId + '/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'text=' + encodeURIComponent(text),
           })
-          .finally(function () {
-            isSending = false;
-            sendBtn.disabled = false;
-            input.focus();
-          });
-      });
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.message) {
+                appendMessage(data.message);
+                lastTimestamp = data.message.createdAt;
+              } else if (data.error) {
+                // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
+                if (window.showToast) showToast(data.error, false);
+                input.value = text;
+              }
+            })
+            .finally(function () {
+              isSending = false;
+              sendBtn.disabled = false;
+              input.focus();
+            });
+        });
+      }
 
       function poll() {
         if (isPolling) return; // nie nakładaj zapytań, jeśli poprzednie jeszcze trwa

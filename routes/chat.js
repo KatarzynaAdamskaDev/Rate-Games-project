@@ -57,6 +57,7 @@ router.get('/', async (req, res) => {
     delete unread.byConversation[active.id];
   }
 
+  const isAdmin = me.role === 'admin';
   const allUsers = await getAllUsers();
   const mutualIds = new Set(await getMutualFriends(me.id));
 
@@ -66,8 +67,9 @@ router.get('/', async (req, res) => {
     active: canSeeActive ? active : null,
     messages,
     unreadByConversation: unread.byConversation,
+    // Administrator może pisać do każdego bez wzajemnej obserwacji (patrz POST /start/:username).
     otherUsers: allUsers
-      .filter((u) => u.id !== me.id && mutualIds.has(u.id))
+      .filter((u) => u.id !== me.id && (isAdmin || mutualIds.has(u.id)))
       .map((u) => u.username),
     popularGames: await getPopularGames(20),
     reportReasonSets: { message: REASONS_BY_TYPE.message },
@@ -97,6 +99,7 @@ router.get('/api/list', async (req, res, next) => {
           id: c.id,
           type: c.type,
           name,
+          canReply: c.canReply,
           unread: unread.byConversation[c.id] || 0,
           lastMessage: last
             ? {
@@ -146,22 +149,24 @@ router.post('/start/:username', blockIfMuted, limiters.chatCreate, async (req, r
     return res.redirect('/chat');
   }
 
-  const [iFollowThem, theyFollowMe] = await Promise.all([
-    isFollowing(req.session.user.id, target.id),
-    isFollowing(target.id, req.session.user.id),
-  ]);
-
   if (await isBlockedEitherWay(req.session.user.id, target.id)) {
     req.flash('error', 'Nie możesz pisać do tego użytkownika (jedna ze stron zablokowała drugą).');
     return res.redirect('/chat');
   }
 
-  if (!iFollowThem || !theyFollowMe) {
-    req.flash(
-      'error',
-      'Możesz pisać prywatnie tylko do wzajemnych znajomych (obserwujecie się nawzajem).'
-    );
-    return res.redirect('/chat');
+  // Administrator może napisać do każdego bez wzajemnej obserwacji (np. w sprawach moderacji).
+  if (req.session.user.role !== 'admin') {
+    const [iFollowThem, theyFollowMe] = await Promise.all([
+      isFollowing(req.session.user.id, target.id),
+      isFollowing(target.id, req.session.user.id),
+    ]);
+    if (!iFollowThem || !theyFollowMe) {
+      req.flash(
+        'error',
+        'Możesz pisać prywatnie tylko do wzajemnych znajomych (obserwujecie się nawzajem).'
+      );
+      return res.redirect('/chat');
+    }
   }
 
   const conv = await getOrCreateDM(req.session.user, target);
@@ -287,12 +292,16 @@ router.post('/:conversationId/messages', blockIfMuted, limiters.chatMessage, asy
     return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
   }
 
-  // W rozmowie prywatnej nie da się pisać do osoby, która zablokowała nas albo którą zablokowaliśmy.
   const conversation = await getConversationById(conversationId);
   if (conversation && conversation.type === 'dm') {
+    // W rozmowie prywatnej nie da się pisać do osoby, która zablokowała nas albo którą zablokowaliśmy.
     const otherId = conversation.memberIds.find((id) => id !== req.session.user.id);
     if (otherId && (await isBlockedEitherWay(req.session.user.id, otherId))) {
       return res.status(403).json({ error: 'Nie możesz wysyłać wiadomości do tego użytkownika (jedna ze stron zablokowała drugą).' });
+    }
+    // Administrator mógł wyłączyć odpowiedź w tej rozmowie - wtedy tylko admin może w niej pisać.
+    if (!conversation.canReply && req.session.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Administrator wyłączył możliwość odpowiedzi w tej rozmowie.' });
     }
   }
 

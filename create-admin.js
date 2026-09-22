@@ -5,6 +5,7 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { findByEmail, findByUsername, createUser } = require('./utils/userHelpers');
+const { isReservedUsername } = require('./utils/reservedUsernames');
 const { sequelize } = require('./config/database');
 const User = require('./models/User');
 
@@ -13,6 +14,14 @@ async function main() {
 
   if (!email || !username || !password) {
     console.log('Użycie: node create-admin.js <email> <username> <hasło>');
+    process.exit(1);
+  }
+
+  // "admin" i inne słowa zarezerwowane pod trasy aplikacji (/admin, /blog, /profile...) nie mogą być
+  // niczyją nazwą użytkownika - inaczej adres /nazwa nie prowadzi do profilu tej osoby, tylko do tej
+  // trasy. Formularz rejestracji to sprawdza, więc ten sam warunek obowiązuje i tutaj.
+  if (isReservedUsername(username)) {
+    console.log(`Nazwa "${username}" jest zarezerwowana przez trasy aplikacji i nie może być nazwą konta. Wybierz inną.`);
     process.exit(1);
   }
 

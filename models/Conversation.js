@@ -39,6 +39,14 @@ const Conversation = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    // Rozmowy prywatne zwykle pozwalają odpowiadać obu stronom. Administrator może napisać do
+    // kogokolwiek (bez wzajemnej obserwacji) i wyłączyć tu odpowiedź - wtedy tylko admin może pisać
+    // w tej rozmowie (patrz routes/chat.js, sprawdzenie przy wysyłaniu wiadomości).
+    canReply: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
   },
   {
     tableName: 'conversations',

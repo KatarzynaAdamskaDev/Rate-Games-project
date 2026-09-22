@@ -1,18 +1,23 @@
 node_modules/
 
 .env
-.env.local
-.env..local
+.env.*
+!.env.example
 
 data/dev.sqlite3
 # Dawny magazyn wpisów bloga (teraz są w bazie danych; plik wczytywany jest jednorazowo przy starcie)
 data/blog.json
+# Kopie i listy zmian tworzone przez npm run db:push / db:pull
+data/backups/
 data/dev.sqlite3-journal
 
 npm-debug.log
 yarn-debug.log*
 yarn-error.log*
 *.log
+
+# Raport pokrycia testów (npm run test:coverage) - odtwarzalny, nie trzeba go trzymać w repo.
+coverage/
 
 .vscode/
 .DS_Store
