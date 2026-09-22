@@ -206,14 +206,22 @@
                     </div>
                   <% } %>
                 </b>
-                <div style="color:var(--text-lo); font-size:11.5px;">
+                <div style="color:var(--text-lo); font-size:11.5px;" id="conversationMeta">
                   <%= active.type === 'dm' ? 'Rozmowa prywatna' : (active.type === 'group' ? active.memberIds.length + ' członków grupy' : 'Pokój dyskusyjny gry') %>
                   <% if (active.type === 'dm' && !active.canReply) { %>
-                    <span class="gv-badge gv-badge-warn" title="Tylko administrator może pisać w tej rozmowie">bez możliwości odpowiedzi</span>
+                    <span class="gv-badge gv-badge-warn" id="canReplyBadge" title="Tylko administrator może pisać w tej rozmowie">bez możliwości odpowiedzi</span>
                   <% } %>
                 </div>
               </div>
               <div class="gv-chat-topbar-actions">
+                <% if (active.type === 'dm' && currentUser.role === 'admin') { %>
+                  <button type="button" class="gv-chat-action-btn" id="toggleReplyBtn"
+                          data-conversation="<%= active.id %>" data-can-reply="<%= active.canReply %>"
+                          title="<%= active.canReply ? 'Wyłącz możliwość odpowiedzi' : 'Włącz możliwość odpowiedzi' %>"
+                          aria-label="Przełącz możliwość odpowiedzi">
+                    <i class="bi <%= active.canReply ? 'bi-chat-dots-fill' : 'bi-chat-slash-fill' %>"></i>
+                  </button>
+                <% } %>
                 <form action="/chat/<%= active.id %>/clear" method="POST" onsubmit="return confirm('Wyczyścić wszystkie wiadomości w tej rozmowie?');">
                   <button type="submit" class="gv-chat-action-btn" title="Wyczyść czat" aria-label="Wyczyść czat"><i class="bi bi-eraser-fill"></i></button>
                 </form>
@@ -360,6 +368,44 @@
       var seenIds = {};
       var isSending = false;
       var isPolling = false;
+
+      // Przycisk admina w topbarze: włącza/wyłącza możliwość odpowiedzi w tej konkretnej rozmowie
+      // (jedyne miejsce, w którym się to teraz ustawia - patrz routes/chat.js, POST toggle-reply).
+      var toggleReplyBtn = document.getElementById('toggleReplyBtn');
+      if (toggleReplyBtn) {
+        toggleReplyBtn.addEventListener('click', function () {
+          if (toggleReplyBtn.disabled) return;
+          toggleReplyBtn.disabled = true;
+          fetch('/chat/' + conversationId + '/toggle-reply', { method: 'POST', headers: { Accept: 'application/json' } })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+              if (!res.ok) throw new Error((res.data && res.data.error) || 'Błąd');
+              var canReply = res.data.canReply;
+              var icon = toggleReplyBtn.querySelector('i');
+              icon.className = 'bi ' + (canReply ? 'bi-chat-dots-fill' : 'bi-chat-slash-fill');
+              toggleReplyBtn.title = canReply ? 'Wyłącz możliwość odpowiedzi' : 'Włącz możliwość odpowiedzi';
+              toggleReplyBtn.dataset.canReply = String(canReply);
+              var meta = document.getElementById('conversationMeta');
+              var badge = document.getElementById('canReplyBadge');
+              if (canReply && badge) {
+                badge.remove();
+              } else if (!canReply && !badge && meta) {
+                badge = document.createElement('span');
+                badge.className = 'gv-badge gv-badge-warn';
+                badge.id = 'canReplyBadge';
+                badge.title = 'Tylko administrator może pisać w tej rozmowie';
+                badge.textContent = 'bez możliwości odpowiedzi';
+                meta.appendChild(badge);
+              }
+            })
+            .catch(function () {
+              alert('Nie udało się zmienić ustawienia odpowiedzi. Spróbuj ponownie.');
+            })
+            .finally(function () {
+              toggleReplyBtn.disabled = false;
+            });
+        });
+      }
 
       // Zapamiętaj ID wiadomości wyrenderowanych już przez serwer, żeby
       // polling ich nie zdublował.

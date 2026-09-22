@@ -2,7 +2,7 @@
 
 const app = require('../app');
 const http = require('http');
-const { sequelize } = require('../config/database');
+const { sequelize, configureSqliteConcurrency } = require('../config/database');
 const { addMissingColumns } = require('../utils/schemaHelpers');
 const { syncAllUsersProgress } = require('../utils/progressHelpers');
 const { seedConversationReads } = require('../utils/chatHelpers');
@@ -28,8 +28,9 @@ sequelize
     console.log(
       `Połączono z bazą danych (${process.env.NODE_ENV === 'production' ? 'Azure SQL' : 'SQLite (dev)'}).`
     );
-    return sequelize.sync();
+    return configureSqliteConcurrency();
   })
+  .then(() => sequelize.sync())
   // sync() nie dodaje nowych kolumn do istniejących tabel - robi to poniższy krok.
   .then(() => addMissingColumns())
   // Wpisy bloga są w bazie; przy pierwszym starcie wczytujemy je z pliku JSON (dawny magazyn albo wpisy startowe).

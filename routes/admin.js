@@ -477,9 +477,10 @@ router.post('/users/:id/unlock', async (req, res, next) => {
 /* ------------------------------ wiadomość od administratora ------------------------------ */
 
 // Administrator może napisać do dowolnego użytkownika, nawet bez wzajemnej obserwacji (normalnie
-// wymaganej w routes/chat.js), i zdecydować, czy druga strona będzie mogła odpowiedzieć. Jeśli
-// rozmowa z tą osobą już istnieje, wiadomość dopisuje się do niej (jej dotychczasowe ustawienie
-// odpowiedzi zostaje bez zmian - nie zamieniamy istniejącej rozmowy w jednostronną).
+// wymaganej w routes/chat.js). Jeśli rozmowa z tą osobą już istnieje, wiadomość dopisuje się do niej
+// (jej dotychczasowe ustawienie odpowiedzi zostaje bez zmian). Możliwość odpowiedzi włącza/wyłącza się
+// osobno, w samej rozmowie na /chat (patrz POST /chat/:conversationId/toggle-reply) - dzięki temu
+// działa tak samo niezależnie od tego, którą ścieżką rozmowa powstała.
 router.post('/users/:id/message', async (req, res, next) => {
   try {
     const target = await User.findByPk(req.params.id);
@@ -490,16 +491,15 @@ router.post('/users/:id/message', async (req, res, next) => {
       req.flash('error', 'Treść wiadomości nie może być pusta.');
       return res.redirect(backTo(req, '/admin/users'));
     }
-    const allowReply = req.body.allowReply === 'on';
 
-    const conversation = await getOrCreateDM(req.session.user, target, { canReply: allowReply });
+    const conversation = await getOrCreateDM(req.session.user, target);
     await addMessage({
       conversationId: conversation.id,
       senderId: req.session.user.id,
       senderUsername: req.session.user.username,
       text,
     });
-    await logAdminAction(req, 'user.message', 'user', target.username, allowReply ? 'Wiadomość (z możliwością odpowiedzi)' : 'Wiadomość (bez możliwości odpowiedzi)');
+    await logAdminAction(req, 'user.message', 'user', target.username, 'Wiadomość');
 
     req.flash('success', `Wiadomość do ${target.username} została wysłana.`);
     res.redirect(`/chat?c=${conversation.id}`);

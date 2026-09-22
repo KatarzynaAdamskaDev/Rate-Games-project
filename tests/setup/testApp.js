@@ -52,14 +52,17 @@ async function createTestApp() {
   // eslint-disable-next-line global-require
   const app = require('../../app');
   // eslint-disable-next-line global-require
-  const { sequelize } = require('../../config/database');
+  const { sequelize, configureSqliteConcurrency } = require('../../config/database');
   await sequelize.authenticate();
+  await configureSqliteConcurrency(); // WAL + busy_timeout - te same ustawienia co na prawdziwym serwerze (bin/www)
   await sequelize.sync({ force: true }); // świeże, puste tabele - każdy plik testowy startuje od zera
 
   async function teardown() {
     await sequelize.close();
     fs.rmSync(dbFile, { force: true });
     fs.rmSync(`${dbFile}-journal`, { force: true });
+    fs.rmSync(`${dbFile}-wal`, { force: true });
+    fs.rmSync(`${dbFile}-shm`, { force: true });
     fs.rmSync(uploadsDir, { recursive: true, force: true });
   }
 

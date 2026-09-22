@@ -15,6 +15,7 @@ const {
   getLastMessage,
   getMessagesAfter,
   addMessage,
+  setCanReply,
   clearMessages,
   deleteConversation,
 } = require('../utils/chatHelpers');
@@ -26,6 +27,7 @@ const { limiters } = require('../middleware/rateLimit');
 const { blockIfMuted } = require('../middleware/muted');
 const { isBlockedEitherWay } = require('../utils/blockHelpers');
 const { REASONS_BY_TYPE, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
+const { logAdminAction } = require('../utils/adminHelpers');
 
 // Cały czat wymaga zalogowania.
 router.use(ensureAuthenticated);
@@ -259,6 +261,44 @@ router.post('/:conversationId/delete', async (req, res) => {
   await deleteConversation(conversationId);
   req.flash('success', 'Rozmowa została usunięta.');
   res.redirect('/chat');
+});
+
+/* --------------------- WŁĄCZ/WYŁĄCZ MOŻLIWOŚĆ ODPOWIEDZI (ADMIN) --------------------- */
+
+// Jedyne miejsce, w którym da się zmienić canReply - obowiązuje od razu w danej rozmowie,
+// niezależnie od tego, którą ścieżką (szybki start czy panel admina) ta rozmowa powstała.
+router.post('/:conversationId/toggle-reply', async (req, res, next) => {
+  try {
+    if (req.session.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Brak uprawnień.' });
+    }
+    const { conversationId } = req.params;
+    const conversation = await getConversationById(conversationId);
+    if (
+      !conversation ||
+      conversation.type !== 'dm' ||
+      !conversation.memberIds.includes(req.session.user.id)
+    ) {
+      return res.status(404).json({ error: 'Nie znaleziono rozmowy.' });
+    }
+
+    const canReply = !conversation.canReply;
+    await setCanReply(conversationId, canReply);
+
+    const otherId = conversation.memberIds.find((id) => id !== req.session.user.id);
+    const otherUsername = (otherId && conversation.memberNames[otherId]) || conversationId;
+    await logAdminAction(
+      req,
+      'user.message',
+      'user',
+      otherUsername,
+      canReply ? 'Włączono możliwość odpowiedzi' : 'Wyłączono możliwość odpowiedzi'
+    );
+
+    res.json({ canReply });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* --------------------------- WIADOMOŚCI (AJAX) --------------------------- */
