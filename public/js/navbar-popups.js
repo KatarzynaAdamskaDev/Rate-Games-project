@@ -53,7 +53,14 @@
     }
   }
 
+  // Zabezpieczenie przed nakładaniem się zapytań: jeśli serwer akurat odpowiada wolniej
+  // (np. baza jest chwilowo zajęta zapisem wiadomości), kolejne tiknięcie interwału NIE
+  // odpala nowego fetcha na stos - czeka, aż poprzedni się zakończy.
+  var summaryInFlight = false;
+
   function refreshSummary() {
+    if (summaryInFlight) return;
+    summaryInFlight = true;
     fetch('/notifications/summary', { headers: JSON_HEADERS })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
@@ -61,7 +68,8 @@
         setBadge(chat.badge, data.messages);
         setBadge(bell.badge, data.notifications);
       })
-      .catch(function () {});
+      .catch(function () {})
+      .finally(function () { summaryInFlight = false; });
   }
 
   function isOpen(p) { return p.panel.classList.contains('open'); }
@@ -317,9 +325,30 @@
     if (e.key === 'Escape') [chat, bell].forEach(function (p) { if (isOpen(p)) closePanel(p); });
   });
 
+  // Karta w tle nie pyta serwera co 2 sekundy bez sensu - pauzujemy interwał, gdy karta
+  // jest ukryta (inna karta, zminimalizowane okno) i wracamy do odpytywania dopiero,
+  // gdy użytkownik znów na nią patrzy (z natychmiastowym odświeżeniem).
+  var summaryTimer = null;
+
+  function startSummaryPolling() {
+    if (summaryTimer) return;
+    summaryTimer = setInterval(refreshSummary, 2000);
+  }
+
+  function stopSummaryPolling() {
+    if (!summaryTimer) return;
+    clearInterval(summaryTimer);
+    summaryTimer = null;
+  }
+
   refreshSummary();
-  setInterval(refreshSummary, 30000);
+  startSummaryPolling();
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden) refreshSummary();
+    if (document.hidden) {
+      stopSummaryPolling();
+    } else {
+      refreshSummary();
+      startSummaryPolling();
+    }
   });
 })();

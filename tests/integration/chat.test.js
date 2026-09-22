@@ -9,9 +9,14 @@ async function follow(agent, username, csrfPath) {
 
 describe('czat', () => {
   let ctx;
+  let admin; // jeden wspólny agent administratora dla całego pliku - logowanie jest limitowane (rate limit /auth/signin)
+  let adminUser;
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    const created = await adminAgent(ctx.app);
+    admin = created.agent;
+    adminUser = created.user;
   });
 
   afterAll(async () => {
@@ -45,28 +50,32 @@ describe('czat', () => {
   });
 
   test('administrator może rozpocząć rozmowę bez wzajemnej obserwacji', async () => {
-    const { agent } = await adminAgent(ctx.app);
     const { user: target } = await userAgent(ctx.app, { username: 'celadmina' });
 
-    const token = await csrfToken(agent, '/chat');
-    const res = await agent.post(`/chat/start/${target.username}`).send({ _csrf: token }).redirects(0);
+    const token = await csrfToken(admin, '/chat');
+    const res = await admin.post(`/chat/start/${target.username}`).send({ _csrf: token }).redirects(0);
     expect(res.status).toBe(302);
     expect(res.headers.location).toMatch(/^\/chat\?c=/);
   });
 
-  test('panel admina: wiadomość bez możliwości odpowiedzi - odbiorca nie może odpisać, admin może', async () => {
-    const { agent: admin, user: adminUser } = await adminAgent(ctx.app);
+  test('panel admina: nowa wiadomość zawsze pozwala odpisać, dopóki admin nie wyłączy tego w rozmowie', async () => {
     const { agent: recipient, user: target } = await userAgent(ctx.app, { username: 'jednostronny' });
 
     const token = await csrfToken(admin, '/admin/users');
-    const send = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Wiadomość od administracji, bez odpowiedzi.', _csrf: token });
+    const send = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Wiadomość od administracji.', _csrf: token });
     expect(send.status).toBe(302);
     expect(send.headers.location).toMatch(/^\/chat\?c=/);
     const conversationId = send.headers.location.split('c=')[1];
 
     const Conversation = require('../../models/Conversation');
-    const conv = await Conversation.findByPk(conversationId);
-    expect(conv.canReply).toBe(false);
+    expect((await Conversation.findByPk(conversationId)).canReply).toBe(true);
+
+    // Admin wyłącza możliwość odpowiedzi bezpośrednio w rozmowie (jedyne miejsce, w którym da się to zrobić).
+    const toggleToken = await csrfToken(admin, `/chat?c=${conversationId}`);
+    const toggleOff = await admin.post(`/chat/${conversationId}/toggle-reply`).set('Accept', 'application/json').send({ _csrf: toggleToken });
+    expect(toggleOff.status).toBe(200);
+    expect(toggleOff.body.canReply).toBe(false);
+    expect((await Conversation.findByPk(conversationId)).canReply).toBe(false);
 
     // Odbiorca widzi wiadomość...
     const page = await recipient.get(`/chat?c=${conversationId}`);
@@ -84,29 +93,65 @@ describe('czat', () => {
     const adminReply = await admin.post(`/chat/${conversationId}/messages`).set('Accept', 'application/json').send({ text: 'Kolejna wiadomość admina', _csrf: adminToken });
     expect(adminReply.status).toBe(200);
     expect(adminReply.body.message).toBeTruthy();
+
+    // Admin włącza z powrotem możliwość odpowiedzi - odbiorca znów może pisać.
+    const toggleToken2 = await csrfToken(admin, `/chat?c=${conversationId}`);
+    const toggleOn = await admin.post(`/chat/${conversationId}/toggle-reply`).set('Accept', 'application/json').send({ _csrf: toggleToken2 });
+    expect(toggleOn.body.canReply).toBe(true);
+
+    const recipientToken2 = await csrfToken(recipient, `/chat?c=${conversationId}`);
+    const reply2 = await recipient.post(`/chat/${conversationId}/messages`).set('Accept', 'application/json').send({ text: 'Teraz mogę odpisać!', _csrf: recipientToken2 });
+    expect(reply2.status).toBe(200);
+    expect(reply2.body.message.text).toBe('Teraz mogę odpisać!');
   });
 
-  test('panel admina: wiadomość z możliwością odpowiedzi pozwala normalnie odpisać', async () => {
-    const { agent: admin, user: adminUser } = await adminAgent(ctx.app);
-    const { agent: recipient, user: target } = await userAgent(ctx.app, { username: 'dwustronny' });
+  test('toggle-reply: zwykły użytkownik nie może przełączać możliwości odpowiedzi', async () => {
+    const { agent: outsider } = await userAgent(ctx.app, { username: 'niedostepdoprzelacznika' });
+    const { user: target } = await userAgent(ctx.app, { username: 'celprzelacznika' });
 
     const token = await csrfToken(admin, '/admin/users');
-    const send = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Wiadomość z możliwością odpowiedzi.', allowReply: 'on', _csrf: token });
+    const send = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Wiadomość testowa.', _csrf: token });
     const conversationId = send.headers.location.split('c=')[1];
 
-    const recipientToken = await csrfToken(recipient, `/chat?c=${conversationId}`);
-    const reply = await recipient.post(`/chat/${conversationId}/messages`).set('Accept', 'application/json').send({ text: 'Dziękuję, odpisuję!', _csrf: recipientToken });
-    expect(reply.status).toBe(200);
-    expect(reply.body.message.text).toBe('Dziękuję, odpisuję!');
+    const outsiderToken = await csrfToken(outsider, '/chat');
+    const res = await outsider.post(`/chat/${conversationId}/toggle-reply`).set('Accept', 'application/json').send({ _csrf: outsiderToken });
+    expect(res.status).toBe(403);
+
+    const Conversation = require('../../models/Conversation');
+    expect((await Conversation.findByPk(conversationId)).canReply).toBe(true); // bez zmian
+  });
+
+  test('toggle-reply: nie działa na rozmowach grupowych ani gdy admin nie jest członkiem rozmowy', async () => {
+    const { agent: a, user: userA } = await userAgent(ctx.app, { username: 'grupowya' });
+    const { agent: b, user: userB } = await userAgent(ctx.app, { username: 'grupowyb' });
+    await follow(a, userB.username);
+    await follow(b, userA.username);
+
+    // Grupa dwuosobowa (właściciel + jeden znajomy) - toggle-reply nie działa na grupach.
+    const groupToken = await csrfToken(a, '/chat');
+    const groupRes = await a.post('/chat/groups/new').send({ name: 'Grupa testowa', memberIds: userB.id, _csrf: groupToken }).redirects(0);
+    const groupId = groupRes.headers.location.split('c=')[1];
+
+    const adminToken = await csrfToken(admin, '/chat');
+    const onGroup = await admin.post(`/chat/${groupId}/toggle-reply`).set('Accept', 'application/json').send({ _csrf: adminToken });
+    expect(onGroup.status).toBe(404); // to nie jest DM
+
+    // Rozmowa DM, w której admin nie bierze udziału - też 404 (musi być stroną rozmowy).
+    const dmToken = await csrfToken(a, '/chat');
+    const dmRes = await a.post(`/chat/start/${userB.username}`).send({ _csrf: dmToken }).redirects(0);
+    const dmId = dmRes.headers.location.split('c=')[1];
+
+    const adminToken2 = await csrfToken(admin, '/chat');
+    const onForeignDm = await admin.post(`/chat/${dmId}/toggle-reply`).set('Accept', 'application/json').send({ _csrf: adminToken2 });
+    expect(onForeignDm.status).toBe(404);
   });
 
   test('wiadomość do samego siebie z panelu admina jest odrzucana', async () => {
-    const { agent, user } = await adminAgent(ctx.app);
     const Conversation = require('../../models/Conversation');
     const before = await Conversation.count();
 
-    const token = await csrfToken(agent, '/admin/users');
-    const res = await agent.post(`/admin/users/${user.id}/message`).send({ text: 'Do siebie', _csrf: token }).redirects(0);
+    const token = await csrfToken(admin, '/admin/users');
+    const res = await admin.post(`/admin/users/${adminUser.id}/message`).send({ text: 'Do siebie', _csrf: token }).redirects(0);
     expect(res.status).toBe(302);
     expect(res.headers.location).not.toMatch(/^\/chat/);
     expect(await Conversation.count()).toBe(before); // nic nowego nie powstało
@@ -121,26 +166,27 @@ describe('czat', () => {
   });
 
   test('wysyłanie kolejnej wiadomości z panelu admina do tej samej osoby trafia do tej samej rozmowy (bez duplikowania)', async () => {
-    const { agent } = await adminAgent(ctx.app);
     const { user: target } = await userAgent(ctx.app, { username: 'powtorka' });
     const Conversation = require('../../models/Conversation');
     const before = await Conversation.count({ where: { type: 'dm' } });
 
-    let token = await csrfToken(agent, '/admin/users');
-    const first = await agent.post(`/admin/users/${target.id}/message`).send({ text: 'Pierwsza wiadomość.', _csrf: token });
-    token = await csrfToken(agent, '/admin/users');
-    const second = await agent.post(`/admin/users/${target.id}/message`).send({ text: 'Druga wiadomość.', allowReply: 'on', _csrf: token });
+    let token = await csrfToken(admin, '/admin/users');
+    const first = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Pierwsza wiadomość.', _csrf: token });
+    token = await csrfToken(admin, '/admin/users');
+    const second = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Druga wiadomość.', _csrf: token });
 
     expect(first.headers.location).toBe(second.headers.location);
     expect(await Conversation.count({ where: { type: 'dm' } })).toBe(before + 1); // tylko jedna nowa rozmowa
   });
 
   test('/chat/api/list zwraca canReply dla każdej rozmowy (potrzebne do mini-czatu w navbarze)', async () => {
-    const { agent: admin } = await adminAgent(ctx.app);
     const { agent: recipient, user: target } = await userAgent(ctx.app, { username: 'listacanreply' });
 
     const token = await csrfToken(admin, '/admin/users');
-    await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Test listy', _csrf: token });
+    const send = await admin.post(`/admin/users/${target.id}/message`).send({ text: 'Test listy', _csrf: token });
+    const conversationId = send.headers.location.split('c=')[1];
+    const toggleToken = await csrfToken(admin, `/chat?c=${conversationId}`);
+    await admin.post(`/chat/${conversationId}/toggle-reply`).send({ _csrf: toggleToken });
 
     const list = await recipient.get('/chat/api/list').set('Accept', 'application/json');
     expect(list.status).toBe(200);
@@ -150,10 +196,46 @@ describe('czat', () => {
 
   test('lista "napisz do gracza" na stronie czatu zawiera wszystkich użytkowników dla admina, a nie tylko znajomych', async () => {
     await userAgent(ctx.app, { username: 'kimkolwiek' });
-    const { agent } = await adminAgent(ctx.app);
-    const page = await agent.get('/chat');
+    const page = await admin.get('/chat');
     expect(page.status).toBe(200);
     expect(page.text).toContain('kimkolwiek');
     expect(page.text).toContain('Jako administrator możesz napisać do każdego użytkownika.');
+  });
+
+  test('/notifications/summary liczy nieprzeczytane wiadomości poprawnie z kilku rozmów naraz (getUnreadCounts - jedno zapytanie z GROUP BY)', async () => {
+    const { agent: nina, user: ninaUser } = await userAgent(ctx.app, { username: 'ninaliczniki' });
+    const { agent: kuba, user: kubaUser } = await userAgent(ctx.app, { username: 'kubaliczniki' });
+    await follow(nina, kubaUser.username);
+    await follow(kuba, ninaUser.username);
+
+    // Rozmowa 1: kuba -> nina (2 wiadomości).
+    let token = await csrfToken(kuba, '/chat');
+    const start = await kuba.post(`/chat/start/${ninaUser.username}`).send({ _csrf: token }).redirects(0);
+    const conv1 = start.headers.location.split('c=')[1];
+    token = await csrfToken(kuba, `/chat?c=${conv1}`);
+    await kuba.post(`/chat/${conv1}/messages`).set('Accept', 'application/json').send({ text: 'Pierwsza', _csrf: token });
+    token = await csrfToken(kuba, `/chat?c=${conv1}`);
+    await kuba.post(`/chat/${conv1}/messages`).set('Accept', 'application/json').send({ text: 'Druga', _csrf: token });
+
+    // Rozmowa 2: admin -> nina (1 wiadomość), niezależna od pierwszej, z innym progiem "od kiedy nieprzeczytane".
+    token = await csrfToken(admin, '/admin/users');
+    const send2 = await admin.post(`/admin/users/${ninaUser.id}/message`).send({ text: 'Wiadomość od admina', _csrf: token });
+    const conv2 = send2.headers.location.split('c=')[1];
+
+    // Własne wiadomości nie liczą się jako nieprzeczytane u nadawcy.
+    const kubaSummary = await kuba.get('/notifications/summary').set('Accept', 'application/json');
+    expect(kubaSummary.body.messages).toBe(0);
+
+    // Nina ma łącznie 3 nieprzeczytane (2 + 1) z dwóch różnych rozmów.
+    const ninaSummary = await nina.get('/notifications/summary').set('Accept', 'application/json');
+    expect(ninaSummary.status).toBe(200);
+    expect(ninaSummary.body.messages).toBe(3);
+
+    // Otwarcie tylko pierwszej rozmowy oznacza ją jako przeczytaną, druga zostaje nieprzeczytana.
+    const opened = await nina.get(`/chat?c=${conv1}`);
+    expect(opened.status).toBe(200);
+
+    const ninaSummaryAfter = await nina.get('/notifications/summary').set('Accept', 'application/json');
+    expect(ninaSummaryAfter.body.messages).toBe(1);
   });
 });

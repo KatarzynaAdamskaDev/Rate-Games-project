@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+const { Op, fn, col } = require('sequelize');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const ConversationRead = require('../models/ConversationRead');
@@ -115,6 +115,12 @@ async function getOrCreateGameRoom(gameId, userId, username) {
   return serializeConversation(instance);
 }
 
+/** Włącza/wyłącza możliwość odpowiedzi w rozmowie prywatnej (patrz routes/chat.js, tylko admin). */
+async function setCanReply(conversationId, canReply) {
+  const [count] = await Conversation.update({ canReply }, { where: { id: conversationId, type: 'dm' } });
+  return count > 0;
+}
+
 async function touchConversation(conversationId, when) {
   await Conversation.update(
     { lastMessageAt: when },
@@ -193,29 +199,42 @@ async function markConversationRead(userId, conversationId) {
 /**
  * Liczba nieprzeczytanych wiadomości (cudzych, nowszych niż ostatni odczyt):
  * łącznie i w podziale na rozmowy. Rozmowa bez wpisu odczytu liczy się od jej utworzenia.
+ *
+ * To jest odpytywane bardzo często (navbar co 2s, lista czatu co 6s), więc licząc wiadomości
+ * per rozmowa nie robimy N osobnych zapytań w pętli - jedno zapytanie z GROUP BY per użytkownika,
+ * niezależnie od tego, ile ma rozmów.
  */
 async function getUnreadCounts(userId) {
   const conversations = await getConversationsForUser(userId);
-  const reads = await ConversationRead.findAll({ where: { userId } });
+  if (conversations.length === 0) return { total: 0, byConversation: {} };
+
+  const reads = await ConversationRead.findAll({
+    where: { userId, conversationId: { [Op.in]: conversations.map((c) => c.id) } },
+  });
   const lastRead = new Map(reads.map((r) => [r.conversationId, r.lastReadAt]));
+
+  const rows = await Message.findAll({
+    attributes: ['conversationId', [fn('COUNT', col('id')), 'cnt']],
+    where: {
+      senderId: { [Op.ne]: userId },
+      [Op.or]: conversations.map((conv) => ({
+        conversationId: conv.id,
+        createdAt: { [Op.gt]: lastRead.get(conv.id) || conv.createdAt },
+      })),
+    },
+    group: ['conversationId'],
+    raw: true,
+  });
 
   const byConversation = {};
   let total = 0;
-
-  for (const conv of conversations) {
-    const since = lastRead.get(conv.id) || conv.createdAt;
-    const count = await Message.count({
-      where: {
-        conversationId: conv.id,
-        senderId: { [Op.ne]: userId },
-        createdAt: { [Op.gt]: since },
-      },
-    });
+  rows.forEach((row) => {
+    const count = Number(row.cnt);
     if (count > 0) {
-      byConversation[conv.id] = count;
+      byConversation[row.conversationId] = count;
       total += count;
     }
-  }
+  });
 
   return { total, byConversation };
 }
@@ -289,6 +308,7 @@ module.exports = {
   getLastMessage,
   getMessagesAfter,
   addMessage,
+  setCanReply,
   clearMessages,
   deleteConversation,
   removeUserFromConversations,
