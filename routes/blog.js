@@ -17,6 +17,8 @@ const { REASONS_BY_TYPE, MAX_COMMENT_LENGTH: MAX_REPORT_COMMENT } = require('../
 const { plainText, isoDate, breadcrumbLd } = require('../utils/seo');
 const { generateBlogCover } = require('../utils/blogCoverGenerator');
 const assistant = require('../utils/seoAssistant');
+const writer = require('../utils/writingAssistant');
+const { runWriter } = require('../utils/writerPipeline');
 const { getPopularPool } = require('../utils/gamePopularity');
 const { getGamesByIds } = require('../utils/gameCatalog');
 const { withRatings } = require('../utils/gameHelpers');
@@ -198,6 +200,7 @@ async function renderForm(res, { post, formData, error, status = 200 }) {
     autoCoverDefault: post ? !!post.coverAuto || !post.coverImage || post.coverImage === COVER_PLACEHOLDER : true,
     // Popularne tagi - do szybkiego dodawania w edytorze.
     suggestedTags,
+    writerOptions: writerOptions(),
     formError: error || null,
   });
 }
@@ -308,6 +311,13 @@ async function applyGeneratedCover(fields, current) {
     console.error('[blog] nie udało się utworzyć okładki:', err.message);
     fields.coverSpec = current ? current.coverSpec : undefined;
   }
+}
+
+/** Wpis ze znacznikami [UZUPEŁNIJ: ...] (z pomocnika pisania) można zapisać tylko jako szkic. */
+function placeholderError(fields, publication) {
+  const left = (String(fields.content || '').match(writer.PLACEHOLDER) || []).length;
+  if (!left || publication.status === 'draft') return null;
+  return `W treści zostały miejsca do uzupełnienia ([UZUPEŁNIJ: ...]): ${left}. Wpisz tam własne informacje albo zapisz wpis jako szkic.`;
 }
 
 function validate(fields, req) {
@@ -457,6 +467,156 @@ router.post('/autoformat', ensureAuthenticated, ensureAdmin, async (req, res, ne
 });
 
 // Podgląd okładki tworzonej automatycznie (ta sama funkcja, która zapisze ją przy zapisie wpisu).
+/* ------------------------- pomocnik pisania (artykuł z zadania) ------------------------- */
+
+const WRITER_LENGTH_LABELS = { short: 'Krótki', medium: 'Średni', long: 'Długi' };
+const WRITER_TONE_LABELS = { neutral: 'Rzeczowy', casual: 'Luźny', expert: 'Ekspercki' };
+
+/** "jest 1 miejsce oznaczone", "są 3 miejsca oznaczone", "jest 5 miejsc oznaczonych". */
+function placesPhrase(count) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (count === 1) return 'jest 1 miejsce oznaczone';
+  if (last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14)) return `są ${count} miejsca oznaczone`;
+  return `jest ${count} miejsc oznaczonych`;
+}
+
+/** Dane do okna pomocnika w edytorze (rodzaje artykułów, tony, długości, tryb pracy). */
+function writerOptions() {
+  return {
+    enabled: writer.isConfigured(),
+    types: Object.entries(writer.TYPES).map(([key, item]) => ({ key, label: item.label })),
+    tones: Object.entries(writer.TONES).map(([key]) => ({ key, label: WRITER_TONE_LABELS[key] })),
+    lengths: Object.entries(writer.LENGTHS).map(([key, words]) => ({ key, label: `${WRITER_LENGTH_LABELS[key]} (ok. ${words} słów)` })),
+    webSearch: writer.webSearchEnabled(),
+  };
+}
+
+// Z krótkiego zadania (temat, punkty, gry z katalogu) tworzy kompletny artykuł: tytuł, opis, tagi, treść, a także zdjęcia
+// na wolnych licencjach i film (utils/writerPipeline.js). Z kluczem ANTHROPIC_API_KEY pisze Claude; bez klucza (albo gdy AI
+// jest niedostępne) powstaje szkielet z danymi z katalogu. Klient wysyłający Accept: application/x-ndjson dostaje postęp
+// na żywo (jedna linia JSON na etap, na końcu wynik), pozostali - zwykły JSON z wynikiem.
+const flag = (value, fallback) => (value === undefined ? fallback : !(value === false || value === '0' || value === 'false'));
+
+router.post('/write', ensureAuthenticated, ensureAdmin, async (req, res, next) => {
+  try {
+    const parsed = writer.normalizeBrief(req.body);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const { brief } = parsed;
+    const options = {
+      images: flag(req.body.images, true),
+      video: flag(req.body.video, true),
+      screenshots: flag(req.body.screenshots, false),
+      research: flag(req.body.research, true),
+    };
+
+    const found = brief.gameIds.length ? await getGamesByIds(brief.gameIds) : new Map();
+    const rated = await withRatings([...found.values()]);
+    const facts = brief.gameIds
+      .map((id) => rated.find((game) => String(game.id) === id))
+      .filter(Boolean)
+      .map(writer.factOf);
+
+    const existing = await existingTagNames();
+    const keywords = assistant
+      .extractKeywords({ title: brief.topic, content: brief.points.join('\n'), games: await knownGames(), existingTags: existing, tags: [] })
+      .slice(0, 6);
+
+    const notes = [];
+    if (facts.length < brief.gameIds.length) notes.push('Nie udało się pobrać części wskazanych gier z katalogu - pominięto je w tekście.');
+
+    let ai = writer.isConfigured();
+    if (ai) {
+      const quota = writer.takeQuota(req.session.user.id);
+      if (!quota.ok) {
+        ai = false;
+        notes.push(`${quota.message} Wstawiono szkielet bez AI.`);
+      }
+    }
+
+    const wantsStream = /application\/x-ndjson/.test(req.get('Accept') || '');
+    let closed = false;
+    res.on('close', () => { if (!res.writableEnded) closed = true; });
+    if (wantsStream) {
+      res.status(200).set({ 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
+      res.flushHeaders();
+    }
+    const send = (line) => { if (wantsStream && !closed) res.write(`${JSON.stringify(line)}\n`); };
+
+    let outcome;
+    try {
+      outcome = await runWriter({
+        brief,
+        facts,
+        keywords: keywords.map((item) => item.text),
+        existingTags: existing.slice(0, 30),
+        options,
+        ai,
+        username: req.session.user.username,
+        limits: { title: MAX_TITLE, excerpt: MAX_EXCERPT, content: MAX_CONTENT },
+        parseTags,
+        onStep: (step) => send({ type: 'step', ...step }),
+        isAborted: () => closed,
+      });
+    } catch (err) {
+      if (err.aborted) return res.end();
+      if (wantsStream && res.headersSent) {
+        console.error('[blog] pomocnik pisania:', err);
+        send({ type: 'error', error: 'Nie udało się przygotować artykułu. Spróbuj ponownie.' });
+        return res.end();
+      }
+      throw err;
+    }
+
+    const { article } = outcome;
+    if (!article.content) {
+      const failure = 'Nie udało się przygotować treści. Spróbuj ponownie.';
+      if (wantsStream) { send({ type: 'error', error: failure }); return res.end(); }
+      return res.status(502).json({ error: failure });
+    }
+    const allNotes = [...notes, ...outcome.notes];
+    if (article.placeholders) {
+      allNotes.push(`W tekście ${placesPhrase(article.placeholders)} jako [UZUPEŁNIJ: ...] - wpisz tam własne informacje. Wpisu z takimi znacznikami nie da się opublikować, można go zapisać jako szkic.`);
+    }
+    if (outcome.mode === 'skeleton' && !writer.isConfigured()) {
+      allNotes.push('To szkielet bez AI: układ pod SEO i prawdziwe dane o grach z katalogu. Kompletny tekst od początku do końca napisze AI po ustawieniu ANTHROPIC_API_KEY.');
+    }
+
+    const analysis = assistant.analyze({ title: article.title, excerpt: article.excerpt, content: article.content, tags: article.tags, hasCover: true, keywords });
+    await logAdminAction(
+      req,
+      'blog.writer',
+      'blog',
+      brief.topic.slice(0, 80),
+      outcome.mode === 'ai'
+        ? `AI ${outcome.model}, tokeny: ${outcome.usage.inputTokens} wejście / ${outcome.usage.outputTokens} wyjście, wyszukiwań: ${outcome.usage.searches}, zdjęć: ${outcome.media.images.length}, film: ${outcome.media.video ? 'tak' : 'nie'}`
+        : `szkielet bez AI, zdjęć: ${outcome.media.images.length}, film: ${outcome.media.video ? 'tak' : 'nie'}`,
+    );
+
+    const payload = {
+      mode: outcome.mode,
+      title: article.title,
+      excerpt: article.excerpt,
+      tags: article.tags,
+      category: article.category,
+      content: article.content,
+      words: article.words,
+      analysis,
+      keywords: keywords.map((item) => ({ text: item.text, kind: item.kind })),
+      notes: allNotes,
+      usage: outcome.mode === 'ai' ? outcome.usage : null,
+      media: outcome.media,
+    };
+    if (wantsStream) {
+      send({ type: 'done', result: payload });
+      return res.end();
+    }
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/cover-preview', ensureAuthenticated, ensureAdmin, async (req, res) => {
   try {
     const image = await generateBlogCover({
@@ -496,7 +656,7 @@ router.post('/new', ensureAuthenticated, ensureAdmin, handleCoverUpload, async (
   try {
     fields = buildPostFields(req, null);
     const publication = parsePublication(req, null);
-    const error = validate(fields, req) || publication.error;
+    const error = validate(fields, req) || publication.error || placeholderError(fields, publication);
     if (error) {
       if (fields.uploadedCover) removeUploadedCover(fields.uploadedCover);
       return await renderForm(res, { formData: req.body, error, status: 400 });
@@ -559,7 +719,7 @@ router.post('/:id/edit', ensureAuthenticated, ensureAdmin, handleCoverUpload, as
 
     fields = buildPostFields(req, post);
     const publication = parsePublication(req, post);
-    const error = validate(fields, req) || publication.error;
+    const error = validate(fields, req) || publication.error || placeholderError(fields, publication);
     if (error) {
       if (fields.uploadedCover) removeUploadedCover(fields.uploadedCover);
       return await renderForm(res, { post, formData: { ...formDataFromPost(post), ...req.body }, error, status: 400 });

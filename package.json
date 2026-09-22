@@ -15,6 +15,7 @@
     "db:list": "node scripts/db-sync.js list"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "axios": "^1.20.0",
     "bcryptjs": "^2.4.3",
     "connect-flash": "^0.1.1",
