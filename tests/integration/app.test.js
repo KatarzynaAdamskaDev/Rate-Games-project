@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { createTestApp } = require('../setup/testApp');
+const { userAgent } = require('../setup/factories');
 
 describe('aplikacja - podstawy', () => {
   let ctx;
@@ -16,6 +17,18 @@ describe('aplikacja - podstawy', () => {
     const res = await request(ctx.app).get('/');
     expect(res.status).toBe(200);
     expect(res.text).toContain('GameVerse');
+  });
+
+  test('gość widzi CTA logowania, a zalogowany - modal "Napisz recenzję" z wyszukiwarką gry', async () => {
+    const guest = await request(ctx.app).get('/');
+    expect(guest.text).toContain('Napisz swoją pierwszą recenzję');
+    expect(guest.text).not.toContain('id="writeReviewModal"');
+
+    const { agent } = await userAgent(ctx.app, { username: 'chcerecenzowac' });
+    const loggedIn = await agent.get('/');
+    expect(loggedIn.text).toContain('>Napisz recenzję<');
+    expect(loggedIn.text).toContain('id="writeReviewModal"');
+    expect(loggedIn.text).toContain('data-mode="select"');
   });
 
   test('nieznany adres zwraca własną stronę 404 (nie domyślną Expressa)', async () => {

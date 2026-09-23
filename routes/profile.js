@@ -96,7 +96,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
   const user = await findById(req.session.user.id);
   const vm = await buildProfileViewModel(user);
   const tab = normalizeProfileTab(req.query.tab);
-  const tabData = await buildTabData(user.id, tab);
+  const tabData = await buildTabData(user.id, tab, user.id);
 
   res.render('profile/show', {
     title: 'Twój profil',

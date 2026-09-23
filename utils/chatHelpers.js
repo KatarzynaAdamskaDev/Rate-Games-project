@@ -2,6 +2,7 @@ const { Op, fn, col } = require('sequelize');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const ConversationRead = require('../models/ConversationRead');
+const User = require('../models/User');
 const { getGameById } = require('./gameCatalog');
 
 /** Zamienia instancję Sequelize na zwykły obiekt, parsując pola JSON. */
@@ -35,6 +36,35 @@ async function getConversationById(id) {
 async function canAccessConversation(userId, conversationId) {
   const conv = await getConversationById(conversationId);
   return !!conv && conv.memberIds.includes(userId);
+}
+
+/**
+ * Dokleja do rozmów awatary członków (id -> avatarUrl albo null), jednym zapytaniem
+ * niezależnie od liczby rozmów/członków. Osobna funkcja (nie w getConversationsForUser),
+ * bo tamta jest też na gorącej ścieżce dostępu (canAccessConversation) - avatar potrzebny
+ * jest tylko tam, gdzie faktycznie renderujemy listę/rozmowę.
+ */
+async function attachAvatars(conversations) {
+  const list = Array.isArray(conversations) ? conversations : [conversations];
+  const ids = new Set();
+  list.forEach((c) => c && c.memberIds.forEach((id) => ids.add(id)));
+
+  let avatarById = new Map();
+  if (ids.size > 0) {
+    const users = await User.findAll({ where: { id: [...ids] }, attributes: ['id', 'avatarUrl'] });
+    avatarById = new Map(users.map((u) => [u.id, u.avatarUrl || null]));
+  }
+
+  const withAvatars = list.map((c) => {
+    if (!c) return c;
+    const memberAvatars = {};
+    c.memberIds.forEach((id) => {
+      memberAvatars[id] = avatarById.get(id) || null;
+    });
+    return { ...c, memberAvatars };
+  });
+
+  return Array.isArray(conversations) ? withAvatars : withAvatars[0];
 }
 
 /**
@@ -285,22 +315,30 @@ async function getMessagesAfter(conversationId, afterIso) {
   return all.filter((m) => new Date(m.createdAt) > new Date(afterIso));
 }
 
-async function addMessage({ conversationId, senderId, senderUsername, text }) {
+async function addMessage({ conversationId, senderId, senderUsername, text, kind = 'text' }) {
   const instance = await Message.create({
     conversationId,
     senderId,
     senderUsername,
     text,
+    kind,
   });
   const message = instance.get({ plain: true });
   await touchConversation(conversationId, message.createdAt);
   return message;
 }
 
+/** Krótki podgląd ostatniej wiadomości do listy rozmów - GIF-a nie pokazujemy jako surowy adres URL. */
+function previewText(message) {
+  if (!message) return '';
+  return message.kind === 'gif' ? 'GIF' : message.text.slice(0, 80);
+}
+
 module.exports = {
   getConversationsForUser,
   getConversationById,
   canAccessConversation,
+  attachAvatars,
   getOrCreateDM,
   createGroup,
   getOrCreateGameRoom,
@@ -308,6 +346,7 @@ module.exports = {
   getLastMessage,
   getMessagesAfter,
   addMessage,
+  previewText,
   setCanReply,
   clearMessages,
   deleteConversation,

@@ -35,8 +35,14 @@
           <div class="gv-chat-group-label">Rozmowy</div>
           <div id="dmConversationList">
           <% conversations.filter(function(c){return c.type === 'dm';}).forEach(function(c) { %>
+            <% var listOtherId = c.memberIds.find(function(id){ return id !== currentUser.id; }); %>
+            <% var listAvatarUrl = listOtherId ? c.memberAvatars[listOtherId] : null; %>
             <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
-              <div class="gv-c-avatar"></div>
+              <% if (listAvatarUrl) { %>
+                <img src="<%= listAvatarUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
+              <% } else { %>
+                <div class="gv-c-avatar"></div>
+              <% } %>
               <div><b><%= c.displayName %></b><span>Rozmowa prywatna</span></div>
               <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
             </a>
@@ -188,11 +194,17 @@
             <div class="gv-chat-empty">Wybierz rozmowę, grupę lub pokój gry z listy po lewej, albo rozpocznij nową.</div>
           <% } else { %>
             <div class="gv-chat-topbar">
-              <div class="gv-c-avatar"></div>
+              <% var topOtherId = active.type === 'dm' ? active.memberIds.find(function(id){ return id !== currentUser.id; }) : null; %>
+              <% var topAvatarUrl = topOtherId ? active.memberAvatars[topOtherId] : null; %>
+              <% if (topAvatarUrl) { %>
+                <img src="<%= topAvatarUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
+              <% } else { %>
+                <div class="gv-c-avatar"></div>
+              <% } %>
               <div class="gv-chat-topbar-info">
                 <b>
                   <% if (active.type === 'dm') { %>
-                    <% var otherId = active.memberIds.find(function(id){ return id !== currentUser.id; }); %>
+                    <% var otherId = topOtherId; %>
                     <a href="/<%= active.memberNames[otherId] %>" class="gv-chat-name-link"><%= active.memberNames[otherId] %></a>
                   <% } else { %>
                     <button type="button" class="gv-chat-name-link gv-group-name-toggle" id="groupMembersToggle">
@@ -237,7 +249,11 @@
                   <% if (m.senderId !== currentUser.id) { %>
                     <% if (m.senderDeleted) { %><b class="gv-msg-deleted"><%= m.senderUsername %></b><% } else { %><a href="/<%= m.senderUsername %>" class="gv-chat-name-link"><b><%= m.senderUsername %></b></a><% } %>
                   <% } %>
-                  <%= m.text %>
+                  <% if (m.kind === 'gif') { %>
+                    <img src="<%= m.text %>" alt="GIF" class="gv-msg-gif" loading="lazy">
+                  <% } else { %>
+                    <%= m.text %>
+                  <% } %>
                   <small><%= new Date(m.createdAt).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}) %></small>
                   <% if (m.senderId !== currentUser.id && !m.senderDeleted) { %>
                     <button type="button" class="gv-msg-report" title="Zgłoś wiadomość"
@@ -252,7 +268,16 @@
 
             <% var canISend = active.canReply || currentUser.role === 'admin'; %>
             <% if (canISend) { %>
+              <div class="gv-chat-picker d-none" id="emojiPicker">
+                <div class="gv-emoji-grid" id="emojiGrid"></div>
+              </div>
+              <div class="gv-chat-picker d-none" id="gifPicker">
+                <input type="search" id="gifSearchInput" class="form-control gv-input gv-gif-search" placeholder="Szukaj GIF-a..." autocomplete="off">
+                <div class="gv-gif-grid" id="gifGrid"></div>
+              </div>
               <form class="gv-chat-input-row" id="chatForm">
+                <button type="button" class="gv-chat-action-btn" id="emojiBtn" title="Emoji" aria-label="Emoji"><i class="bi bi-emoji-smile"></i></button>
+                <button type="button" class="gv-chat-action-btn" id="gifBtn" title="GIF" aria-label="GIF"><i class="bi bi-filetype-gif"></i></button>
                 <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
                 <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
               </form>
@@ -292,7 +317,15 @@
         a.href = '/chat?c=' + encodeURIComponent(c.id);
         a.className = 'gv-chat-item text-decoration-none' + (c.id === activeId ? ' active' : '');
 
-        var avatar = document.createElement('div');
+        var avatar;
+        if (c.avatarUrl) {
+          avatar = document.createElement('img');
+          avatar.src = c.avatarUrl;
+          avatar.alt = '';
+          avatar.style.objectFit = 'cover';
+        } else {
+          avatar = document.createElement('div');
+        }
         avatar.className = 'gv-c-avatar';
 
         var info = document.createElement('div');
@@ -435,7 +468,16 @@
             div.appendChild(link);
           }
         }
-        div.appendChild(document.createTextNode(m.text));
+        if (m.kind === 'gif') {
+          var gifImg = document.createElement('img');
+          gifImg.src = m.text;
+          gifImg.alt = 'GIF';
+          gifImg.className = 'gv-msg-gif';
+          gifImg.loading = 'lazy';
+          div.appendChild(gifImg);
+        } else {
+          div.appendChild(document.createTextNode(m.text));
+        }
         var small = document.createElement('small');
         small.textContent = time;
         div.appendChild(small);
@@ -457,41 +499,146 @@
         chatBody.scrollTop = chatBody.scrollHeight;
       }
 
+      // Wspólna wysyłka - zwykły tekst (z pola) albo GIF (kliknięty w panelu niżej).
+      // restoreOnError: tekst, który wracamy do pola, jeśli serwer odrzuci wiadomość (np. filtr, limit).
+      function sendMessage(text, kind, restoreOnError) {
+        if (isSending) return; // blokada podwójnego Entera/kliknięcia
+        isSending = true;
+        if (sendBtn) sendBtn.disabled = true;
+
+        fetch('/chat/' + conversationId + '/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'text=' + encodeURIComponent(text) + '&kind=' + encodeURIComponent(kind),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.message) {
+              appendMessage(data.message);
+              lastTimestamp = data.message.createdAt;
+            } else if (data.error) {
+              // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
+              if (window.showToast) showToast(data.error, false);
+              if (restoreOnError && input) input.value = restoreOnError;
+            }
+          })
+          .finally(function () {
+            isSending = false;
+            if (sendBtn) sendBtn.disabled = false;
+            if (input) input.focus();
+          });
+      }
+
       if (form) {
         form.addEventListener('submit', function (e) {
           e.preventDefault();
-          if (isSending) return; // blokada podwójnego Entera/kliknięcia
-
           var text = input.value.trim();
           if (!text) return;
-
-          isSending = true;
-          sendBtn.disabled = true;
           input.value = ''; // czyścimy od razu, nie czekając na odpowiedź serwera
-
-          fetch('/chat/' + conversationId + '/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'text=' + encodeURIComponent(text),
-          })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (data.message) {
-                appendMessage(data.message);
-                lastTimestamp = data.message.createdAt;
-              } else if (data.error) {
-                // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
-                if (window.showToast) showToast(data.error, false);
-                input.value = text;
-              }
-            })
-            .finally(function () {
-              isSending = false;
-              sendBtn.disabled = false;
-              input.focus();
-            });
+          sendMessage(text, 'text', text);
         });
       }
+
+      /* ------------------------------ EMOJI ------------------------------ */
+
+      var EMOJI_LIST = ['😀', '😂', '😅', '😊', '😍', '😎', '🤔', '😴', '😭', '😡', '🥳', '😱', '🤯', '🙄', '😉', '🙃', '👍', '👎', '👏', '🙌', '🙏', '💪', '👀', '🔥', '💯', '🎉', '❤️', '💔', '⭐', '✅', '🎮', '🕹️', '🏆', '⚔️', '🛡️', '💀', '👾', '🚀'];
+      var emojiBtn = document.getElementById('emojiBtn');
+      var emojiPicker = document.getElementById('emojiPicker');
+      var gifBtn = document.getElementById('gifBtn');
+      var gifPicker = document.getElementById('gifPicker');
+
+      function closePickers() {
+        if (emojiPicker) emojiPicker.classList.add('d-none');
+        if (gifPicker) gifPicker.classList.add('d-none');
+      }
+
+      if (emojiBtn && emojiPicker) {
+        var emojiGrid = document.getElementById('emojiGrid');
+        EMOJI_LIST.forEach(function (emoji) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'gv-emoji-btn';
+          btn.textContent = emoji;
+          btn.addEventListener('click', function () {
+            input.value += emoji;
+            input.focus();
+          });
+          emojiGrid.appendChild(btn);
+        });
+
+        emojiBtn.addEventListener('click', function () {
+          var opening = emojiPicker.classList.contains('d-none');
+          closePickers();
+          if (opening) emojiPicker.classList.remove('d-none');
+        });
+      }
+
+      /* ------------------------------- GIF -------------------------------- */
+
+      if (gifBtn && gifPicker) {
+        var gifSearchInput = document.getElementById('gifSearchInput');
+        var gifGrid = document.getElementById('gifGrid');
+        var gifRequestId = 0;
+        var gifDebounce = null;
+
+        function renderGifs(gifs) {
+          gifGrid.innerHTML = '';
+          if (gifs.length === 0) {
+            var empty = document.createElement('p');
+            empty.className = 'gv-gif-empty';
+            empty.textContent = 'Brak wyników. Spróbuj innego hasła.';
+            gifGrid.appendChild(empty);
+            return;
+          }
+          gifs.forEach(function (gif) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = gif.title;
+            var img = document.createElement('img');
+            img.src = gif.previewUrl;
+            img.alt = gif.title;
+            img.loading = 'lazy';
+            btn.appendChild(img);
+            btn.addEventListener('click', function () {
+              sendMessage(gif.url, 'gif');
+              closePickers();
+            });
+            gifGrid.appendChild(btn);
+          });
+        }
+
+        function searchGifs(q) {
+          var requestId = ++gifRequestId;
+          fetch('/chat/gifs?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : { gifs: [] }; })
+            .then(function (data) {
+              if (requestId === gifRequestId) renderGifs(data.gifs || []);
+            })
+            .catch(function () {});
+        }
+
+        gifSearchInput.addEventListener('input', function () {
+          clearTimeout(gifDebounce);
+          var q = gifSearchInput.value.trim();
+          if (q.length < 2) { gifGrid.innerHTML = ''; return; }
+          gifDebounce = setTimeout(function () { searchGifs(q); }, 350);
+        });
+
+        gifBtn.addEventListener('click', function () {
+          var opening = gifPicker.classList.contains('d-none');
+          closePickers();
+          if (opening) {
+            gifPicker.classList.remove('d-none');
+            gifSearchInput.focus();
+          }
+        });
+      }
+
+      document.addEventListener('click', function (e) {
+        var insidePicker = (emojiPicker && emojiPicker.contains(e.target)) || (gifPicker && gifPicker.contains(e.target));
+        var onToggleBtn = e.target === emojiBtn || e.target === gifBtn || (emojiBtn && emojiBtn.contains(e.target)) || (gifBtn && gifBtn.contains(e.target));
+        if (!insidePicker && !onToggleBtn) closePickers();
+      });
 
       function poll() {
         if (isPolling) return; // nie nakładaj zapytań, jeśli poprzednie jeszcze trwa

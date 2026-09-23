@@ -39,7 +39,7 @@ async function createTestApp() {
   // NIE nadpisuje zmiennych, które już są ustawione w process.env (nawet na pusty string). Gdyby te klucze
   // były po prostu skasowane (delete), dotenv wczytałby je z powrotem z prawdziwego pliku .env - testy
   // wykonywałyby prawdziwe żądania do Twitch/IGDB, Anthropic, reCAPTCHA i realnie wysyłały maile.
-  ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'RECAPTCHA_SITE_KEY', 'RECAPTCHA_SECRET_KEY', 'ANTHROPIC_API_KEY', 'YOUTUBE_API_KEY', 'EMAIL_USER', 'EMAIL_PASS']
+  ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'RECAPTCHA_SITE_KEY', 'RECAPTCHA_SECRET_KEY', 'ANTHROPIC_API_KEY', 'YOUTUBE_API_KEY', 'EMAIL_USER', 'EMAIL_PASS', 'GIPHY_API_KEY']
     .forEach((key) => { process.env[key] = ''; });
 
   // Prawdziwy moduł rozmawia z IGDB/Twitch przez sieć; ten zastępnik (utils/__mocks__/igdbService.js)

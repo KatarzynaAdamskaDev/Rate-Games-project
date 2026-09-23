@@ -25,6 +25,13 @@ const Message = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    // 'text' (zwykła wiadomość, może zawierać emoji - to zwykłe znaki Unicode) albo 'gif'
+    // (wtedy text to zweryfikowany adres obrazka na CDN Giphy - zob. utils/giphy.js).
+    kind: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'text',
+    },
   },
   {
     tableName: 'messages',

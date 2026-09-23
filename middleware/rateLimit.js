@@ -195,6 +195,13 @@ const limiters = {
     max: 12,
     key: 'user',
   }),
+  gifSearch: rateLimit({
+    name: 'gif-search',
+    label: 'Wyszukiwanie GIF-ów na czacie - na użytkownika',
+    windowMs: MINUTE,
+    max: 30,
+    key: 'user',
+  }),
   report: rateLimit({
     name: 'report',
     label: 'Zgłoszenia recenzji - na użytkownika',

@@ -16,12 +16,21 @@
     <h1 class="gv-hero-title">Pisz recenzje gier, <span>obserwuj graczy</span> i rozmawiaj o tym, w co właśnie grasz</h1>
     <p class="gv-hero-text">GameVerse to portal z recenzjami gier PC, PS5, Xbox i Nintendo Switch — dodawaj tytuły do ulubionych, komentuj opinie innych graczy i czatuj ze znajomymi w czasie rzeczywistym.</p>
     <div class="hero-ctas">
-      <button
-            type="button"
-            class="btn-primary hero-cta"
-            data-bs-toggle="modal"
-            data-bs-target="#signInModal"
-          >Napisz swoją pierwszą recenzję</button>
+      <% if (currentUser) { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#writeReviewModal"
+            >Napisz recenzję</button>
+      <% } else { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#signInModal"
+            >Napisz swoją pierwszą recenzję</button>
+      <% } %>
     </div>
     <div class="hero-stats">
       <div><b><%= stats.totalReviews %></b><span>recenzji gier</span></div>
@@ -225,7 +234,101 @@
   </div>
 </section>
 
+<% if (currentUser) { %>
+  <!-- MODAL: NAPISZ RECENZJĘ (wybór gry, potem ocena i treść) -->
+  <div class="modal fade" id="writeReviewModal" tabindex="-1" aria-labelledby="writeReviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="writeReviewLabel">Napisz recenzję</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <form id="writeReviewForm" method="POST" class="gv-review-form">
+          <div class="modal-body">
+            <div id="writeReviewStep1">
+              <label class="gv-label d-block" for="writeReviewSearch">Wyszukaj grę, którą chcesz zrecenzować</label>
+              <div class="gv-game-picker" data-game-picker data-mode="select">
+                <input type="search" id="writeReviewSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off" maxlength="100">
+                <input type="hidden" name="gameId">
+                <div class="gv-picker-results"></div>
+              </div>
+            </div>
+            <div id="writeReviewStep2" class="d-none">
+              <div id="writeReviewSelectedGame" class="d-flex align-items-center gap-2 mb-3"></div>
+              <button type="button" class="gv-inline-link mb-3" id="writeReviewChangeGame">← Wybierz inną grę</button>
+
+              <label class="gv-label d-block">Twoja ocena</label>
+              <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena (kliknij lewą połowę gwiazdki, aby dać połówkę)">
+                <i class="bi bi-star" data-value="1"></i>
+                <i class="bi bi-star" data-value="2"></i>
+                <i class="bi bi-star" data-value="3"></i>
+                <i class="bi bi-star" data-value="4"></i>
+                <i class="bi bi-star" data-value="5"></i>
+              </div>
+              <input type="hidden" name="rating" class="gv-star-picker-input">
+
+              <label class="gv-label d-block mt-3" for="writeReviewText">Twoja opinia</label>
+              <textarea name="text" id="writeReviewText" rows="4" class="form-control gv-input" required></textarea>
+
+              <button type="submit" class="btn gv-btn-success mt-3">Opublikuj recenzję</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var modal = document.getElementById('writeReviewModal');
+      if (!modal) return;
+      var form = document.getElementById('writeReviewForm');
+      var picker = modal.querySelector('[data-game-picker]');
+      var step1 = document.getElementById('writeReviewStep1');
+      var step2 = document.getElementById('writeReviewStep2');
+      var selectedGameBox = document.getElementById('writeReviewSelectedGame');
+      var changeGameBtn = document.getElementById('writeReviewChangeGame');
+
+      function reset() {
+        step1.classList.remove('d-none');
+        step2.classList.add('d-none');
+        selectedGameBox.innerHTML = '';
+        form.reset();
+        form.removeAttribute('action');
+      }
+
+      picker.addEventListener('gamepicker:select', function (e) {
+        var game = e.detail;
+        form.action = '/games/' + encodeURIComponent(game.id) + '/reviews';
+
+        selectedGameBox.innerHTML = '';
+        var img = document.createElement('img');
+        img.src = game.coverImage || '/images/game-placeholder.svg';
+        img.alt = '';
+        img.style.cssText = 'width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;';
+        var title = document.createElement('b');
+        title.textContent = game.title;
+        selectedGameBox.appendChild(img);
+        selectedGameBox.appendChild(title);
+
+        step1.classList.add('d-none');
+        step2.classList.remove('d-none');
+      });
+
+      changeGameBtn.addEventListener('click', function () {
+        step2.classList.add('d-none');
+        step1.classList.remove('d-none');
+        picker.querySelector('input[name="gameId"]').value = '';
+        form.removeAttribute('action');
+      });
+
+      modal.addEventListener('hidden.bs.modal', reset);
+    })();
+  </script>
+<% } %>
+
 <%- include('partials/footer') %>
+<script src="/js/game-picker.js"></script>
 <script src="/js/review-actions.js"></script>
 
 </body>

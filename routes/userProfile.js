@@ -25,7 +25,8 @@ router.get('/:username', async (req, res, next) => {
 
   const vm = await buildProfileViewModel(user);
   const tab = normalizeProfileTab(req.query.tab);
-  const tabData = await buildTabData(user.id, tab);
+  const viewerId = req.session.user ? req.session.user.id : null;
+  const tabData = await buildTabData(user.id, tab, viewerId);
   const alreadyFollowing = req.session.user
     ? await isFollowing(req.session.user.id, user.id)
     : false;

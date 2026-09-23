@@ -1,8 +1,11 @@
 /**
- * Wyszukiwarka gier do formularza dodawania ulubionej gry.
+ * Wyszukiwarka gier - używana do dodawania ulubionej gry i do wyboru gry przy pisaniu
+ * recenzji z poziomu strony głównej (zob. views/index.ejs).
  * Znaczniki: <div data-game-picker> z polem tekstowym, ukrytym inputem gameId
- * i kontenerem .gv-picker-results. Wybranie gry z listy wysyła formularz.
- * Wyniki pochodzą z /games/search-json (IGDB).
+ * i kontenerem .gv-picker-results. Wyniki pochodzą z /games/search-json (IGDB).
+ * data-mode="submit" (domyślnie) - wybranie gry od razu wysyła formularz.
+ * data-mode="select" - wybranie gry NIE wysyła formularza, tylko odpala zdarzenie
+ * "gamepicker:select" (event.detail = wybrana gra) - dalszy krok obsługuje strona sama.
  */
 (function () {
   function debounce(fn, wait) {
@@ -37,6 +40,12 @@
 
     function choose(game) {
       idInput.value = game.id;
+      if (root.dataset.mode === 'select') {
+        clearResults();
+        textInput.value = game.title;
+        root.dispatchEvent(new CustomEvent('gamepicker:select', { detail: game, bubbles: true }));
+        return;
+      }
       form.submit();
     }
 

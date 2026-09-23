@@ -170,7 +170,15 @@
       item.type = 'button';
       item.className = 'nav-chat-item';
 
-      var avatar = document.createElement('span');
+      var avatar;
+      if (c.avatarUrl) {
+        avatar = document.createElement('img');
+        avatar.src = c.avatarUrl;
+        avatar.alt = '';
+        avatar.style.objectFit = 'cover';
+      } else {
+        avatar = document.createElement('span');
+      }
       avatar.className = 'nav-chat-avatar';
 
       var info = document.createElement('span');
@@ -227,7 +235,16 @@
       author.textContent = m.senderUsername;
       bubble.appendChild(author);
     }
-    bubble.appendChild(document.createTextNode(m.text));
+    if (m.kind === 'gif') {
+      var gifImg = document.createElement('img');
+      gifImg.src = m.text;
+      gifImg.alt = 'GIF';
+      gifImg.className = 'gv-msg-gif';
+      gifImg.loading = 'lazy';
+      bubble.appendChild(gifImg);
+    } else {
+      bubble.appendChild(document.createTextNode(m.text));
+    }
     var time = document.createElement('small');
     time.textContent = clock(m.createdAt);
     bubble.appendChild(time);

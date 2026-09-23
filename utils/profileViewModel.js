@@ -1,4 +1,6 @@
 const Review = require('../models/Review');
+const ReviewLike = require('../models/ReviewLike');
+const { enrichReviews } = require('./reviewStatsHelpers');
 const {
   levelProgress,
   pointsFromStats,
@@ -18,19 +20,19 @@ const { getFavorites } = require('./favoriteHelpers');
 /** Buduje pełny model widoku (statystyki + gamifikacja) dla danego użytkownika. */
 async function buildProfileViewModel(user) {
   const [reviewRows, followers, following] = await Promise.all([
-    Review.findAll({ where: { userId: user.id } }),
+    Review.findAll({ where: { userId: user.id }, attributes: ['id'] }),
     getFollowers(user.id),
     getFollowing(user.id),
   ]);
 
-  const reviews = reviewRows
-    .map((r) => r.get({ plain: true }))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const reviewIds = reviewRows.map((r) => r.id);
+  const likesReceived =
+    reviewIds.length > 0 ? await ReviewLike.count({ where: { reviewId: reviewIds } }) : 0;
 
   const stats = {
-    reviewCount: reviews.length,
+    reviewCount: reviewIds.length,
     commentCount: 0,
-    likesReceived: 0,
+    likesReceived,
     followersCount: followers.length,
     followingCount: following.length,
     bonusPoints: user.bonusPoints || 0,
@@ -51,7 +53,6 @@ async function buildProfileViewModel(user) {
     theme: themeForBackground(user.activeBackground),
     themes: THEMES.map((t) => ({ ...t, locked: !user.unlockAll && t.levelRequired > progress.level })),
     trophy: resolveTrophy(user.activeTrophy, stats, !!user.unlockAll, themeForBackground(user.activeBackground).accent),
-    reviews,
   };
 }
 
@@ -75,12 +76,25 @@ function normalizeProfileTab(tab) {
   return PROFILE_TABS.includes(tab) ? tab : 'favorites';
 }
 
+/**
+ * Recenzje danego użytkownika, wzbogacone tak samo jak na stronie /reviews (gra, autor,
+ * polubienia, komentarze) - viewerId to osoba PRZEGLĄDAJĄCA profil (do stanu "polubione przeze mnie"),
+ * nie właściciel profilu.
+ */
+async function buildProfileReviews(userId, viewerId) {
+  const rows = await Review.findAll({ where: { userId } });
+  const plain = rows.map((r) => r.get({ plain: true }));
+  const enriched = await enrichReviews(plain, viewerId);
+  return enriched.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
 /** Dane potrzebne tylko aktywnej zakładce profilu (reszty nie pobieramy). */
-async function buildTabData(userId, tab) {
+async function buildTabData(userId, tab, viewerId = null) {
   return {
     favorites: tab === 'favorites' ? await getFavorites(userId) : [],
     followList:
       tab === 'followers' || tab === 'following' ? await buildFollowList(userId, tab) : [],
+    reviews: tab === 'reviews' ? await buildProfileReviews(userId, viewerId) : [],
   };
 }
 

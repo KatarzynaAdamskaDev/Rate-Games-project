@@ -6,6 +6,7 @@ const {
   getConversationsForUser,
   getConversationById,
   canAccessConversation,
+  attachAvatars,
   getOrCreateDM,
   createGroup,
   getOrCreateGameRoom,
@@ -15,6 +16,7 @@ const {
   getLastMessage,
   getMessagesAfter,
   addMessage,
+  previewText,
   setCanReply,
   clearMessages,
   deleteConversation,
@@ -23,6 +25,7 @@ const { findByUsername, findById, getAllUsers } = require('../utils/userHelpers'
 const { getPopularGames } = require('../utils/igdbService');
 const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
 const { moderateText, moderateName } = require('../utils/contentFilter');
+const { searchGifs, isGiphyCdnUrl } = require('../utils/giphy');
 const { limiters } = require('../middleware/rateLimit');
 const { blockIfMuted } = require('../middleware/muted');
 const { isBlockedEitherWay } = require('../utils/blockHelpers');
@@ -37,7 +40,7 @@ router.use(ensureAuthenticated);
 router.get('/', async (req, res) => {
   const me = req.session.user;
 
-  const rawConversations = await getConversationsForUser(me.id);
+  const rawConversations = await attachAvatars(await getConversationsForUser(me.id));
   const conversations = rawConversations.map((c) => {
     let displayName = c.name;
     if (c.type === 'dm') {
@@ -48,7 +51,8 @@ router.get('/', async (req, res) => {
   });
 
   const activeId = req.query.c || (conversations[0] && conversations[0].id) || null;
-  const active = activeId ? await getConversationById(activeId) : null;
+  const activeRaw = activeId ? await getConversationById(activeId) : null;
+  const active = activeRaw ? await attachAvatars(activeRaw) : null;
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
   const messages = canSeeActive ? await getMessages(active.id) : [];
 
@@ -84,28 +88,32 @@ router.get('/', async (req, res) => {
 router.get('/api/list', async (req, res, next) => {
   try {
     const me = req.session.user;
-    const [conversations, unread] = await Promise.all([
+    const [conversationsRaw, unread] = await Promise.all([
       getConversationsForUser(me.id),
       getUnreadCounts(me.id),
     ]);
+    const conversations = await attachAvatars(conversationsRaw);
 
     const items = await Promise.all(
       conversations.slice(0, 30).map(async (c) => {
         let name = c.name;
+        let avatarUrl = null;
         if (c.type === 'dm') {
           const otherId = c.memberIds.find((id) => id !== me.id);
           name = (otherId && c.memberNames[otherId]) || 'Rozmowa';
+          avatarUrl = (otherId && c.memberAvatars[otherId]) || null;
         }
         const last = await getLastMessage(c.id);
         return {
           id: c.id,
           type: c.type,
           name,
+          avatarUrl,
           canReply: c.canReply,
           unread: unread.byConversation[c.id] || 0,
           lastMessage: last
             ? {
-                text: last.text.slice(0, 80),
+                text: previewText(last),
                 senderUsername: last.senderUsername,
                 mine: last.senderId === me.id,
                 createdAt: last.createdAt,
@@ -136,6 +144,17 @@ router.get('/friends-search', async (req, res) => {
     .map((u) => ({ id: u.id, username: u.username }));
 
   res.json({ users: mutualUsers });
+});
+
+/* ------------------------- WYSZUKIWANIE GIF-ÓW (Giphy) ------------------------- */
+
+router.get('/gifs', limiters.gifSearch, async (req, res, next) => {
+  try {
+    const gifs = await searchGifs(req.query.q);
+    res.json({ gifs });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /* ---------------------------- ROZPOCZNIJ DM ---------------------------- */
@@ -327,9 +346,10 @@ router.post('/:conversationId/messages', blockIfMuted, limiters.chatMessage, asy
     return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
   }
 
-  const text = (req.body.text || '').trim();
-  if (!text) {
-    return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
+  const kind = req.body.kind === 'gif' ? 'gif' : 'text';
+  const rawText = (req.body.text || '').trim();
+  if (!rawText) {
+    return res.status(400).json({ error: kind === 'gif' ? 'Nie wybrano GIF-a.' : 'Wiadomość nie może być pusta.' });
   }
 
   const conversation = await getConversationById(conversationId);
@@ -345,16 +365,28 @@ router.post('/:conversationId/messages', blockIfMuted, limiters.chatMessage, asy
     }
   }
 
-  const checked = moderateText(text.slice(0, 1000), { userId: req.session.user.id });
-  if (!checked.ok) {
-    return res.status(400).json({ error: checked.error });
+  let finalText;
+  if (kind === 'gif') {
+    // Adres musi naprawdę pochodzić z CDN Giphy (zob. utils/giphy.js) - inaczej ktoś mógłby
+    // podesłać w wiadomości dowolny zewnętrzny obrazek, pomijając wyszukiwarkę i moderację.
+    if (!isGiphyCdnUrl(rawText)) {
+      return res.status(400).json({ error: 'Nieprawidłowy adres GIF-a.' });
+    }
+    finalText = rawText;
+  } else {
+    const checked = moderateText(rawText.slice(0, 1000), { userId: req.session.user.id });
+    if (!checked.ok) {
+      return res.status(400).json({ error: checked.error });
+    }
+    finalText = checked.text;
   }
 
   const message = await addMessage({
     conversationId,
     senderId: req.session.user.id,
     senderUsername: req.session.user.username,
-    text: checked.text,
+    text: finalText,
+    kind,
   });
   await markConversationRead(req.session.user.id, conversationId);
 

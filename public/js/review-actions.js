@@ -120,7 +120,70 @@
     }
   }
 
+  // Przycisk "Edytuj" (tylko autor recenzji) - pokazuje/chowa formularz edycji pod recenzją.
+  function initEditToggle(btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById(btn.dataset.target);
+      if (target) target.classList.toggle('d-none');
+    });
+  }
+
+  // Gwiazdkowy selektor oceny w formularzu edycji (te same zasady co przy dodawaniu opinii
+  // na stronie gry - lewa połowa gwiazdki = pół punktu). Zob. views/games/detail.ejs.
+  function initStarPicker(picker) {
+    var input = picker.nextElementSibling;
+    var stars = Array.prototype.slice.call(picker.querySelectorAll('i'));
+
+    function valueFromEvent(star, e) {
+      var rect = star.getBoundingClientRect();
+      var isLeftHalf = (e.clientX - rect.left) < rect.width / 2;
+      var base = Number(star.dataset.value);
+      return isLeftHalf ? base - 0.5 : base;
+    }
+
+    function paint(value) {
+      stars.forEach(function (star) {
+        var starValue = Number(star.dataset.value);
+        star.classList.remove('bi-star', 'bi-star-fill', 'bi-star-half');
+        if (value >= starValue) {
+          star.classList.add('bi-star-fill');
+        } else if (value >= starValue - 0.5) {
+          star.classList.add('bi-star-half');
+        } else {
+          star.classList.add('bi-star');
+        }
+      });
+    }
+
+    stars.forEach(function (star) {
+      star.addEventListener('mousemove', function (e) { paint(valueFromEvent(star, e)); });
+      star.addEventListener('click', function (e) {
+        var value = valueFromEvent(star, e);
+        picker.dataset.selected = value;
+        input.value = value;
+        paint(value);
+      });
+    });
+
+    picker.addEventListener('mouseleave', function () {
+      paint(Number(picker.dataset.selected || 0));
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.gv-ractions').forEach(initReview);
+    document.querySelectorAll('.gv-ract-edit-toggle').forEach(initEditToggle);
+    document.querySelectorAll('.gv-star-picker').forEach(initStarPicker);
+
+    // Bez wybranej oceny gwiazdkowej formularz recenzji (edycja tu, nowa - modal na stronie głównej) się nie wysyła.
+    document.querySelectorAll('.gv-review-form').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var input = form.querySelector('.gv-star-picker-input');
+        if (input && !input.value) {
+          e.preventDefault();
+          alert('Wybierz ocenę przed dodaniem opinii.');
+        }
+      });
+    });
   });
 })();

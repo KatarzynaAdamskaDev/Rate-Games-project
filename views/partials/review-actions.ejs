@@ -15,6 +15,15 @@ const __openHref = typeof openHref !== 'undefined' ? openHref : null;
   <button type="button" class="gv-icon-btn gv-ract-comments" title="Komentarze" aria-label="Komentarze" aria-expanded="false">
     <i class="bi bi-chat-dots"></i><span class="gv-count"><%= review.commentCount %></span>
   </button>
+  <% if (currentUser && currentUser.id === review.userId) { %>
+    <button type="button" class="gv-icon-btn gv-ract-edit-toggle" title="Edytuj" aria-label="Edytuj" data-target="edit-form-<%= review.id %>">
+      <i class="bi bi-pencil"></i>
+    </button>
+    <form action="/games/<%= review.gameId %>/reviews/<%= review.id %>/delete" method="POST"
+          onsubmit="return confirm('Usunąć tę recenzję na stałe?');" class="d-inline">
+      <button type="submit" class="gv-icon-btn gv-ract-delete" title="Usuń" aria-label="Usuń"><i class="bi bi-trash3"></i></button>
+    </form>
+  <% } %>
   <% if (__openHref) { %><a href="<%= __openHref %>" class="gv-rcard-open">Otwórz recenzję <i class="bi bi-arrow-right"></i></a><% } %>
 </div>
 <div class="gv-rcomments d-none">
@@ -30,3 +39,16 @@ const __openHref = typeof openHref !== 'undefined' ? openHref : null;
     </p>
   <% } %>
 </div>
+<% if (currentUser && currentUser.id === review.userId) { %>
+  <form action="/games/<%= review.gameId %>/reviews/<%= review.id %>/edit" method="POST"
+        class="gv-edit-review-form d-none mt-3" id="edit-form-<%= review.id %>">
+    <div class="gv-star-picker mb-2" role="radiogroup" aria-label="Twoja ocena" data-selected="<%= review.rating %>">
+      <% for (let i = 1; i <= 5; i++) { %>
+        <i class="bi <%= review.rating >= i ? 'bi-star-fill' : (review.rating >= i - 0.5 ? 'bi-star-half' : 'bi-star') %>" data-value="<%= i %>"></i>
+      <% } %>
+    </div>
+    <input type="hidden" name="rating" class="gv-star-picker-input" value="<%= review.rating %>">
+    <textarea name="text" rows="3" class="form-control gv-input mb-2" required><%= review.text %></textarea>
+    <button type="submit" class="btn gv-btn-success btn-sm">Zapisz zmiany</button>
+  </form>
+<% } %>
