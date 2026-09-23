@@ -283,65 +283,48 @@ async function sendGroupInvites(req, conversation, memberIds) {
   return { invited, skipped: validIds.length < memberIds.length };
 }
 
-router.post('/groups/new', blockIfMuted, limiters.chatCreate, (req, res) => {
-  groupPhotoUpload.single('photo')(req, res, async (err) => {
-    if (handleGroupPhotoUploadError(req, res, err)) return;
+// Zdjęcie grupy ustawia się dopiero po utworzeniu, w ustawieniach grupy (POST /:conversationId/photo) -
+// tworzenie zajmuje się tylko nazwą i zaproszeniami.
+router.post('/groups/new', blockIfMuted, limiters.chatCreate, async (req, res) => {
+  try {
+    const { name } = req.body;
+    let memberIds = req.body.memberIds || [];
+    if (!Array.isArray(memberIds)) memberIds = [memberIds];
+    memberIds = memberIds.filter(Boolean);
 
-    try {
-      const { name } = req.body;
-      let memberIds = req.body.memberIds || [];
-      if (!Array.isArray(memberIds)) memberIds = [memberIds];
-      memberIds = memberIds.filter(Boolean);
-
-      if (!name || !name.trim()) {
-        req.flash('error', 'Podaj nazwę grupy.');
-        return res.redirect('/chat');
-      }
-      const nameCheck = moderateName(name);
-      if (!nameCheck.ok) {
-        req.flash('error', nameCheck.error);
-        return res.redirect('/chat');
-      }
-      if (memberIds.length === 0) {
-        req.flash('error', 'Zaproś co najmniej jednego znajomego do grupy.');
-        return res.redirect('/chat');
-      }
-
-      let photoUrl = null;
-      if (req.file) {
-        try {
-          const image = await sanitizeImage(req.file.buffer, { maxSize: 512 });
-          const filename = `${Date.now()}-${req.session.user.id}${image.ext}`;
-          await fs.promises.writeFile(path.join(GROUP_PHOTO_DIR, filename), image.buffer);
-          photoUrl = `/images/chat/groups/${filename}`;
-        } catch (imageError) {
-          if (!imageError.userFacing) console.error('Błąd przetwarzania zdjęcia grupy:', imageError);
-          req.flash('error', imageError.userFacing ? imageError.message : 'Nie udało się przetworzyć zdjęcia.');
-          return res.redirect('/chat');
-        }
-      }
-
-      const group = await createGroup({
-        name: name.trim(),
-        ownerId: req.session.user.id,
-        ownerUsername: req.session.user.username,
-        photoUrl,
-      });
-
-      const { invited, skipped } = await sendGroupInvites(req, group, memberIds);
-      if (invited.length === 0) {
-        req.flash('error', 'Do grupy możesz zaprosić tylko wzajemnych znajomych.');
-      } else if (skipped) {
-        req.flash('success', `Grupa "${group.name}" została utworzona. Wysłano ${invited.length} zaproszeń (część osób pominięto - to nie wzajemni znajomi).`);
-      } else {
-        req.flash('success', `Grupa "${group.name}" została utworzona. Wysłano zaproszenia.`);
-      }
-      res.redirect(`/chat?c=${group.id}`);
-    } catch (nextErr) {
-      req.flash('error', 'Nie udało się utworzyć grupy. Spróbuj ponownie.');
-      res.redirect('/chat');
+    if (!name || !name.trim()) {
+      req.flash('error', 'Podaj nazwę grupy.');
+      return res.redirect('/chat');
     }
-  });
+    const nameCheck = moderateName(name);
+    if (!nameCheck.ok) {
+      req.flash('error', nameCheck.error);
+      return res.redirect('/chat');
+    }
+    if (memberIds.length === 0) {
+      req.flash('error', 'Zaproś co najmniej jednego znajomego do grupy.');
+      return res.redirect('/chat');
+    }
+
+    const group = await createGroup({
+      name: name.trim(),
+      ownerId: req.session.user.id,
+      ownerUsername: req.session.user.username,
+    });
+
+    const { invited, skipped } = await sendGroupInvites(req, group, memberIds);
+    if (invited.length === 0) {
+      req.flash('error', 'Do grupy możesz zaprosić tylko wzajemnych znajomych.');
+    } else if (skipped) {
+      req.flash('success', `Grupa "${group.name}" została utworzona. Wysłano ${invited.length} zaproszeń (część osób pominięto - to nie wzajemni znajomi).`);
+    } else {
+      req.flash('success', `Grupa "${group.name}" została utworzona. Wysłano zaproszenia.`);
+    }
+    res.redirect(`/chat?c=${group.id}`);
+  } catch (err) {
+    req.flash('error', 'Nie udało się utworzyć grupy. Spróbuj ponownie.');
+    res.redirect('/chat');
+  }
 });
 
 /** Właściciel zaprasza kolejne osoby do już istniejącej grupy. */

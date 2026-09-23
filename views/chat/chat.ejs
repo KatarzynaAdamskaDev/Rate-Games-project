@@ -95,11 +95,9 @@
           </div>
           <button type="button" class="gv-btn-outline w-100 mt-2 mb-1" data-bs-toggle="collapse" data-bs-target="#newGroupForm">+ Nowa grupa</button>
 
-          <form action="/chat/groups/new" method="POST" enctype="multipart/form-data" class="collapse" id="newGroupForm">
+          <form action="/chat/groups/new" method="POST" class="collapse" id="newGroupForm">
             <input type="text" name="name" placeholder="Nazwa grupy" class="form-control gv-input mb-2" required>
-            <label class="gv-label d-block" for="newGroupPhoto" style="font-size:11px;">Zdjęcie grupy (opcjonalnie)</label>
-            <input type="file" name="photo" id="newGroupPhoto" accept=".png,.jpg,.jpeg,.webp,.gif" class="form-control gv-input mb-2">
-            <p class="gv-group-hint mb-2">Zaproszeni znajomi muszą zaakceptować zaproszenie, żeby dołączyć do grupy.</p>
+            <p class="gv-group-hint mb-2">Zdjęcie grupy ustawisz później, w ustawieniach grupy. Zaproszeni znajomi muszą zaakceptować zaproszenie, żeby dołączyć.</p>
 
             <div class="gv-group-member-picker mb-2">
               <input type="text" id="groupMemberSearch" placeholder="Wpisz nick znajomego..." class="form-control gv-input" autocomplete="off">
