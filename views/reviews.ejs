@@ -11,8 +11,17 @@
   <section class="gv-section">
     <div class="wrap">
 
-      <h1 class="gv-page-title">Recenzje graczy</h1>
-      <p class="gv-page-lead">Co społeczność GameVerse sądzi o grach: najlepsza recenzja tygodnia, rankingi tytułów i wszystkie opinie w jednym miejscu.</p>
+      <div class="gv-blog-head">
+        <div>
+          <h1 class="gv-page-title">Recenzje graczy</h1>
+          <p class="gv-page-lead">Co społeczność GameVerse sądzi o grach: najlepsza recenzja tygodnia, rankingi tytułów i wszystkie opinie w jednym miejscu.</p>
+        </div>
+        <% if (currentUser) { %>
+          <button type="button" class="btn gv-btn-success" data-bs-toggle="modal" data-bs-target="#writeReviewModal">
+            <i class="bi bi-plus-lg"></i> Napisz recenzję
+          </button>
+        <% } %>
+      </div>
 
       <div class="gv-stats-bar">
         <div class="gv-stat-card"><b><%= stats.totalReviews %></b><span>recenzji</span></div>
@@ -137,7 +146,12 @@
     </div>
   </section>
 
+  <% if (currentUser) { %>
+    <%- include('partials/write-review-modal') %>
+  <% } %>
+
   <%- include('partials/footer') %>
+  <script src="/js/game-picker.js"></script>
   <script src="/js/review-actions.js"></script>
 </body>
 </html>

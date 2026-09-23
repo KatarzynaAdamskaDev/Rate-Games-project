@@ -26,6 +26,7 @@ const notificationsRouter = require('./routes/notifications');
 const adminRouter = require('./routes/admin');
 const reviewsRouter = require('./routes/reviews');
 const reportsRouter = require('./routes/reports');
+const feedbackRouter = require('./routes/feedback');
 const seoRouter = require('./routes/seo');
 const pagesRouter = require('./routes/pages');
 const userProfileRouter = require('./routes/userProfile');
@@ -93,6 +94,7 @@ app.use('/notifications', notificationsRouter);
 app.use('/admin', adminRouter);
 app.use('/reviews', reviewsRouter);
 app.use('/reports', reportsRouter);
+app.use('/feedback', feedbackRouter);
 app.use('/', seoRouter); // robots.txt, sitemap.xml, llms.txt, feed.xml - przed łapaczem /:username
 app.use('/', pagesRouter); // /aboutus i /help - przed łapaczem /:username
 

@@ -11,6 +11,8 @@ function serializeConversation(instance) {
   const plain = instance.get({ plain: true });
   plain.memberIds = JSON.parse(plain.memberIds || '[]');
   plain.memberNames = JSON.parse(plain.memberNames || '{}');
+  plain.pendingMemberIds = JSON.parse(plain.pendingMemberIds || '[]');
+  plain.pendingMemberNames = JSON.parse(plain.pendingMemberNames || '{}');
   return plain;
 }
 
@@ -96,21 +98,120 @@ async function getOrCreateDM(userA, userB, { canReply = true } = {}) {
   return serializeConversation(instance);
 }
 
-async function createGroup({ name, ownerId, ownerUsername, members }) {
-  const memberIds = [ownerId, ...members.map((m) => m.id)];
-  const memberNames = { [ownerId]: ownerUsername };
-  members.forEach((m) => {
-    memberNames[m.id] = m.username;
-  });
-
+/**
+ * Tworzy grupę z samym właścicielem jako członkiem - pozostałych zaprasza się osobno
+ * (inviteMembersToGroup), bo muszą zaakceptować, zanim trafią do memberIds.
+ */
+async function createGroup({ name, ownerId, ownerUsername, photoUrl }) {
   const instance = await Conversation.create({
     type: 'group',
     name,
     ownerId,
-    memberIds: JSON.stringify([...new Set(memberIds)]),
-    memberNames: JSON.stringify(memberNames),
+    photoUrl: photoUrl || null,
+    memberIds: JSON.stringify([ownerId]),
+    memberNames: JSON.stringify({ [ownerId]: ownerUsername }),
   });
   return serializeConversation(instance);
+}
+
+/**
+ * Zaprasza użytkowników (tablica { id, username }) do grupy - trafiają do pendingMemberIds,
+ * a nie od razu do memberIds. Pomija tych, którzy już są członkami albo mają już zaproszenie.
+ * @returns lista faktycznie zaproszonych (do wysłania powiadomień).
+ */
+async function inviteMembersToGroup(conversationId, users) {
+  const instance = await Conversation.findByPk(conversationId);
+  if (!instance || instance.type !== 'group') return [];
+  const conv = serializeConversation(instance);
+
+  const invited = [];
+  users.forEach((u) => {
+    if (conv.memberIds.includes(u.id) || conv.pendingMemberIds.includes(u.id)) return;
+    conv.pendingMemberIds.push(u.id);
+    conv.pendingMemberNames[u.id] = u.username;
+    invited.push(u);
+  });
+
+  if (invited.length > 0) {
+    instance.pendingMemberIds = JSON.stringify(conv.pendingMemberIds);
+    instance.pendingMemberNames = JSON.stringify(conv.pendingMemberNames);
+    await instance.save();
+  }
+  return invited;
+}
+
+/** Zaproszenia do grup, na które dany użytkownik jeszcze nie odpowiedział. */
+async function getPendingInvitesForUser(userId) {
+  const rows = await Conversation.findAll({ where: { type: 'group' } });
+  return rows.map(serializeConversation).filter((c) => c.pendingMemberIds.includes(userId));
+}
+
+/** Zaakceptowanie zaproszenia: przenosi z pendingMemberIds do memberIds. */
+async function acceptGroupInvite(conversationId, userId, username) {
+  const instance = await Conversation.findByPk(conversationId);
+  if (!instance || instance.type !== 'group') return false;
+  const conv = serializeConversation(instance);
+  if (!conv.pendingMemberIds.includes(userId)) return false;
+
+  const pendingMemberIds = conv.pendingMemberIds.filter((id) => id !== userId);
+  const pendingMemberNames = { ...conv.pendingMemberNames };
+  delete pendingMemberNames[userId];
+
+  const memberIds = conv.memberIds.includes(userId) ? conv.memberIds : [...conv.memberIds, userId];
+  const memberNames = { ...conv.memberNames, [userId]: username };
+
+  instance.memberIds = JSON.stringify(memberIds);
+  instance.memberNames = JSON.stringify(memberNames);
+  instance.pendingMemberIds = JSON.stringify(pendingMemberIds);
+  instance.pendingMemberNames = JSON.stringify(pendingMemberNames);
+  await instance.save();
+  return true;
+}
+
+/** Odrzucenie zaproszenia: po prostu znika z pendingMemberIds. */
+async function declineGroupInvite(conversationId, userId) {
+  const instance = await Conversation.findByPk(conversationId);
+  if (!instance || instance.type !== 'group') return false;
+  const conv = serializeConversation(instance);
+  if (!conv.pendingMemberIds.includes(userId)) return false;
+
+  const pendingMemberIds = conv.pendingMemberIds.filter((id) => id !== userId);
+  const pendingMemberNames = { ...conv.pendingMemberNames };
+  delete pendingMemberNames[userId];
+
+  instance.pendingMemberIds = JSON.stringify(pendingMemberIds);
+  instance.pendingMemberNames = JSON.stringify(pendingMemberNames);
+  await instance.save();
+  return true;
+}
+
+/** Zmiana nazwy grupy (tylko type='group' - wywołujący sprawdza, że to właściciel). */
+async function renameGroup(conversationId, name) {
+  const [count] = await Conversation.update({ name }, { where: { id: conversationId, type: 'group' } });
+  return count > 0;
+}
+
+/** Ustawia/zdejmuje zdjęcie grupy (photoUrl=null usuwa - wraca gradient domyślny w interfejsie). */
+async function setGroupPhoto(conversationId, photoUrl) {
+  const [count] = await Conversation.update({ photoUrl }, { where: { id: conversationId, type: 'group' } });
+  return count > 0;
+}
+
+/** Usuwa członka z grupy. Właściciela nie da się w ten sposób usunąć. */
+async function removeGroupMember(conversationId, userId) {
+  const instance = await Conversation.findByPk(conversationId);
+  if (!instance || instance.type !== 'group' || instance.ownerId === userId) return false;
+  const conv = serializeConversation(instance);
+  if (!conv.memberIds.includes(userId)) return false;
+
+  const memberIds = conv.memberIds.filter((id) => id !== userId);
+  const memberNames = { ...conv.memberNames };
+  delete memberNames[userId];
+
+  instance.memberIds = JSON.stringify(memberIds);
+  instance.memberNames = JSON.stringify(memberNames);
+  await instance.save();
+  return true;
 }
 
 /** Zwraca (lub tworzy) pokój dyskusyjny przypisany do konkretnej gry. */
@@ -186,6 +287,19 @@ async function removeUserFromConversations(userId) {
 
   for (const row of rows) {
     const conv = serializeConversation(row);
+    const isPendingOnly = !conv.memberIds.includes(userId) && conv.pendingMemberIds.includes(userId);
+
+    if (isPendingOnly) {
+      // Tylko oczekujące zaproszenie do grupy - wystarczy je zdjąć, reszta grupy zostaje bez zmian.
+      const pendingMemberIds = conv.pendingMemberIds.filter((id) => id !== userId);
+      const pendingMemberNames = { ...conv.pendingMemberNames };
+      delete pendingMemberNames[userId];
+      row.pendingMemberIds = JSON.stringify(pendingMemberIds);
+      row.pendingMemberNames = JSON.stringify(pendingMemberNames);
+      await row.save();
+      continue;
+    }
+
     if (!conv.memberIds.includes(userId)) continue;
 
     const memberIds = conv.memberIds.filter((id) => id !== userId);
@@ -341,6 +455,13 @@ module.exports = {
   attachAvatars,
   getOrCreateDM,
   createGroup,
+  inviteMembersToGroup,
+  getPendingInvitesForUser,
+  acceptGroupInvite,
+  declineGroupInvite,
+  renameGroup,
+  setGroupPhoto,
+  removeGroupMember,
   getOrCreateGameRoom,
   getMessages,
   getLastMessage,

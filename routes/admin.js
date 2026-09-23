@@ -52,6 +52,7 @@ const AdminIdea = require('../models/AdminIdea');
 const { IDEAS, AREAS, DECISIONS, findIdea } = require('../utils/adminIdeas');
 const { getAllPosts, removePost: removeBlogPost } = require('../utils/blogHelpers');
 const { countCommentsForPosts: countBlogComments } = require('../utils/blogCommentHelpers');
+const { getFeedbackStats, getRecentFeedback } = require('../utils/feedbackHelpers');
 
 const PAGE_SIZE = 15;
 
@@ -196,6 +197,20 @@ router.get('/', async (req, res, next) => {
         review: reviewById.get(r.reviewId) ? reviewById.get(r.reviewId).get({ plain: true }) : null,
       })),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ------------------------------ opinie (ankieta) ------------------------------ */
+
+router.get('/survey', async (req, res, next) => {
+  try {
+    const [stats, recent] = await Promise.all([
+      getFeedbackStats(),
+      getRecentFeedback(30),
+    ]);
+    render(res, 'survey', 'survey', 'Opinie', { stats, recent });
   } catch (err) {
     next(err);
   }

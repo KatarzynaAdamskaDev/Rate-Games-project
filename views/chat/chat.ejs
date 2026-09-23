@@ -32,6 +32,33 @@
             });
           </script>
 
+          <% if (pendingInvites.length > 0) { %>
+            <div class="gv-chat-group-label">Zaproszenia</div>
+            <div class="mb-2" id="invitesList">
+              <% pendingInvites.forEach(function(inv) { %>
+                <div class="gv-invite-item">
+                  <% if (inv.photoUrl) { %>
+                    <img src="<%= inv.photoUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
+                  <% } else { %>
+                    <div class="gv-c-avatar"></div>
+                  <% } %>
+                  <div class="gv-invite-info">
+                    <b><%= inv.name %></b>
+                    <span>Zaprosił(a) <%= inv.memberNames[inv.ownerId] || 'właściciel' %></span>
+                  </div>
+                  <div class="gv-invite-actions">
+                    <form action="/chat/invites/<%= inv.id %>/accept" method="POST">
+                      <button type="submit" class="gv-icon-btn gv-invite-accept" title="Akceptuj" aria-label="Akceptuj zaproszenie"><i class="bi bi-check-lg"></i></button>
+                    </form>
+                    <form action="/chat/invites/<%= inv.id %>/decline" method="POST">
+                      <button type="submit" class="gv-icon-btn gv-invite-decline" title="Odrzuć" aria-label="Odrzuć zaproszenie"><i class="bi bi-x-lg"></i></button>
+                    </form>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+
           <div class="gv-chat-group-label">Rozmowy</div>
           <div id="dmConversationList">
           <% conversations.filter(function(c){return c.type === 'dm';}).forEach(function(c) { %>
@@ -56,7 +83,11 @@
           <div id="groupConversationList">
           <% conversations.filter(function(c){return c.type === 'group';}).forEach(function(c) { %>
             <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
-              <div class="gv-c-avatar"></div>
+              <% if (c.photoUrl) { %>
+                <img src="<%= c.photoUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
+              <% } else { %>
+                <div class="gv-c-avatar"></div>
+              <% } %>
               <div><b><%= c.displayName %></b><span><%= c.memberIds.length %> członków</span></div>
               <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
             </a>
@@ -64,8 +95,11 @@
           </div>
           <button type="button" class="gv-btn-outline w-100 mt-2 mb-1" data-bs-toggle="collapse" data-bs-target="#newGroupForm">+ Nowa grupa</button>
 
-          <form action="/chat/groups/new" method="POST" class="collapse" id="newGroupForm">
+          <form action="/chat/groups/new" method="POST" enctype="multipart/form-data" class="collapse" id="newGroupForm">
             <input type="text" name="name" placeholder="Nazwa grupy" class="form-control gv-input mb-2" required>
+            <label class="gv-label d-block" for="newGroupPhoto" style="font-size:11px;">Zdjęcie grupy (opcjonalnie)</label>
+            <input type="file" name="photo" id="newGroupPhoto" accept=".png,.jpg,.jpeg,.webp,.gif" class="form-control gv-input mb-2">
+            <p class="gv-group-hint mb-2">Zaproszeni znajomi muszą zaakceptować zaproszenie, żeby dołączyć do grupy.</p>
 
             <div class="gv-group-member-picker mb-2">
               <input type="text" id="groupMemberSearch" placeholder="Wpisz nick znajomego..." class="form-control gv-input" autocomplete="off">
@@ -75,15 +109,19 @@
             <div id="groupMemberChips" class="gv-group-chips mb-2"></div>
             <p id="groupMemberHint" class="gv-group-hint" style="display:none;">Do grupy możesz dodać tylko wzajemnych znajomych (obserwujecie się nawzajem).</p>
 
-            <button type="submit" class="gv-btn-success w-100" id="createGroupBtn" disabled>Utwórz grupę</button>
+            <button type="submit" class="gv-btn-success w-100" id="createGroupBtn" disabled>Utwórz i zaproś</button>
           </form>
           <script>
-            (function () {
-              var searchInput = document.getElementById('groupMemberSearch');
-              var suggestionsBox = document.getElementById('groupMemberSuggestions');
-              var chipsBox = document.getElementById('groupMemberChips');
-              var createBtn = document.getElementById('createGroupBtn');
-              var hint = document.getElementById('groupMemberHint');
+            // Wspólna logika wyszukiwarki znajomych (chipy + podpowiedzi) - używana zarówno przy
+            // tworzeniu grupy, jak i przy zapraszaniu kolejnych osób do istniejącej grupy
+            // (zob. #groupSettingsModal niżej). Wywoływane raz na formularz, z własnym kompletem id.
+            function initGvMemberPicker(ids) {
+              var searchInput = document.getElementById(ids.search);
+              var suggestionsBox = document.getElementById(ids.suggestions);
+              var chipsBox = document.getElementById(ids.chips);
+              var submitBtn = document.getElementById(ids.submitBtn);
+              var hint = document.getElementById(ids.hint);
+              if (!searchInput) return;
               var selected = {}; // id -> username
               var debounceTimer;
 
@@ -111,7 +149,7 @@
 
                   chipsBox.appendChild(chip);
                 });
-                createBtn.disabled = Object.keys(selected).length === 0;
+                if (submitBtn) submitBtn.disabled = Object.keys(selected).length === 0;
               }
 
               function renderSuggestions(users) {
@@ -141,9 +179,11 @@
                 suggestionsBox.classList.remove('d-none');
               }
 
-              searchInput.addEventListener('focus', function () {
-                hint.style.display = 'block';
-              });
+              if (hint) {
+                searchInput.addEventListener('focus', function () {
+                  hint.style.display = 'block';
+                });
+              }
 
               searchInput.addEventListener('input', function () {
                 clearTimeout(debounceTimer);
@@ -160,7 +200,15 @@
                   suggestionsBox.classList.add('d-none');
                 }
               });
-            })();
+            }
+
+            initGvMemberPicker({
+              search: 'groupMemberSearch',
+              suggestions: 'groupMemberSuggestions',
+              chips: 'groupMemberChips',
+              submitBtn: 'createGroupBtn',
+              hint: 'groupMemberHint',
+            });
           </script>
 
           </div>
@@ -195,7 +243,7 @@
           <% } else { %>
             <div class="gv-chat-topbar">
               <% var topOtherId = active.type === 'dm' ? active.memberIds.find(function(id){ return id !== currentUser.id; }) : null; %>
-              <% var topAvatarUrl = topOtherId ? active.memberAvatars[topOtherId] : null; %>
+              <% var topAvatarUrl = topOtherId ? active.memberAvatars[topOtherId] : (active.type === 'group' ? active.photoUrl : null); %>
               <% if (topAvatarUrl) { %>
                 <img src="<%= topAvatarUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
               <% } else { %>
@@ -213,7 +261,14 @@
                     </button>
                     <div class="gv-group-members-dropdown d-none" id="groupMembersDropdown">
                       <% active.memberIds.forEach(function(id) { %>
-                        <a href="/<%= active.memberNames[id] %>" class="gv-group-member-item"><%= active.memberNames[id] %></a>
+                        <div class="gv-group-member-item">
+                          <a href="/<%= active.memberNames[id] %>"><%= active.memberNames[id] %><%= id === active.ownerId ? ' (właściciel)' : '' %></a>
+                          <% if (active.ownerId === currentUser.id && id !== currentUser.id) { %>
+                            <form action="/chat/<%= active.id %>/members/<%= id %>/remove" method="POST" onsubmit="return confirm('Usunąć <%= active.memberNames[id] %> z grupy?');">
+                              <button type="submit" class="gv-group-member-remove" title="Usuń z grupy" aria-label="Usuń z grupy"><i class="bi bi-x-lg"></i></button>
+                            </form>
+                          <% } %>
+                        </div>
                       <% }) %>
                     </div>
                   <% } %>
@@ -226,6 +281,12 @@
                 </div>
               </div>
               <div class="gv-chat-topbar-actions">
+                <% if (active.type === 'group' && active.ownerId === currentUser.id) { %>
+                  <button type="button" class="gv-chat-action-btn" title="Ustawienia grupy" aria-label="Ustawienia grupy"
+                          data-bs-toggle="modal" data-bs-target="#groupSettingsModal">
+                    <i class="bi bi-gear-fill"></i>
+                  </button>
+                <% } %>
                 <% if (active.type === 'dm' && currentUser.role === 'admin') { %>
                   <button type="button" class="gv-chat-action-btn" id="toggleReplyBtn"
                           data-conversation="<%= active.id %>" data-can-reply="<%= active.canReply %>"
@@ -268,19 +329,21 @@
 
             <% var canISend = active.canReply || currentUser.role === 'admin'; %>
             <% if (canISend) { %>
-              <div class="gv-chat-picker d-none" id="emojiPicker">
-                <div class="gv-emoji-grid" id="emojiGrid"></div>
+              <div class="gv-chat-input-wrap">
+                <div class="gv-chat-picker d-none" id="emojiPicker">
+                  <div class="gv-emoji-grid" id="emojiGrid"></div>
+                </div>
+                <div class="gv-chat-picker gv-gif-picker d-none" id="gifPicker">
+                  <input type="search" id="gifSearchInput" class="form-control gv-input gv-gif-search" placeholder="Szukaj GIF-a..." autocomplete="off">
+                  <div class="gv-gif-grid" id="gifGrid"></div>
+                </div>
+                <form class="gv-chat-input-row" id="chatForm">
+                  <button type="button" class="gv-chat-action-btn" id="emojiBtn" title="Emoji" aria-label="Emoji"><i class="bi bi-emoji-smile"></i></button>
+                  <button type="button" class="gv-chat-action-btn" id="gifBtn" title="GIF" aria-label="GIF"><i class="bi bi-filetype-gif"></i></button>
+                  <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
+                  <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
+                </form>
               </div>
-              <div class="gv-chat-picker d-none" id="gifPicker">
-                <input type="search" id="gifSearchInput" class="form-control gv-input gv-gif-search" placeholder="Szukaj GIF-a..." autocomplete="off">
-                <div class="gv-gif-grid" id="gifGrid"></div>
-              </div>
-              <form class="gv-chat-input-row" id="chatForm">
-                <button type="button" class="gv-chat-action-btn" id="emojiBtn" title="Emoji" aria-label="Emoji"><i class="bi bi-emoji-smile"></i></button>
-                <button type="button" class="gv-chat-action-btn" id="gifBtn" title="GIF" aria-label="GIF"><i class="bi bi-filetype-gif"></i></button>
-                <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
-                <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
-              </form>
             <% } else { %>
               <p class="gv-group-hint px-2 py-2 mb-0"><i class="bi bi-info-circle"></i> Administrator wysłał tę wiadomość bez możliwości odpowiedzi.</p>
             <% } %>
@@ -289,6 +352,89 @@
       </div>
     </div>
   </section>
+
+  <% if (active && active.type === 'group' && active.ownerId === currentUser.id) { %>
+    <!-- MODAL: USTAWIENIA GRUPY (tylko właściciel) - nazwa, zdjęcie, członkowie, zapraszanie -->
+    <div class="modal fade" id="groupSettingsModal" tabindex="-1" aria-labelledby="groupSettingsLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content gv-modal-content">
+          <div class="modal-header gv-modal-header">
+            <h2 class="gv-auth-title mb-0" id="groupSettingsLabel"><i class="bi bi-gear-fill"></i> Ustawienia grupy</h2>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+          </div>
+          <div class="modal-body">
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-pencil-fill"></i> Nazwa grupy</h3>
+              <form action="/chat/<%= active.id %>/rename" method="POST" class="d-flex gap-2">
+                <input type="text" name="name" value="<%= active.name %>" class="form-control gv-input" required>
+                <button type="submit" class="gv-mini-btn">Zapisz</button>
+              </form>
+            </section>
+
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-image-fill"></i> Zdjęcie grupy</h3>
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <% if (active.photoUrl) { %>
+                  <img src="<%= active.photoUrl %>" alt="" style="width:48px;height:48px;border-radius:10px;object-fit:cover;">
+                <% } else { %>
+                  <div class="gv-c-avatar"></div>
+                <% } %>
+                <% if (active.photoUrl) { %>
+                  <form action="/chat/<%= active.id %>/photo/remove" method="POST">
+                    <button type="submit" class="gv-mini-btn gv-mini-warn">Usuń zdjęcie</button>
+                  </form>
+                <% } %>
+              </div>
+              <form action="/chat/<%= active.id %>/photo" method="POST" enctype="multipart/form-data" class="d-flex gap-2">
+                <input type="file" name="photo" accept=".png,.jpg,.jpeg,.webp,.gif" class="form-control gv-input" required>
+                <button type="submit" class="gv-mini-btn">Wgraj</button>
+              </form>
+            </section>
+
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-people-fill"></i> Członkowie (<%= active.memberIds.length %>)</h3>
+              <ul class="gv-admin-list">
+                <% active.memberIds.forEach(function(id) { %>
+                  <li>
+                    <span><%= active.memberNames[id] %><%= id === active.ownerId ? ' (właściciel)' : '' %></span>
+                    <% if (id !== active.ownerId) { %>
+                      <form action="/chat/<%= active.id %>/members/<%= id %>/remove" method="POST" onsubmit="return confirm('Usunąć <%= active.memberNames[id] %> z grupy?');">
+                        <button type="submit" class="gv-mini-btn gv-mini-warn">Usuń</button>
+                      </form>
+                    <% } %>
+                  </li>
+                <% }) %>
+              </ul>
+              <% if (active.pendingMemberIds.length > 0) { %>
+                <p class="gv-admin-note">Oczekują na akceptację: <%= active.pendingMemberIds.map(function(id){ return active.pendingMemberNames[id]; }).join(', ') %></p>
+              <% } %>
+            </section>
+
+            <section class="gv-admin-modal-section">
+              <h3><i class="bi bi-person-plus-fill"></i> Zaproś więcej osób</h3>
+              <p class="gv-admin-note">Możesz zapraszać tylko wzajemnych znajomych.</p>
+              <form action="/chat/<%= active.id %>/invite" method="POST">
+                <div class="gv-group-member-picker mb-2">
+                  <input type="text" id="inviteMemberSearch" placeholder="Wpisz nick znajomego..." class="form-control gv-input" autocomplete="off">
+                  <div id="inviteMemberSuggestions" class="gv-group-suggestions d-none"></div>
+                </div>
+                <div id="inviteMemberChips" class="gv-group-chips mb-2"></div>
+                <button type="submit" class="gv-mini-btn" id="sendInviteBtn" disabled>Wyślij zaproszenia</button>
+              </form>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      initGvMemberPicker({
+        search: 'inviteMemberSearch',
+        suggestions: 'inviteMemberSuggestions',
+        chips: 'inviteMemberChips',
+        submitBtn: 'sendInviteBtn',
+      });
+    </script>
+  <% } %>
 
   <%- include('../partials/report-modal') %>
   <%- include('../partials/footer') %>

@@ -129,4 +129,5 @@ module.exports = {
   setSetting,
   getAnnouncement,
   getDashboardStats,
+  bucketByDay,
 };

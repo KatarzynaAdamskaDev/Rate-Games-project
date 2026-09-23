@@ -31,6 +31,29 @@ describe('aplikacja - podstawy', () => {
     expect(loggedIn.text).toContain('data-mode="select"');
   });
 
+  test('pasek CTA na dole strony głównej: gość widzi zachętę do założenia konta, zalogowany - do oceny strony', async () => {
+    const guest = await request(ctx.app).get('/');
+    expect(guest.text).toContain('Dołącz do społeczności graczy GameVerse');
+    expect(guest.text).not.toContain('id="feedbackModal"');
+
+    const { agent } = await userAgent(ctx.app, { username: 'ocenistrone' });
+    const loggedIn = await agent.get('/');
+    expect(loggedIn.text).toContain('Jak Ci się podoba GameVerse?');
+    expect(loggedIn.text).toContain('id="feedbackModal"');
+    expect(loggedIn.text).not.toContain('Dołącz do społeczności graczy GameVerse');
+  });
+
+  test('strona "Recenzje": zalogowany widzi przycisk "Napisz recenzję" (ten sam modal co strona główna), gość nie', async () => {
+    const guest = await request(ctx.app).get('/reviews');
+    expect(guest.status).toBe(200);
+    expect(guest.text).not.toContain('id="writeReviewModal"');
+
+    const { agent } = await userAgent(ctx.app, { username: 'recenzentzreviews' });
+    const loggedIn = await agent.get('/reviews');
+    expect(loggedIn.text).toContain('>Napisz recenzję<');
+    expect(loggedIn.text).toContain('id="writeReviewModal"');
+  });
+
   test('nieznany adres zwraca własną stronę 404 (nie domyślną Expressa)', async () => {
     const res = await request(ctx.app).get('/nie-ma-takiej-strony-xyz');
     expect(res.status).toBe(404);

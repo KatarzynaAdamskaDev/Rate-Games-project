@@ -42,6 +42,12 @@ const NOTIFICATION_TYPES = [
     label: 'Decyzje w sprawie zgłoszeń',
     description: 'Moderator rozpatrzył zgłoszenie, które wysłałeś(-aś).',
   },
+  {
+    id: 'group-invite',
+    icon: 'bi-people-fill',
+    label: 'Zaproszenia do grup',
+    description: 'Ktoś zaprosił Cię do grupy na czacie.',
+  },
 ];
 
 /** Zamienia zapisany w bazie JSON na komplet ustawień: { muteAll, types: { id: bool } }. */

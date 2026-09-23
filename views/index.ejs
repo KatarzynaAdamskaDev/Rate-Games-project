@@ -220,58 +220,63 @@
 <section>
   <div class="wrap">
     <div class="cta-band">
-      <div>
-        <h3>Dołącz do społeczności graczy GameVerse</h3>
-        <p>Zakładaj profil, obserwuj recenzentów, których cenisz, i rozmawiaj o grach na czacie — za darmo i bez reklam między recenzjami.</p>
-      </div>
-      <button
-            type="button"
-            class="btn-primary hero-cta"
-            data-bs-toggle="modal"
-            data-bs-target="#signInModal"
-            >Załóż darmowe konto</button>
+      <% if (currentUser) { %>
+        <div>
+          <h3>Jak Ci się podoba GameVerse?</h3>
+          <p>Zajmie dosłownie chwilę — oceń nas w skali 1-5 i, jeśli chcesz, napisz czego brakuje albo co warto poprawić.</p>
+        </div>
+      <% } else { %>
+        <div>
+          <h3>Dołącz do społeczności graczy GameVerse</h3>
+          <p>Zakładaj profil, obserwuj recenzentów, których cenisz, i rozmawiaj o grach na czacie — za darmo i bez reklam między recenzjami.</p>
+        </div>
+      <% } %>
+      <% if (currentUser) { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#feedbackModal"
+              >Oceń GameVerse</button>
+      <% } else { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#signInModal"
+              >Załóż darmowe konto</button>
+      <% } %>
     </div>
   </div>
 </section>
 
 <% if (currentUser) { %>
-  <!-- MODAL: NAPISZ RECENZJĘ (wybór gry, potem ocena i treść) -->
-  <div class="modal fade" id="writeReviewModal" tabindex="-1" aria-labelledby="writeReviewLabel" aria-hidden="true">
+  <%- include('partials/write-review-modal') %>
+
+  <!-- MODAL: OCEŃ GAMEVERSE (krótka ankieta - ocena 1-5 + opcjonalny komentarz) -->
+  <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content gv-modal-content">
         <div class="modal-header gv-modal-header">
-          <h2 class="gv-auth-title mb-0" id="writeReviewLabel">Napisz recenzję</h2>
+          <h2 class="gv-auth-title mb-0" id="feedbackLabel">Oceń GameVerse</h2>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
         </div>
-        <form id="writeReviewForm" method="POST" class="gv-review-form">
+        <form action="/feedback" method="POST" id="feedbackForm">
           <div class="modal-body">
-            <div id="writeReviewStep1">
-              <label class="gv-label d-block" for="writeReviewSearch">Wyszukaj grę, którą chcesz zrecenzować</label>
-              <div class="gv-game-picker" data-game-picker data-mode="select">
-                <input type="search" id="writeReviewSearch" class="form-control gv-input" placeholder="Wpisz tytuł gry..." autocomplete="off" maxlength="100">
-                <input type="hidden" name="gameId">
-                <div class="gv-picker-results"></div>
-              </div>
+            <label class="gv-label d-block">Jak oceniasz GameVerse?</label>
+            <div class="gv-feedback-stars" role="radiogroup" aria-label="Ocena strony">
+              <i class="bi bi-star" data-value="1"></i>
+              <i class="bi bi-star" data-value="2"></i>
+              <i class="bi bi-star" data-value="3"></i>
+              <i class="bi bi-star" data-value="4"></i>
+              <i class="bi bi-star" data-value="5"></i>
             </div>
-            <div id="writeReviewStep2" class="d-none">
-              <div id="writeReviewSelectedGame" class="d-flex align-items-center gap-2 mb-3"></div>
-              <button type="button" class="gv-inline-link mb-3" id="writeReviewChangeGame">← Wybierz inną grę</button>
+            <input type="hidden" name="rating" id="feedbackRatingInput">
 
-              <label class="gv-label d-block">Twoja ocena</label>
-              <div class="gv-star-picker" role="radiogroup" aria-label="Twoja ocena (kliknij lewą połowę gwiazdki, aby dać połówkę)">
-                <i class="bi bi-star" data-value="1"></i>
-                <i class="bi bi-star" data-value="2"></i>
-                <i class="bi bi-star" data-value="3"></i>
-                <i class="bi bi-star" data-value="4"></i>
-                <i class="bi bi-star" data-value="5"></i>
-              </div>
-              <input type="hidden" name="rating" class="gv-star-picker-input">
+            <label class="gv-label d-block mt-3" for="feedbackComment">Komentarz (opcjonalnie)</label>
+            <textarea name="comment" id="feedbackComment" rows="3" class="form-control gv-input" maxlength="500" placeholder="Co możemy poprawić, a co Ci się podoba?"></textarea>
 
-              <label class="gv-label d-block mt-3" for="writeReviewText">Twoja opinia</label>
-              <textarea name="text" id="writeReviewText" rows="4" class="form-control gv-input" required></textarea>
-
-              <button type="submit" class="btn gv-btn-success mt-3">Opublikuj recenzję</button>
-            </div>
+            <button type="submit" class="btn gv-btn-success mt-3">Wyślij opinię</button>
           </div>
         </form>
       </div>
@@ -280,49 +285,36 @@
 
   <script>
     (function () {
-      var modal = document.getElementById('writeReviewModal');
+      var modal = document.getElementById('feedbackModal');
       if (!modal) return;
-      var form = document.getElementById('writeReviewForm');
-      var picker = modal.querySelector('[data-game-picker]');
-      var step1 = document.getElementById('writeReviewStep1');
-      var step2 = document.getElementById('writeReviewStep2');
-      var selectedGameBox = document.getElementById('writeReviewSelectedGame');
-      var changeGameBtn = document.getElementById('writeReviewChangeGame');
+      var form = document.getElementById('feedbackForm');
+      var input = document.getElementById('feedbackRatingInput');
+      var stars = modal.querySelectorAll('.gv-feedback-stars i');
 
-      function reset() {
-        step1.classList.remove('d-none');
-        step2.classList.add('d-none');
-        selectedGameBox.innerHTML = '';
-        form.reset();
-        form.removeAttribute('action');
+      function paint(value) {
+        stars.forEach(function (star) {
+          star.className = 'bi ' + (Number(star.dataset.value) <= value ? 'bi-star-fill' : 'bi-star');
+        });
       }
 
-      picker.addEventListener('gamepicker:select', function (e) {
-        var game = e.detail;
-        form.action = '/games/' + encodeURIComponent(game.id) + '/reviews';
-
-        selectedGameBox.innerHTML = '';
-        var img = document.createElement('img');
-        img.src = game.coverImage || '/images/game-placeholder.svg';
-        img.alt = '';
-        img.style.cssText = 'width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;';
-        var title = document.createElement('b');
-        title.textContent = game.title;
-        selectedGameBox.appendChild(img);
-        selectedGameBox.appendChild(title);
-
-        step1.classList.add('d-none');
-        step2.classList.remove('d-none');
+      stars.forEach(function (star) {
+        star.addEventListener('click', function () {
+          input.value = star.dataset.value;
+          paint(Number(star.dataset.value));
+        });
       });
 
-      changeGameBtn.addEventListener('click', function () {
-        step2.classList.add('d-none');
-        step1.classList.remove('d-none');
-        picker.querySelector('input[name="gameId"]').value = '';
-        form.removeAttribute('action');
+      form.addEventListener('submit', function (e) {
+        if (!input.value) {
+          e.preventDefault();
+          alert('Wybierz ocenę przed wysłaniem.');
+        }
       });
 
-      modal.addEventListener('hidden.bs.modal', reset);
+      modal.addEventListener('hidden.bs.modal', function () {
+        form.reset();
+        paint(0);
+      });
     })();
   </script>
 <% } %>

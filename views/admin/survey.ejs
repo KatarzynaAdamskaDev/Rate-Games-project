@@ -1,0 +1,73 @@
+<%- include('partials/top') %>
+
+<%
+const __max = function (series) { return Math.max(1, ...series.map(function (d) { return d.count; })); };
+const __ratingMax = Math.max(1, ...stats.distribution.map(function (d) { return d.count; }));
+%>
+
+<div class="gv-kpis">
+  <div class="gv-kpi">
+    <i class="bi bi-clipboard-data-fill"></i>
+    <b><%= stats.total %></b>
+    <span>ankiet wypełnionych</span>
+    <small>od zalogowanych użytkowników</small>
+  </div>
+  <div class="gv-kpi">
+    <i class="bi bi-star-fill"></i>
+    <b><%= stats.total > 0 ? stats.average.toFixed(2) : '-' %></b>
+    <span>średnia ocena</span>
+    <small>w skali 1-5</small>
+  </div>
+</div>
+
+<div class="gv-admin-grid">
+  <div class="gv-admin-card">
+    <h2><i class="bi bi-bar-chart-fill"></i> Rozkład ocen</h2>
+    <% if (stats.total === 0) { %>
+      <p class="gv-admin-empty">Nikt jeszcze nie wypełnił ankiety.</p>
+    <% } else { %>
+      <div class="gv-chart">
+        <% stats.distribution.forEach(function(d) { %>
+          <div class="gv-chart-col" title="<%= d.rating %> gwiazdek: <%= d.count %>">
+            <span class="gv-chart-bar" style="height: <%= Math.round((d.count / __ratingMax) * 100) %>%;"></span>
+            <small><%= d.rating %> <i class="bi bi-star-fill"></i></small>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="gv-admin-card">
+    <h2><i class="bi bi-graph-up"></i> Zgłoszone ankiety (14 dni)</h2>
+    <div class="gv-chart">
+      <% stats.chart.forEach(function(d) { %>
+        <div class="gv-chart-col" title="<%= d.date.toLocaleDateString('pl-PL') %>: <%= d.count %>">
+          <span class="gv-chart-bar gv-chart-bar-alt" style="height: <%= Math.round((d.count / __max(stats.chart)) * 100) %>%;"></span>
+          <small><%= d.date.getDate() %></small>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<div class="gv-admin-card">
+  <h2><i class="bi bi-chat-square-text-fill"></i> Ostatnie komentarze</h2>
+  <% if (recent.length === 0) { %>
+    <p class="gv-admin-empty">Brak ankiet z komentarzem.</p>
+  <% } else { %>
+    <ul class="gv-admin-list">
+      <% recent.forEach(function(f) { %>
+        <li>
+          <span>
+            <a href="/<%= encodeURIComponent(f.username) %>"><b><%= f.username %></b></a>
+            - <%= f.rating %>/5
+            <% if (f.comment) { %>: <%= f.comment %><% } %>
+          </span>
+          <small><%= new Date(f.createdAt).toLocaleDateString('pl-PL') %></small>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<%- include('partials/bottom') %>

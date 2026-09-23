@@ -1,4 +1,7 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const router = express.Router();
 
 const { ensureAuthenticated } = require('../middleware/auth');
@@ -9,6 +12,13 @@ const {
   attachAvatars,
   getOrCreateDM,
   createGroup,
+  inviteMembersToGroup,
+  getPendingInvitesForUser,
+  acceptGroupInvite,
+  declineGroupInvite,
+  renameGroup,
+  setGroupPhoto,
+  removeGroupMember,
   getOrCreateGameRoom,
   markConversationRead,
   getUnreadCounts,
@@ -31,6 +41,53 @@ const { blockIfMuted } = require('../middleware/muted');
 const { isBlockedEitherWay } = require('../utils/blockHelpers');
 const { REASONS_BY_TYPE, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
 const { logAdminAction } = require('../utils/adminHelpers');
+const { createNotification } = require('../utils/notificationHelpers');
+const { sanitizeImage } = require('../utils/imageSafety');
+const { GROUP_PHOTO_DIR } = require('../config/storage');
+const { checkUploadToken, verifyAfterUpload, reject: rejectCsrf, isValid: csrfValid } = require('../middleware/csrf');
+
+// Git nie przechowuje pustych katalogów - na świeżym klonie multer nie zapisałby pliku bez tego.
+fs.mkdirSync(GROUP_PHOTO_DIR, { recursive: true });
+
+// Zdjęcie grupy: ten sam wzorzec co awatar użytkownika (routes/profile.js) - plik trafia do pamięci,
+// dopiero po weryfikacji zawartości (utils/imageSafety.js) zapisujemy bezpieczny, przekodowany obraz.
+const groupPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (req, file, cb) => {
+    if (!checkUploadToken(req)) return cb(new Error('csrf'));
+    const allowed = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!allowed.includes(ext)) {
+      const invalidType = new Error('Dozwolone są tylko pliki PNG, JPG, WEBP lub GIF.');
+      invalidType.userFacing = true;
+      return cb(invalidType);
+    }
+    cb(null, true);
+  },
+});
+
+/** Wspólna obsługa błędów uploadu zdjęcia grupy (CSRF, rozmiar, typ pliku). */
+function handleGroupPhotoUploadError(req, res, err) {
+  if (err && err.message === 'csrf') {
+    rejectCsrf(req, res);
+    return true;
+  }
+  if (!err && !csrfValid(req)) {
+    verifyAfterUpload(req, res, () => {});
+    return true;
+  }
+  if (err) {
+    let message = 'Nie udało się wgrać zdjęcia. Spróbuj ponownie.';
+    if (err.code === 'LIMIT_FILE_SIZE') message = 'Zdjęcie jest za duże (maksymalnie 2 MB).';
+    else if (err.userFacing) message = err.message;
+    else console.error('Błąd uploadu zdjęcia grupy:', err);
+    req.flash('error', message);
+    res.redirect('/chat');
+    return true;
+  }
+  return false;
+}
 
 // Cały czat wymaga zalogowania.
 router.use(ensureAuthenticated);
@@ -66,6 +123,7 @@ router.get('/', async (req, res) => {
   const isAdmin = me.role === 'admin';
   const allUsers = await getAllUsers();
   const mutualIds = new Set(await getMutualFriends(me.id));
+  const pendingInvites = await getPendingInvitesForUser(me.id);
 
   res.render('chat/chat', {
     title: 'Czat i grupy',
@@ -73,6 +131,7 @@ router.get('/', async (req, res) => {
     active: canSeeActive ? active : null,
     messages,
     unreadByConversation: unread.byConversation,
+    pendingInvites,
     // Administrator może pisać do każdego bez wzajemnej obserwacji (patrz POST /start/:username).
     otherUsers: allUsers
       .filter((u) => u.id !== me.id && (isAdmin || mutualIds.has(u.id)))
@@ -196,50 +255,229 @@ router.post('/start/:username', blockIfMuted, limiters.chatCreate, async (req, r
 
 /* ------------------------------ GRUPY ------------------------------ */
 
-router.post('/groups/new', blockIfMuted, limiters.chatCreate, async (req, res) => {
-  const { name } = req.body;
+/** Wysyła zaproszenia do grupy (tylko wzajemni znajomi) i powiadamia zaproszonych. */
+async function sendGroupInvites(req, conversation, memberIds) {
+  const mutualIds = await getMutualFriends(req.session.user.id);
+  const mutualSet = new Set(mutualIds);
+  const validIds = memberIds.filter((id) => mutualSet.has(id));
+  if (validIds.length === 0) return { invited: [], skipped: memberIds.length > 0 };
+
+  const users = (await Promise.all(validIds.map((id) => findById(id)))).filter(Boolean);
+  const invited = await inviteMembersToGroup(
+    conversation.id,
+    users.map((u) => ({ id: u.id, username: u.username }))
+  );
+
+  await Promise.all(
+    invited.map((u) =>
+      createNotification({
+        userId: u.id,
+        type: 'group-invite',
+        actorId: req.session.user.id,
+        message: `${req.session.user.username} zaprosił(a) Cię do grupy "${conversation.name}"`,
+        link: '/chat',
+      })
+    )
+  );
+
+  return { invited, skipped: validIds.length < memberIds.length };
+}
+
+router.post('/groups/new', blockIfMuted, limiters.chatCreate, (req, res) => {
+  groupPhotoUpload.single('photo')(req, res, async (err) => {
+    if (handleGroupPhotoUploadError(req, res, err)) return;
+
+    try {
+      const { name } = req.body;
+      let memberIds = req.body.memberIds || [];
+      if (!Array.isArray(memberIds)) memberIds = [memberIds];
+      memberIds = memberIds.filter(Boolean);
+
+      if (!name || !name.trim()) {
+        req.flash('error', 'Podaj nazwę grupy.');
+        return res.redirect('/chat');
+      }
+      const nameCheck = moderateName(name);
+      if (!nameCheck.ok) {
+        req.flash('error', nameCheck.error);
+        return res.redirect('/chat');
+      }
+      if (memberIds.length === 0) {
+        req.flash('error', 'Zaproś co najmniej jednego znajomego do grupy.');
+        return res.redirect('/chat');
+      }
+
+      let photoUrl = null;
+      if (req.file) {
+        try {
+          const image = await sanitizeImage(req.file.buffer, { maxSize: 512 });
+          const filename = `${Date.now()}-${req.session.user.id}${image.ext}`;
+          await fs.promises.writeFile(path.join(GROUP_PHOTO_DIR, filename), image.buffer);
+          photoUrl = `/images/chat/groups/${filename}`;
+        } catch (imageError) {
+          if (!imageError.userFacing) console.error('Błąd przetwarzania zdjęcia grupy:', imageError);
+          req.flash('error', imageError.userFacing ? imageError.message : 'Nie udało się przetworzyć zdjęcia.');
+          return res.redirect('/chat');
+        }
+      }
+
+      const group = await createGroup({
+        name: name.trim(),
+        ownerId: req.session.user.id,
+        ownerUsername: req.session.user.username,
+        photoUrl,
+      });
+
+      const { invited, skipped } = await sendGroupInvites(req, group, memberIds);
+      if (invited.length === 0) {
+        req.flash('error', 'Do grupy możesz zaprosić tylko wzajemnych znajomych.');
+      } else if (skipped) {
+        req.flash('success', `Grupa "${group.name}" została utworzona. Wysłano ${invited.length} zaproszeń (część osób pominięto - to nie wzajemni znajomi).`);
+      } else {
+        req.flash('success', `Grupa "${group.name}" została utworzona. Wysłano zaproszenia.`);
+      }
+      res.redirect(`/chat?c=${group.id}`);
+    } catch (nextErr) {
+      req.flash('error', 'Nie udało się utworzyć grupy. Spróbuj ponownie.');
+      res.redirect('/chat');
+    }
+  });
+});
+
+/** Właściciel zaprasza kolejne osoby do już istniejącej grupy. */
+router.post('/:conversationId/invite', blockIfMuted, limiters.chatCreate, async (req, res) => {
+  const { conversationId } = req.params;
+  const conversation = await getConversationById(conversationId);
+  if (!conversation || conversation.type !== 'group' || conversation.ownerId !== req.session.user.id) {
+    req.flash('error', 'Tylko właściciel grupy może zapraszać nowe osoby.');
+    return res.redirect('/chat');
+  }
+
   let memberIds = req.body.memberIds || [];
   if (!Array.isArray(memberIds)) memberIds = [memberIds];
   memberIds = memberIds.filter(Boolean);
+  if (memberIds.length === 0) {
+    req.flash('error', 'Wybierz co najmniej jedną osobę do zaproszenia.');
+    return res.redirect(`/chat?c=${conversationId}`);
+  }
 
-  if (!name || !name.trim()) {
+  const { invited, skipped } = await sendGroupInvites(req, conversation, memberIds);
+  if (invited.length === 0) {
+    req.flash('error', 'Do grupy możesz zaprosić tylko wzajemnych znajomych (którzy nie są już w niej i nie mają zaproszenia).');
+  } else {
+    req.flash('success', skipped ? `Wysłano ${invited.length} zaproszeń (część osób pominięto).` : `Wysłano ${invited.length} zaproszeń.`);
+  }
+  res.redirect(`/chat?c=${conversationId}`);
+});
+
+/* ------------------------- ZAPROSZENIA DO GRUPY ------------------------- */
+
+router.post('/invites/:conversationId/accept', async (req, res) => {
+  const { conversationId } = req.params;
+  const ok = await acceptGroupInvite(conversationId, req.session.user.id, req.session.user.username);
+  req.flash(ok ? 'success' : 'error', ok ? 'Dołączono do grupy.' : 'Nie znaleziono zaproszenia.');
+  res.redirect(ok ? `/chat?c=${conversationId}` : '/chat');
+});
+
+router.post('/invites/:conversationId/decline', async (req, res) => {
+  const { conversationId } = req.params;
+  await declineGroupInvite(conversationId, req.session.user.id);
+  req.flash('success', 'Zaproszenie zostało odrzucone.');
+  res.redirect('/chat');
+});
+
+/* --------------------------- ZARZĄDZANIE GRUPĄ (WŁAŚCICIEL) --------------------------- */
+
+function ensureGroupOwner(req, res, conversation) {
+  if (!conversation || conversation.type !== 'group' || conversation.ownerId !== req.session.user.id) {
+    req.flash('error', 'Tylko właściciel grupy może to zrobić.');
+    res.redirect('/chat');
+    return false;
+  }
+  return true;
+}
+
+router.post('/:conversationId/rename', async (req, res) => {
+  const { conversationId } = req.params;
+  const conversation = await getConversationById(conversationId);
+  if (!ensureGroupOwner(req, res, conversation)) return;
+
+  const name = String(req.body.name || '').trim();
+  if (!name) {
     req.flash('error', 'Podaj nazwę grupy.');
-    return res.redirect('/chat');
+    return res.redirect(`/chat?c=${conversationId}`);
   }
   const nameCheck = moderateName(name);
   if (!nameCheck.ok) {
     req.flash('error', nameCheck.error);
-    return res.redirect('/chat');
-  }
-  if (memberIds.length === 0) {
-    req.flash('error', 'Dodaj co najmniej jednego znajomego do grupy.');
-    return res.redirect('/chat');
+    return res.redirect(`/chat?c=${conversationId}`);
   }
 
-  // Bezpieczeństwo: nawet gdyby ktoś ominął JS i wysłał dowolne ID,
-  // serwer i tak dopuszcza tylko wzajemnych obserwujących.
-  const mutualIds = await getMutualFriends(req.session.user.id);
-  const mutualSet = new Set(mutualIds);
-  const validIds = memberIds.filter((id) => mutualSet.has(id));
+  await renameGroup(conversationId, name);
+  req.flash('success', 'Nazwa grupy została zmieniona.');
+  res.redirect(`/chat?c=${conversationId}`);
+});
 
-  if (validIds.length === 0) {
-    req.flash('error', 'Do grupy możesz dodać tylko wzajemnych znajomych.');
-    return res.redirect('/chat');
-  }
+router.post('/:conversationId/photo', (req, res) => {
+  groupPhotoUpload.single('photo')(req, res, async (err) => {
+    if (handleGroupPhotoUploadError(req, res, err)) return;
 
-  const members = (await Promise.all(validIds.map((id) => findById(id)))).filter(
-    Boolean
-  );
+    const { conversationId } = req.params;
+    const conversation = await getConversationById(conversationId);
+    if (!ensureGroupOwner(req, res, conversation)) return;
 
-  const group = await createGroup({
-    name: name.trim(),
-    ownerId: req.session.user.id,
-    ownerUsername: req.session.user.username,
-    members,
+    if (!req.file) {
+      req.flash('error', 'Wybierz plik ze zdjęciem.');
+      return res.redirect(`/chat?c=${conversationId}`);
+    }
+
+    let photoUrl;
+    try {
+      const image = await sanitizeImage(req.file.buffer, { maxSize: 512 });
+      const filename = `${Date.now()}-${conversationId}${image.ext}`;
+      await fs.promises.writeFile(path.join(GROUP_PHOTO_DIR, filename), image.buffer);
+      photoUrl = `/images/chat/groups/${filename}`;
+    } catch (imageError) {
+      if (!imageError.userFacing) console.error('Błąd przetwarzania zdjęcia grupy:', imageError);
+      req.flash('error', imageError.userFacing ? imageError.message : 'Nie udało się przetworzyć zdjęcia.');
+      return res.redirect(`/chat?c=${conversationId}`);
+    }
+
+    const oldPhotoUrl = conversation.photoUrl;
+    await setGroupPhoto(conversationId, photoUrl);
+    if (oldPhotoUrl && oldPhotoUrl.startsWith('/images/chat/groups/')) {
+      fs.unlink(path.join(__dirname, '..', 'public', oldPhotoUrl), () => {});
+    }
+
+    req.flash('success', 'Zdjęcie grupy zostało zaktualizowane.');
+    res.redirect(`/chat?c=${conversationId}`);
   });
+});
 
-  req.flash('success', `Grupa "${group.name}" została utworzona.`);
-  res.redirect(`/chat?c=${group.id}`);
+router.post('/:conversationId/photo/remove', async (req, res) => {
+  const { conversationId } = req.params;
+  const conversation = await getConversationById(conversationId);
+  if (!ensureGroupOwner(req, res, conversation)) return;
+
+  const oldPhotoUrl = conversation.photoUrl;
+  await setGroupPhoto(conversationId, null);
+  if (oldPhotoUrl && oldPhotoUrl.startsWith('/images/chat/groups/')) {
+    fs.unlink(path.join(__dirname, '..', 'public', oldPhotoUrl), () => {});
+  }
+
+  req.flash('success', 'Zdjęcie grupy zostało usunięte.');
+  res.redirect(`/chat?c=${conversationId}`);
+});
+
+router.post('/:conversationId/members/:userId/remove', async (req, res) => {
+  const { conversationId, userId } = req.params;
+  const conversation = await getConversationById(conversationId);
+  if (!ensureGroupOwner(req, res, conversation)) return;
+
+  const removedUsername = conversation.memberNames[userId];
+  const ok = await removeGroupMember(conversationId, userId);
+  req.flash(ok ? 'success' : 'error', ok ? `${removedUsername || 'Użytkownik'} został(a) usunięty(a) z grupy.` : 'Nie udało się usunąć tego uczestnika.');
+  res.redirect(`/chat?c=${conversationId}`);
 });
 
 /* ---------------------------- POKOJE GIER ---------------------------- */
