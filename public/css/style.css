@@ -1447,6 +1447,13 @@ section {
   max-width: 420px;
 }
 
+/* Przycisk zawsze pod tekstem, nigdy obok (niezależnie od długości tekstu/etykiety - zob.
+   .cta-band w views/index.ejs, treść różni się dla zalogowanych i gości). */
+.cta-band {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 /* SITE FOOTER */
 .site-footer {
   background: var(--bg-1);

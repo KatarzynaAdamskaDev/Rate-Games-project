@@ -10,7 +10,7 @@ const Conversation = sequelize.define(
       primaryKey: true,
     },
     type: {
-      type: DataTypes.STRING, // 'dm' | 'group' | 'game-room'
+      type: DataTypes.STRING, // 'dm' | 'group'
       allowNull: false,
     },
     name: {
@@ -34,6 +34,21 @@ const Conversation = sequelize.define(
     memberNames: {
       type: DataTypes.TEXT,
       defaultValue: '{}',
+    },
+    // Zaproszeni do grupy, którzy jeszcze nie zaakceptowali (ten sam wzorzec JSON co memberIds/
+    // memberNames) - dopiero po akceptacji trafiają do memberIds. Tylko dla type='group'.
+    pendingMemberIds: {
+      type: DataTypes.TEXT,
+      defaultValue: '[]',
+    },
+    pendingMemberNames: {
+      type: DataTypes.TEXT,
+      defaultValue: '{}',
+    },
+    // Zdjęcie grupy (ustawia właściciel). Puste = domyślny gradient w interfejsie.
+    photoUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     lastMessageAt: {
       type: DataTypes.DATE,

@@ -56,4 +56,17 @@ function findReason(id, type = 'review') {
   return (REASONS_BY_TYPE[type] || []).find((reason) => reason.id === id) || null;
 }
 
-module.exports = { REPORT_REASONS, REASONS_BY_TYPE, TYPE_LABELS, MAX_COMMENT_LENGTH, findReason };
+/**
+ * Dane dla okna zgłoszenia (views/partials/report-modal.ejs) na stronach, które je pokazują:
+ * res.render('widok', { ...reportLocals('review', 'comment') }). Bez tego okno nie zna powodów i przyciski
+ * "Zgłoś" na takiej stronie nic by nie robiły.
+ */
+function reportLocals(...types) {
+  const sets = {};
+  types.forEach((type) => {
+    sets[type] = REASONS_BY_TYPE[type];
+  });
+  return { reportReasonSets: sets, reportCommentMax: MAX_COMMENT_LENGTH };
+}
+
+module.exports = { REPORT_REASONS, REASONS_BY_TYPE, TYPE_LABELS, MAX_COMMENT_LENGTH, findReason, reportLocals };

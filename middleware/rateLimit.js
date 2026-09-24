@@ -188,11 +188,35 @@ const limiters = {
     key: 'user',
     message: 'Piszesz zbyt szybko.',
   }),
+  chatAction: rateLimit({
+    name: 'chat-action',
+    label: 'Edycja, usuwanie i reakcje na wiadomości czatu - na użytkownika',
+    windowMs: MINUTE,
+    max: 60,
+    key: 'user',
+    message: 'Za dużo akcji na czacie.',
+  }),
+  // "Pisze..." i oznaczanie rozmowy jako przeczytanej lecą często i w tle, więc mają własny, luźniejszy
+  // limit - i nie liczą się do ogólnego limitu POST z adresu IP (zob. isChatSignal w app.js).
+  chatSignal: rateLimit({
+    name: 'chat-signal',
+    label: 'Sygnały czatu w tle (pisze..., przeczytane) - na użytkownika',
+    windowMs: MINUTE,
+    max: 120,
+    key: 'user',
+  }),
   chatCreate: rateLimit({
     name: 'chat-create',
     label: 'Zakładanie rozmów i grup - na użytkownika',
     windowMs: 10 * MINUTE,
     max: 12,
+    key: 'user',
+  }),
+  gifSearch: rateLimit({
+    name: 'gif-search',
+    label: 'Wyszukiwanie GIF-ów na czacie - na użytkownika',
+    windowMs: MINUTE,
+    max: 30,
     key: 'user',
   }),
   report: rateLimit({

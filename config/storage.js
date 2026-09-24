@@ -20,4 +20,5 @@ module.exports = {
   BLOG_COVER_DIR: path.join(root, 'blog', 'uploads'),
   BLOG_MEDIA_DIR: path.join(root, 'blog', 'media'),
   GAME_COVER_DIR: path.join(root, 'games', 'uploads'),
+  GROUP_PHOTO_DIR: path.join(root, 'chat', 'groups'),
 };

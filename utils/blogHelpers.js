@@ -19,6 +19,7 @@ const BlogPost = require('../models/BlogPost');
 const BlogPostTag = require('../models/BlogPostTag');
 const BlogComment = require('../models/BlogComment');
 const { BLOG_COVER_DIR } = require('../config/storage');
+const { plainText, stripEmbeds } = require('./seo');
 
 const COVER_PLACEHOLDER = '/images/game-placeholder.svg';
 const UPLOAD_URL_PREFIX = '/images/blog/uploads/';
@@ -61,6 +62,15 @@ function postState(post, now = Date.now()) {
 
 const DEFAULT_AUTHOR = 'Redakcja GameVerse';
 
+/**
+ * Zajawka wpisu do list i podglądów: własna zajawka autora albo początek treści - w obu przypadkach bez
+ * znaczników wstawek ([[game:ID]], film, zdjęcia) i bez składni Markdown.
+ */
+function excerptOf(excerpt, content) {
+  const own = stripEmbeds(excerpt).replace(/\s+/g, ' ').trim();
+  return own || plainText(content, 140);
+}
+
 /** Czas czytania w minutach (ok. 200 słów na minutę). */
 function readMinutesOf(content) {
   return Math.max(1, Math.round(String(content || '').split(/\s+/).filter(Boolean).length / 200));
@@ -73,7 +83,7 @@ function normalizePost(post) {
     ...post,
     category: CATEGORIES.includes(post.category) ? post.category : DEFAULT_CATEGORY,
     coverImage: post.coverImage || COVER_PLACEHOLDER,
-    excerpt: post.excerpt || content.slice(0, 140),
+    excerpt: excerptOf(post.excerpt, content),
     tags: parseTags(post.tags),
     status: post.status === 'draft' ? 'draft' : 'published',
     publishAt: post.publishAt || null,
@@ -215,7 +225,7 @@ async function writePost(post) {
     title: String(post.title || ''),
     author: post.author || DEFAULT_AUTHOR,
     category: CATEGORIES.includes(post.category) ? post.category : DEFAULT_CATEGORY,
-    excerpt: String(post.excerpt || content.slice(0, 140)),
+    excerpt: excerptOf(post.excerpt, content),
     content,
     readMinutes: readMinutesOf(content),
     coverImage: post.coverImage || null,

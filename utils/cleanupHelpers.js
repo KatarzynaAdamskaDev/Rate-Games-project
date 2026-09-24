@@ -17,6 +17,7 @@ const Notification = require('../models/Notification');
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const ConversationRead = require('../models/ConversationRead');
+const MessageReaction = require('../models/MessageReaction');
 const { purgeUserData } = require('./profileHelpers');
 
 /** Identyfikatory użytkowników, do których odwołują się dane, ale których konta nie ma. */
@@ -46,6 +47,7 @@ async function findOrphanUserIds() {
   await collect(Notification, 'actorId');
   await collect(Message, 'senderId');
   await collect(ConversationRead, 'userId');
+  await collect(MessageReaction, 'userId');
 
   const conversations = await Conversation.findAll({ attributes: ['memberIds', 'ownerId'] });
   conversations.forEach((c) => {

@@ -14,7 +14,7 @@
       <% conversations.forEach(function(c) { %>
         <tr>
           <td><b><%= c.label %></b></td>
-          <td><span class="gv-badge"><%= c.type === 'dm' ? 'prywatna' : (c.type === 'group' ? 'grupa' : 'pokój gry') %></span></td>
+          <td><span class="gv-badge"><%= c.type === 'dm' ? 'prywatna' : 'grupa' %></span></td>
           <td class="gv-cell-text"><%= c.memberList.slice(0, 6).join(', ') %><%= c.memberList.length > 6 ? ' +' + (c.memberList.length - 6) : '' %></td>
           <td><%= c.messageCount %></td>
           <td><%= c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleString('pl-PL') : '-' %></td>

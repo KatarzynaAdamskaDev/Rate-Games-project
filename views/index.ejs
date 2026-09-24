@@ -16,12 +16,21 @@
     <h1 class="gv-hero-title">Pisz recenzje gier, <span>obserwuj graczy</span> i rozmawiaj o tym, w co właśnie grasz</h1>
     <p class="gv-hero-text">GameVerse to portal z recenzjami gier PC, PS5, Xbox i Nintendo Switch — dodawaj tytuły do ulubionych, komentuj opinie innych graczy i czatuj ze znajomymi w czasie rzeczywistym.</p>
     <div class="hero-ctas">
-      <button
-            type="button"
-            class="btn-primary hero-cta"
-            data-bs-toggle="modal"
-            data-bs-target="#signInModal"
-          >Napisz swoją pierwszą recenzję</button>
+      <% if (currentUser) { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#writeReviewModal"
+            >Napisz recenzję</button>
+      <% } else { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#signInModal"
+            >Napisz swoją pierwszą recenzję</button>
+      <% } %>
     </div>
     <div class="hero-stats">
       <div><b><%= stats.totalReviews %></b><span>recenzji gier</span></div>
@@ -211,21 +220,108 @@
 <section>
   <div class="wrap">
     <div class="cta-band">
-      <div>
-        <h3>Dołącz do społeczności graczy GameVerse</h3>
-        <p>Zakładaj profil, obserwuj recenzentów, których cenisz, i rozmawiaj o grach na czacie — za darmo i bez reklam między recenzjami.</p>
-      </div>
-      <button
-            type="button"
-            class="btn-primary hero-cta"
-            data-bs-toggle="modal"
-            data-bs-target="#signInModal"
-            >Załóż darmowe konto</button>
+      <% if (currentUser) { %>
+        <div>
+          <h3>Jak Ci się podoba GameVerse?</h3>
+          <p>Zajmie dosłownie chwilę — oceń nas w skali 1-5 i, jeśli chcesz, napisz czego brakuje albo co warto poprawić.</p>
+        </div>
+      <% } else { %>
+        <div>
+          <h3>Dołącz do społeczności graczy GameVerse</h3>
+          <p>Zakładaj profil, obserwuj recenzentów, których cenisz, i rozmawiaj o grach na czacie — za darmo i bez reklam między recenzjami.</p>
+        </div>
+      <% } %>
+      <% if (currentUser) { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#feedbackModal"
+              >Oceń GameVerse</button>
+      <% } else { %>
+        <button
+              type="button"
+              class="btn-primary hero-cta"
+              data-bs-toggle="modal"
+              data-bs-target="#signInModal"
+              >Załóż darmowe konto</button>
+      <% } %>
     </div>
   </div>
 </section>
 
+<% if (currentUser) { %>
+  <%- include('partials/write-review-modal') %>
+
+  <!-- MODAL: OCEŃ GAMEVERSE (krótka ankieta - ocena 1-5 + opcjonalny komentarz) -->
+  <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content gv-modal-content">
+        <div class="modal-header gv-modal-header">
+          <h2 class="gv-auth-title mb-0" id="feedbackLabel">Oceń GameVerse</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+        </div>
+        <form action="/feedback" method="POST" id="feedbackForm">
+          <div class="modal-body">
+            <label class="gv-label d-block">Jak oceniasz GameVerse?</label>
+            <div class="gv-feedback-stars" role="radiogroup" aria-label="Ocena strony">
+              <i class="bi bi-star" data-value="1"></i>
+              <i class="bi bi-star" data-value="2"></i>
+              <i class="bi bi-star" data-value="3"></i>
+              <i class="bi bi-star" data-value="4"></i>
+              <i class="bi bi-star" data-value="5"></i>
+            </div>
+            <input type="hidden" name="rating" id="feedbackRatingInput">
+
+            <label class="gv-label d-block mt-3" for="feedbackComment">Komentarz (opcjonalnie)</label>
+            <textarea name="comment" id="feedbackComment" rows="3" class="form-control gv-input" maxlength="500" placeholder="Co możemy poprawić, a co Ci się podoba?"></textarea>
+
+            <button type="submit" class="btn gv-btn-success mt-3">Wyślij opinię</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var modal = document.getElementById('feedbackModal');
+      if (!modal) return;
+      var form = document.getElementById('feedbackForm');
+      var input = document.getElementById('feedbackRatingInput');
+      var stars = modal.querySelectorAll('.gv-feedback-stars i');
+
+      function paint(value) {
+        stars.forEach(function (star) {
+          star.className = 'bi ' + (Number(star.dataset.value) <= value ? 'bi-star-fill' : 'bi-star');
+        });
+      }
+
+      stars.forEach(function (star) {
+        star.addEventListener('click', function () {
+          input.value = star.dataset.value;
+          paint(Number(star.dataset.value));
+        });
+      });
+
+      form.addEventListener('submit', function (e) {
+        if (!input.value) {
+          e.preventDefault();
+          alert('Wybierz ocenę przed wysłaniem.');
+        }
+      });
+
+      modal.addEventListener('hidden.bs.modal', function () {
+        form.reset();
+        paint(0);
+      });
+    })();
+  </script>
+<% } %>
+
+<% if (currentUser) { %><%- include('partials/report-modal') %><% } %>
 <%- include('partials/footer') %>
+<script src="/js/game-picker.js"></script>
 <script src="/js/review-actions.js"></script>
 
 </body>

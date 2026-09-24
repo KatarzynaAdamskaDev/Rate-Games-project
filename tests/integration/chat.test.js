@@ -238,4 +238,27 @@ describe('czat', () => {
     const ninaSummaryAfter = await nina.get('/notifications/summary').set('Accept', 'application/json');
     expect(ninaSummaryAfter.body.messages).toBe(1);
   });
+
+  test('awatar rozmówcy jest widoczny w /chat/api/list i na stronie czatu (dawniej zawsze puste .gv-c-avatar)', async () => {
+    const { agent: zAgent, user: zdjeciem } = await userAgent(ctx.app, {
+      username: 'zawatarem',
+      attrs: { avatarUrl: '/uploads/avatar-test.png' },
+    });
+    const { agent: bezAwatara, user: bezAwataraUser } = await userAgent(ctx.app, { username: 'bezawatara' });
+    // /chat/start wymaga wzajemnej obserwacji (patrz routes/chat.js) - obie strony muszą się obserwować.
+    await follow(bezAwatara, zdjeciem.username);
+    await follow(zAgent, bezAwataraUser.username);
+
+    const token = await csrfToken(bezAwatara, '/chat');
+    const start = await bezAwatara.post(`/chat/start/${zdjeciem.username}`).send({ _csrf: token }).redirects(0);
+    expect(start.status).toBe(302);
+    const conversationId = start.headers.location.split('c=')[1];
+
+    const list = await bezAwatara.get('/chat/api/list').set('Accept', 'application/json');
+    const conv = list.body.conversations.find((c) => c.id === conversationId);
+    expect(conv.avatarUrl).toBe('/uploads/avatar-test.png');
+
+    const page = await bezAwatara.get(`/chat?c=${conversationId}`);
+    expect(page.text).toContain('<img src="/uploads/avatar-test.png"');
+  });
 });

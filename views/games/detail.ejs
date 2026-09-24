@@ -159,7 +159,7 @@
 
               <div class="gv-comments-body d-none mt-3" id="comments-body-<%= review.id %>">
                 <% review.comments.forEach(function(c) { %>
-                  <div class="comment-preview gv-comment-item">
+                  <div class="comment-preview gv-comment-item" id="comment-<%= c.id %>">
                     <div class="gv-comment-text">
                       <a href="/<%= c.username %>" class="gv-chat-name-link"><b><%= c.username %></b></a>
                       <span><%= c.text %></span>
@@ -256,6 +256,21 @@
           if (target) target.classList.toggle('d-none');
         });
       });
+
+      // Link z powiadomienia (#comment-ID albo #review-ID) ma prowadzić do tego, o czym jest powiadomienie:
+      // rozwijamy komentarze recenzji, przewijamy do komentarza (albo recenzji) i na chwilę go podświetlamy.
+      (function openFromHash() {
+        var hash = decodeURIComponent(location.hash || '');
+        var match = /^#(comment|review)-(.+)$/.exec(hash);
+        if (!match) return;
+        var target = document.getElementById(match[1] + '-' + match[2]);
+        if (!target) return;
+        var body = target.closest('.gv-comments-body') || (match[1] === 'review' ? target.querySelector('.gv-comments-body') : null);
+        if (body) body.classList.remove('d-none');
+        target.scrollIntoView({ block: 'center' });
+        target.classList.add('gv-flash-target');
+        setTimeout(function () { target.classList.remove('gv-flash-target'); }, 2600);
+      })();
 
       // Rozwijanie formularza edycji
       document.querySelectorAll('.gv-edit-toggle').forEach(function (btn) {

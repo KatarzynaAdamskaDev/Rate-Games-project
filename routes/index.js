@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { SITE } = require('../utils/siteFacts');
 const { organizationLd } = require('../utils/seo');
+const { reportLocals } = require('../utils/reportReasons');
 const {
   getMostReviewedGames,
   getOverallStats,
@@ -56,6 +57,7 @@ router.get('/', async (req, res, next) => {
     ]);
 
     res.render('index', {
+      ...reportLocals('review', 'comment'),
       title: 'GameVerse - opinie o grach',
       seo: {
         title: 'GameVerse - opinie o grach',

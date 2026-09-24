@@ -42,9 +42,25 @@ const NOTIFICATION_TYPES = [
     label: 'Decyzje w sprawie zgłoszeń',
     description: 'Moderator rozpatrzył zgłoszenie, które wysłałeś(-aś).',
   },
+  {
+    id: 'chat-deleted',
+    icon: 'bi-chat-square-x-fill',
+    label: 'Usunięte rozmowy i grupy',
+    description: 'Ktoś usunął Waszą rozmowę prywatną, usunął grupę albo wyrzucił Cię z grupy.',
+  },
+  {
+    id: 'group-invite',
+    icon: 'bi-people-fill',
+    label: 'Zaproszenia do grup',
+    description: 'Ktoś zaprosił Cię do grupy na czacie.',
+  },
 ];
 
-/** Zamienia zapisany w bazie JSON na komplet ustawień: { muteAll, types: { id: bool } }. */
+/**
+ * Zamienia zapisany w bazie JSON na komplet ustawień: { muteAll, emailDigest, types: { id: bool } }.
+ * emailDigest (podsumowanie nieprzeczytanych na e-mail) jest jedynym ustawieniem WYŁĄCZONYM domyślnie -
+ * nikomu nie wysyłamy poczty bez wyraźnej zgody.
+ */
 function parsePrefs(json) {
   let stored = {};
   try {
@@ -56,13 +72,14 @@ function parsePrefs(json) {
   NOTIFICATION_TYPES.forEach((type) => {
     types[type.id] = stored[type.id] !== false;
   });
-  return { muteAll: stored.muteAll === true, types };
+  return { muteAll: stored.muteAll === true, emailDigest: stored.emailDigest === true, types };
 }
 
 /** Buduje JSON do zapisu z pól formularza (checkboxy: zaznaczone = włączone). */
 function serializePrefs(body) {
   const stored = {};
   if (body.muteAll === '1') stored.muteAll = true;
+  if (body.emailDigest === '1') stored.emailDigest = true;
   NOTIFICATION_TYPES.forEach((type) => {
     if (body[type.id] !== '1') stored[type.id] = false;
   });

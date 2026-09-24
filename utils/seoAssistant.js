@@ -100,6 +100,8 @@ function toPlain(content) {
 
   const plainBlocks = blocks.map((block) => {
     const clean = block
+      // Znaczniki wstawek w środku akapitu (w osobnej linii wycina je MEDIA_LINE) - to nie jest tekst artykułu.
+      .replace(/\[\[game:[^\]]*\]\]|@\[youtube\]\([^)]*\)|\{\{(?:img:\d+|video)\}\}/g, ' ')
       .replace(/!\[[^\]]*\]\([^)]*\)(?:\{[a-z]+\})?/g, ' ')
       .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
       .replace(/https?:\/\/\S+/g, ' ')

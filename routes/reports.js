@@ -131,7 +131,8 @@ router.post('/message/:messageId', limiters.report, async (req, res, next) => {
   try {
     const message = await Message.findByPk(req.params.messageId);
     // Zgłosić można tylko wiadomość z rozmowy, w której się uczestniczy.
-    if (!message || !(await canAccessConversation(req.session.user.id, message.conversationId))) {
+    // Usuniętej wiadomości nie ma już czego zgłaszać (jej treść została wyczyszczona).
+    if (!message || message.deletedAt || !(await canAccessConversation(req.session.user.id, message.conversationId))) {
       req.flash('error', 'Nie znaleziono tej wiadomości.');
       return res.redirect(backPath(req));
     }

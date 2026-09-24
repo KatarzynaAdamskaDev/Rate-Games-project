@@ -45,6 +45,20 @@ function wantsJsonResponse(req) {
   return req.xhr || (req.headers.accept || '').includes('application/json');
 }
 
+/**
+ * Wraca tam, skąd przyszło żądanie (np. profil, /reviews, strona główna), a nie zawsze na
+ * stronę gry - edycja/usuwanie opinii da się teraz uruchomić z kilku miejsc (patrz partials/review-card).
+ */
+function backTo(req, fallback) {
+  try {
+    const url = new URL(req.get('Referer') || '', `http://${req.get('host')}`);
+    if (url.host === req.get('host')) return url.pathname + url.search;
+  } catch (err) {
+    // niepoprawny nagłówek Referer - użyj adresu domyślnego
+  }
+  return fallback;
+}
+
 /* --------------------------- LISTA GIER (IGDB) --------------------------- */
 
 router.get('/', async (req, res, next) => {
@@ -281,16 +295,17 @@ router.post('/:id/reviews', ensureAuthenticated, blockIfMuted, limiters.review, 
   res.redirect(`/games/${gameId}`);
 });
 
-/* --- RESZTA TRAS (EDYCJA, USUWANE, KOMENTARZE, LAJKI) POZOSTAJE BEZ ZMIAN --- */
+/* --------------------- EDYCJA, USUWANIE, KOMENTARZE, LAJKI --------------------- */
 
 router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, blockIfMuted, limiters.review, async (req, res, next) => {
   const gameId = String(req.params.id);
   const review = await Review.findByPk(req.params.reviewId);
   if (!review || String(review.gameId) !== gameId) return next();
+  const back = backTo(req, `/games/${gameId}`);
 
   if (review.userId !== req.session.user.id) {
     req.flash('error', 'Możesz edytować tylko swoje opinie.');
-    return res.redirect(`/games/${gameId}`);
+    return res.redirect(back);
   }
 
   const { rating, text } = req.body;
@@ -298,13 +313,13 @@ router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, blockIfMuted, li
 
   if (!isValidRating(numericRating) || !text) {
     req.flash('error', 'Podaj ocenę (0.5-5, co pół gwiazdki) oraz treść opinii.');
-    return res.redirect(`/games/${gameId}`);
+    return res.redirect(back);
   }
 
   const checked = moderateText(text, { userId: req.session.user.id, duplicates: false });
   if (!checked.ok) {
     req.flash('error', checked.error);
-    return res.redirect(`/games/${gameId}`);
+    return res.redirect(back);
   }
 
   review.rating = numericRating;
@@ -313,20 +328,21 @@ router.post('/:id/reviews/:reviewId/edit', ensureAuthenticated, blockIfMuted, li
   await review.save();
 
   req.flash('success', 'Opinia została zaktualizowana.');
-  res.redirect(`/games/${gameId}`);
+  res.redirect(back);
 });
 
 router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, res, next) => {
   const gameId = String(req.params.id);
   const review = await Review.findByPk(req.params.reviewId);
   if (!review || String(review.gameId) !== gameId) return next();
+  const back = backTo(req, `/games/${gameId}`);
 
   const isOwner = review.userId === req.session.user.id;
   const isAdmin = req.session.user.role === 'admin';
 
   if (!isOwner && !isAdmin) {
     req.flash('error', 'Możesz usuwać tylko swoje opinie.');
-    return res.redirect(`/games/${gameId}`);
+    return res.redirect(back);
   }
 
   await deleteReviewData(review.id);
@@ -334,7 +350,7 @@ router.post('/:id/reviews/:reviewId/delete', ensureAuthenticated, async (req, re
   await syncUserProgress(review.userId);
 
   req.flash('success', 'Opinia została usunięta.');
-  res.redirect(`/games/${gameId}`);
+  res.redirect(back);
 });
 
 router.post('/:id/reviews/:reviewId/like', ensureAuthenticated, limiters.like, async (req, res) => {
@@ -372,6 +388,8 @@ router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
   res.json({
     comments: comments.map((c) => ({
       id: c.id,
+      userId: c.userId,
+      mine: !!meId && c.userId === meId,
       username: c.username,
       text: c.text,
       createdAt: c.createdAt,
@@ -414,7 +432,7 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, blockIfMuted
       type: 'review-comment',
       actorId: req.session.user.id,
       message: `${req.session.user.username} skomentował(a) Twoją recenzję${game ? ` gry „${game.title}”` : ''}`,
-      link: `/games/${commentedReview.gameId}#review-${commentedReview.id}`,
+      link: `/games/${commentedReview.gameId}#comment-${created.id}`,
     });
   }
 
@@ -423,6 +441,8 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, blockIfMuted
       ok: true,
       comment: {
         id: created.id,
+        userId: created.userId,
+        mine: true,
         username: created.username,
         text: created.text,
         createdAt: created.createdAt,
@@ -439,6 +459,11 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/delete', ensureAuthentic
   const gameId = String(req.params.id);
 
   const ok = await deleteComment(req.params.commentId, req.session.user.id);
+  if (wantsJsonResponse(req)) {
+    return ok
+      ? res.json({ ok: true })
+      : res.status(403).json({ ok: false, error: 'Możesz usuwać tylko swoje komentarze.' });
+  }
   if (!ok) {
     req.flash('error', 'Możesz usuwać tylko swoje komentarze.');
   }
@@ -461,7 +486,7 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticat
         type: 'comment-like',
         actorId: req.session.user.id,
         message: `${req.session.user.username} polubił(a) Twój komentarz`,
-        link: `/games/${req.params.id}#review-${comment.reviewId}`,
+        link: `/games/${req.params.id}#comment-${comment.id}`,
       });
     }
   }

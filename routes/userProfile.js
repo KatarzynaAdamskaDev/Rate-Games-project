@@ -4,7 +4,7 @@ const router = express.Router();
 const { findByUsername } = require('../utils/userHelpers');
 const { isFollowing } = require('../utils/socialHelpers');
 const { hasBlocked } = require('../utils/blockHelpers');
-const { REASONS_BY_TYPE, MAX_COMMENT_LENGTH } = require('../utils/reportReasons');
+const { reportLocals } = require('../utils/reportReasons');
 const {
   buildProfileViewModel,
   buildTabData,
@@ -25,7 +25,8 @@ router.get('/:username', async (req, res, next) => {
 
   const vm = await buildProfileViewModel(user);
   const tab = normalizeProfileTab(req.query.tab);
-  const tabData = await buildTabData(user.id, tab);
+  const viewerId = req.session.user ? req.session.user.id : null;
+  const tabData = await buildTabData(user.id, tab, viewerId);
   const alreadyFollowing = req.session.user
     ? await isFollowing(req.session.user.id, user.id)
     : false;
@@ -46,8 +47,7 @@ router.get('/:username', async (req, res, next) => {
     isOwnProfile: false,
     alreadyFollowing,
     iBlocked,
-    reportReasonSets: { user: REASONS_BY_TYPE.user },
-    reportCommentMax: MAX_COMMENT_LENGTH,
+    ...reportLocals('user', 'review', 'comment'),
     maxFavorites: MAX_FAVORITES,
     tab,
   });

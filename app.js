@@ -26,6 +26,7 @@ const notificationsRouter = require('./routes/notifications');
 const adminRouter = require('./routes/admin');
 const reviewsRouter = require('./routes/reviews');
 const reportsRouter = require('./routes/reports');
+const feedbackRouter = require('./routes/feedback');
 const seoRouter = require('./routes/seo');
 const pagesRouter = require('./routes/pages');
 const userProfileRouter = require('./routes/userProfile');
@@ -77,8 +78,11 @@ app.use(csrfProtection);
 app.use(exposeLocals);
 app.use(seoLocals);
 
-// Ogólny limit akcji zmieniających dane (POST) z jednego adresu IP.
-app.use((req, res, next) => (req.method === 'POST' ? limiters.writes(req, res, next) : next()));
+// Ogólny limit akcji zmieniających dane (POST) z jednego adresu IP. Sygnały czatu w tle ("pisze...",
+// "przeczytane") mają własny limit na użytkownika (limiters.chatSignal) - inaczej kilka osób z jednego
+// adresu (biuro, szkoła) zjadłoby wspólną pulę samym pisaniem.
+const isChatSignal = (req) => /^\/chat\/[^/]+\/(typing|read)$/.test(req.path);
+app.use((req, res, next) => (req.method === 'POST' && !isChatSignal(req) ? limiters.writes(req, res, next) : next()));
 
 /* -------------------------------- Trasy -------------------------------- */
 app.use('/', indexRouter);
@@ -93,6 +97,7 @@ app.use('/notifications', notificationsRouter);
 app.use('/admin', adminRouter);
 app.use('/reviews', reviewsRouter);
 app.use('/reports', reportsRouter);
+app.use('/feedback', feedbackRouter);
 app.use('/', seoRouter); // robots.txt, sitemap.xml, llms.txt, feed.xml - przed łapaczem /:username
 app.use('/', pagesRouter); // /aboutus i /help - przed łapaczem /:username
 

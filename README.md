@@ -58,7 +58,7 @@ Wszystko jest zapisane w `package.json` - nie trzeba instalować pojedynczych pa
 | `opentype.js` | rysowanie tytułów na automatycznie tworzonych okładkach bloga (czcionka w `assets/fonts`) |
 | `qrcode` | kod QR do włączenia 2FA administratorów |
 | `axios`, `igdb-api-node` | pobieranie gier z IGDB |
-| `nodemailer` | wysyłka maili z resetem hasła |
+| `nodemailer` | wysyłka maili (reset hasła, opcjonalne podsumowania nieprzeczytanych) |
 | `dotenv`, `uuid` | zmienne środowiskowe, identyfikatory |
 | `nodemon` (dev) | automatyczny restart serwera w trybie `npm run dev` |
 
@@ -74,7 +74,10 @@ Uzupełnij go po instalacji (wzór: `.env.example`):
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` - klucze IGDB. Bez nich aplikacja działa, ale bez katalogu gier.
 - `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - opcjonalnie, klucze reCAPTCHA v2 "Checkbox"
   (https://www.google.com/recaptcha/admin/create). Puste = rejestracja bez realnej weryfikacji captchy.
-- `EMAIL_USER` / `EMAIL_PASS` - opcjonalnie, konto Gmail i hasło aplikacji do maili z resetem hasła.
+- `EMAIL_USER` / `EMAIL_PASS` - opcjonalnie, konto Gmail i hasło aplikacji do maili: reset hasła oraz podsumowania
+  nieprzeczytanych (patrz "Czat" niżej). Bez nich poczta po prostu nie działa, reszta serwisu tak.
+- `EMAIL_DIGEST=off` - opcjonalnie, wyłącza wysyłanie podsumowań nawet przy skonfigurowanej poczcie;
+  `EMAIL_DIGEST_INTERVAL_HOURS` - najkrótszy odstęp między podsumowaniami dla jednej osoby (domyślnie 24).
 - `AZURE_SQL_*` i `NODE_ENV=production` - tylko na produkcji (baza Azure SQL).
 - `UPLOADS_DIR` - opcjonalnie, katalog na pliki wgrywane przez użytkowników (awatary, okładki, zdjęcia z bloga,
   okładki gier). Puste = `public/images`. Na serwerze wdrażanym paczką ustaw trwały katalog poza aplikacją
@@ -92,15 +95,41 @@ Aplikacja domyślnie startuje na `http://localhost:3000`.
 ## Testy
 
 ```bash
-npm test                  # wszystkie testy (jednostkowe i integracyjne), ok. 200 testów w kilka sekund
+npm test                  # wszystkie testy (jednostkowe i integracyjne), ok. 300 testów w kilka sekund
 npm run test:coverage     # to samo + raport pokrycia w coverage/index.html
+npm run test:responsive   # Playwright, prawdziwa przeglądarka: układ stron na 6 szerokościach ekranu + czat na żywo
 ```
+
+Testy Playwright wymagają jednorazowo `npx playwright install chromium`; nie są częścią `npm test` (osobna komenda),
+ale w CI mają własne zadanie.
 
 Testy uruchamiają się na własnej, tymczasowej bazie SQLite i nie potrzebują żadnych kluczy API ani
 internetu - nie dotykają `data/dev.sqlite3` ani prawdziwych danych. GitHub Actions ([workflow
-wdrożeniowy](.github/workflows/main_gameverse.yml)) uruchamia je automatycznie przy każdym pushu do `main`
-i zatrzymuje wdrożenie, jeśli któryś test nie przejdzie. Więcej w [tests/README.md](tests/README.md)
+wdrożeniowy](.github/workflows/main_gameverse.yml)) uruchamia oba zestawy (Jest i Playwright, w osobnych zadaniach)
+przy każdym pushu do `main` i pull requeście, a wdrożenie na Azure rusza dopiero, gdy oba przejdą. Więcej w [tests/README.md](tests/README.md)
 (jak dodać nowy test, czego testy świadomie nie sprawdzają).
+
+## Czat
+
+Rozmowy prywatne (tylko wzajemni znajomi), grupy z zaproszeniami i mini czat w nawigacji. Pokoje gier zlikwidowano -
+przy starcie serwer usuwa te, które zostały w bazie po starej wersji.
+
+- **Na żywo (SSE).** Przeglądarka trzyma jedno połączenie `GET /chat/stream` (`utils/chatEvents.js`); przez nie
+  płyną nowe wiadomości, edycje, reakcje, "pisze...", zmiany w rozmowach i liczniki w nawigacji. Bez odświeżania
+  strony i bez odpytywania co kilka sekund. Rejestr połączeń jest w pamięci procesu (jak limity zapytań), więc przy
+  kilku instancjach serwera klient dodatkowo rzadko dociąga zmiany zwykłym zapytaniem (`?since=`) - nic nie ginie,
+  najwyżej dociera z opóźnieniem. Gdy strumień nie działa (stary proxy), czat wraca do odpytywania co 4 s.
+- **Wiadomości:** odpowiedzi z cytatem (jak w Messengerze), edycja i usuwanie własnych wiadomości (usunięta zostaje
+  jako "Wiadomość została usunięta", treść jest czyszczona), 6 reakcji, emoji i GIF-y (Giphy) także w mini czacie.
+- **Grupy:** usuwać i czyścić grupę może tylko właściciel; pozostali mogą ją opuścić, a właściciel przekazać
+  własność innemu członkowi (albo wyjść - własność przechodzi na najdłużej będącego członka). Powiadomienie o
+  zaproszeniu prowadzi do karty zaproszenia (`/chat?invite=ID`) z przyciskami "Dołącz" i "Odrzuć". Usunięcie
+  rozmowy prywatnej albo grupy (i wyrzucenie z grupy) wysyła powiadomienie drugiej stronie.
+- **Wąskie ekrany (do 980 px):** widać albo listę rozmów (wyszukiwarka graczy, nowa grupa, zaproszenia), albo otwartą
+  rozmowę z przyciskiem powrotu do listy - `data-view` na `.gv-chat-shell`.
+- **Podsumowanie na e-mail (opcjonalne, domyślnie wyłączone):** w Edytuj profil -> Powiadomienia użytkownik może
+  włączyć list z nieprzeczytanymi wiadomościami i powiadomieniami. Wychodzi najwyżej raz na dobę i tylko jeśli od
+  poprzedniego listu coś przybyło (`utils/emailDigest.js`); wymaga `EMAIL_USER` / `EMAIL_PASS`.
 
 ## Konto administratora
 

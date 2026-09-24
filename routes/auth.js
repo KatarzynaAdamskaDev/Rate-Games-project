@@ -21,6 +21,7 @@ const { limiters } = require('../middleware/rateLimit');
 const User = require('../models/User');
 const totp = require('../utils/totp');
 const { isBanActive, banMessage } = require('../utils/moderationStatus');
+const { closeSession: closeChatStreams } = require('../utils/chatEvents');
 
 const RECAPTCHA_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minut
@@ -312,6 +313,8 @@ router.post('/2fa', ensureGuest, limiters.twoFactor, async (req, res, next) => {
 });
 
 router.post('/logout', (req, res) => {
+  // Strumienie czatu (SSE) tej sesji zamykamy razem z nią - wylogowana osoba nie może dalej dostawać wiadomości.
+  closeChatStreams(req.sessionID);
   req.session.destroy(() => {
     res.redirect('/');
   });
