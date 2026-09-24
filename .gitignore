@@ -26,6 +26,7 @@ coverage/
 playwright-report/
 test-results/
 tests/responsive/seed-info.json
+tests/responsive/.auth/
 
 .vscode/
 .DS_Store

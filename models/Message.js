@@ -32,10 +32,28 @@ const Message = sequelize.define(
       allowNull: false,
       defaultValue: 'text',
     },
+    // Kiedy autor ostatnio poprawił treść (puste = wiadomość nigdy nie była edytowana).
+    editedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Usunięcie przez autora to "miękkie" usunięcie: wiersz zostaje (odpowiedzi na tę wiadomość
+    // dalej mają do czego się odwoływać), ale treść jest czyszczona i klienci pokazują tylko
+    // informację, że wiadomość została usunięta.
+    deletedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Wiadomość, na którą ta jest odpowiedzią (styl Messengera). Zawsze z tej samej rozmowy.
+    replyToId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
   },
   {
     tableName: 'messages',
     timestamps: true,
+    indexes: [{ fields: ['conversationId', 'updatedAt'] }],
   }
 );
 

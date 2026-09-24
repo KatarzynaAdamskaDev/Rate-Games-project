@@ -12,7 +12,7 @@
     <div class="wrap">
       <h1 class="gv-page-title mb-4">Czat i grupy społeczności</h1>
 
-      <div class="gv-chat-shell">
+      <div class="gv-chat-shell" data-view="<%= chatView %>">
         <div class="gv-chat-list-col" id="chatListCol" data-active="<%= active ? active.id : '' %>">
           <div class="gv-chat-list-scroll">
 
@@ -36,22 +36,24 @@
             <div class="gv-chat-group-label">Zaproszenia</div>
             <div class="mb-2" id="invitesList">
               <% pendingInvites.forEach(function(inv) { %>
-                <div class="gv-invite-item">
-                  <% if (inv.photoUrl) { %>
-                    <img src="<%= inv.photoUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
-                  <% } else { %>
-                    <div class="gv-c-avatar"></div>
-                  <% } %>
-                  <div class="gv-invite-info">
-                    <b><%= inv.name %></b>
-                    <span>Zaprosił(a) <%= inv.memberNames[inv.ownerId] || 'właściciel' %></span>
-                  </div>
+                <div class="gv-invite-item <%= focusedInvite && focusedInvite.id === inv.id ? 'is-focus' : '' %>">
+                  <a href="/chat?invite=<%= inv.id %>" class="gv-invite-open text-decoration-none">
+                    <% if (inv.photoUrl) { %>
+                      <img src="<%= inv.photoUrl %>" alt="" class="gv-c-avatar" style="object-fit:cover;">
+                    <% } else { %>
+                      <div class="gv-c-avatar"></div>
+                    <% } %>
+                    <span class="gv-invite-info">
+                      <b><%= inv.name %></b>
+                      <span>Zaprosił(a) <%= inv.memberNames[inv.ownerId] || 'właściciel' %></span>
+                    </span>
+                  </a>
                   <div class="gv-invite-actions">
                     <form action="/chat/invites/<%= inv.id %>/accept" method="POST">
-                      <button type="submit" class="gv-icon-btn gv-invite-accept" title="Akceptuj" aria-label="Akceptuj zaproszenie"><i class="bi bi-check-lg"></i></button>
+                      <button type="submit" class="gv-invite-btn gv-invite-accept" title="Dołącz do grupy" aria-label="Akceptuj zaproszenie"><i class="bi bi-check-lg"></i></button>
                     </form>
                     <form action="/chat/invites/<%= inv.id %>/decline" method="POST">
-                      <button type="submit" class="gv-icon-btn gv-invite-decline" title="Odrzuć" aria-label="Odrzuć zaproszenie"><i class="bi bi-x-lg"></i></button>
+                      <button type="submit" class="gv-invite-btn gv-invite-decline" title="Odrzuć zaproszenie" aria-label="Odrzuć zaproszenie"><i class="bi bi-x-lg"></i></button>
                     </form>
                   </div>
                 </div>
@@ -211,35 +213,38 @@
 
           </div>
 
-          <div class="gv-chat-rooms">
-          <div class="gv-chat-group-label">Pokoje gier</div>
-          <div class="gv-chat-game-rooms-scroll">
-            <% conversations.filter(function(c){return c.type === 'game-room';}).forEach(function(c) { %>
-              <a href="/chat?c=<%= c.id %>" class="gv-chat-item <%= active && active.id === c.id ? 'active' : '' %> text-decoration-none">
-                <div class="gv-c-avatar"></div>
-                <div><b><%= c.displayName %></b><span><%= c.memberIds.length %> graczy</span></div>
-                <% if (unreadByConversation[c.id]) { %><span class="gv-chat-unread"><%= unreadByConversation[c.id] %></span><% } %>
-              </a>
-            <% }) %>
-            <% if (popularGames.length) { %>
-              <p class="px-2 mb-1" style="color:var(--text-lo); font-size:11px;">Dołącz do pokoju gry:</p>
-              <% popularGames.forEach(function(g) { %>
-                <a href="/chat/rooms/<%= g.id %>" class="gv-chat-item text-decoration-none">
-                  <div class="gv-c-avatar"></div>
-                  <div><b>#<%= g.title.toLowerCase().replace(/\s+/g, '-') %></b><span><%= g.title %></span></div>
-                </a>
-              <% }) %>
-            <% } %>
-          </div>
-          </div>
-
         </div>
 
         <div class="gv-chat-main-col">
-          <% if (!active) { %>
-            <div class="gv-chat-empty">Wybierz rozmowę, grupę lub pokój gry z listy po lewej, albo rozpocznij nową.</div>
+          <% if (focusedInvite) { %>
+            <%# Zaproszenie otwarte z powiadomienia: wiadomo, kto zaprasza i do czego, i od razu można odpowiedzieć. %>
+            <div class="gv-chat-topbar">
+              <a href="/chat" class="gv-chat-back" aria-label="Wróć do listy rozmów"><i class="bi bi-arrow-left"></i></a>
+              <div class="gv-chat-topbar-info"><b>Zaproszenie do grupy</b></div>
+            </div>
+            <div class="gv-invite-card">
+              <% if (focusedInvite.photoUrl) { %>
+                <img src="<%= focusedInvite.photoUrl %>" alt="" class="gv-invite-card-photo">
+              <% } else { %>
+                <div class="gv-invite-card-photo"></div>
+              <% } %>
+              <h2><%= focusedInvite.name %></h2>
+              <p><b><%= focusedInvite.memberNames[focusedInvite.ownerId] || 'Właściciel' %></b> zaprasza Cię do tej grupy.</p>
+              <p class="gv-invite-card-meta"><i class="bi bi-people-fill"></i> W grupie są: <%= focusedInvite.memberIds.map(function(id){ return focusedInvite.memberNames[id]; }).join(', ') %></p>
+              <div class="gv-invite-card-actions">
+                <form action="/chat/invites/<%= focusedInvite.id %>/accept" method="POST">
+                  <button type="submit" class="gv-btn-success"><i class="bi bi-check-lg"></i> Dołącz do grupy</button>
+                </form>
+                <form action="/chat/invites/<%= focusedInvite.id %>/decline" method="POST">
+                  <button type="submit" class="gv-btn-danger"><i class="bi bi-x-lg"></i> Odrzuć</button>
+                </form>
+              </div>
+            </div>
+          <% } else if (!active) { %>
+            <div class="gv-chat-empty">Wybierz rozmowę lub grupę z listy po lewej, albo rozpocznij nową.</div>
           <% } else { %>
             <div class="gv-chat-topbar">
+              <a href="/chat" class="gv-chat-back" aria-label="Wróć do listy rozmów"><i class="bi bi-arrow-left"></i></a>
               <% var topOtherId = active.type === 'dm' ? active.memberIds.find(function(id){ return id !== currentUser.id; }) : null; %>
               <% var topAvatarUrl = topOtherId ? active.memberAvatars[topOtherId] : (active.type === 'group' ? active.photoUrl : null); %>
               <% if (topAvatarUrl) { %>
@@ -272,7 +277,7 @@
                   <% } %>
                 </b>
                 <div style="color:var(--text-lo); font-size:11.5px;" id="conversationMeta">
-                  <%= active.type === 'dm' ? 'Rozmowa prywatna' : (active.type === 'group' ? active.memberIds.length + ' członków grupy' : 'Pokój dyskusyjny gry') %>
+                  <%= active.type === 'dm' ? 'Rozmowa prywatna' : (active.memberIds.length + ' członków grupy') %>
                   <% if (active.type === 'dm' && !active.canReply) { %>
                     <span class="gv-badge gv-badge-warn" id="canReplyBadge" title="Tylko administrator może pisać w tej rozmowie">bez możliwości odpowiedzi</span>
                   <% } %>
@@ -293,58 +298,28 @@
                     <i class="bi <%= active.canReply ? 'bi-chat-dots-fill' : 'bi-chat-slash-fill' %>"></i>
                   </button>
                 <% } %>
-                <form action="/chat/<%= active.id %>/clear" method="POST" onsubmit="return confirm('Wyczyścić wszystkie wiadomości w tej rozmowie?');">
-                  <button type="submit" class="gv-chat-action-btn" title="Wyczyść czat" aria-label="Wyczyść czat"><i class="bi bi-eraser-fill"></i></button>
-                </form>
-                <form action="/chat/<%= active.id %>/delete" method="POST" onsubmit="return confirm('Usunąć tę rozmowę na stałe? Tej operacji nie można cofnąć.');">
-                  <button type="submit" class="gv-chat-action-btn" title="Usuń czat" aria-label="Usuń czat"><i class="bi bi-trash3-fill"></i></button>
-                </form>
+                <% if (active.type === 'group') { %>
+                  <form action="/chat/<%= active.id %>/leave" method="POST"
+                        onsubmit="return confirm('<%= active.ownerId === currentUser.id ? 'Opuścić tę grupę? Jej właścicielem zostanie kolejny członek.' : 'Opuścić tę grupę?' %>');">
+                    <button type="submit" class="gv-chat-action-btn" title="Opuść grupę" aria-label="Opuść grupę"><i class="bi bi-box-arrow-right"></i></button>
+                  </form>
+                <% } %>
+                <% if (canDestroy) { %>
+                  <form action="/chat/<%= active.id %>/clear" method="POST" onsubmit="return confirm('Wyczyścić wszystkie wiadomości w tej rozmowie?');">
+                    <button type="submit" class="gv-chat-action-btn" title="Wyczyść czat" aria-label="Wyczyść czat"><i class="bi bi-eraser-fill"></i></button>
+                  </form>
+                  <form action="/chat/<%= active.id %>/delete" method="POST" onsubmit="return confirm('Usunąć tę rozmowę na stałe? Tej operacji nie można cofnąć.');">
+                    <button type="submit" class="gv-chat-action-btn" title="Usuń czat" aria-label="Usuń czat"><i class="bi bi-trash3-fill"></i></button>
+                  </form>
+                <% } %>
               </div>
             </div>
 
-            <div class="gv-chat-body" id="chatBody" data-conversation="<%= active.id %>">
-              <% messages.forEach(function(m) { %>
-                <div class="gv-msg <%= m.senderId === currentUser.id ? 'me' : '' %>" data-id="<%= m.id %>">
-                  <% if (m.senderId !== currentUser.id) { %>
-                    <% if (m.senderDeleted) { %><b class="gv-msg-deleted"><%= m.senderUsername %></b><% } else { %><a href="/<%= m.senderUsername %>" class="gv-chat-name-link"><b><%= m.senderUsername %></b></a><% } %>
-                  <% } %>
-                  <% if (m.kind === 'gif') { %>
-                    <img src="<%= m.text %>" alt="GIF" class="gv-msg-gif" loading="lazy">
-                  <% } else { %>
-                    <%= m.text %>
-                  <% } %>
-                  <small><%= new Date(m.createdAt).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'}) %></small>
-                  <% if (m.senderId !== currentUser.id && !m.senderDeleted) { %>
-                    <button type="button" class="gv-msg-report" title="Zgłoś wiadomość"
-                            data-bs-toggle="modal" data-bs-target="#reportModal"
-                            data-report-type="message"
-                            data-report-url="/reports/message/<%= m.id %>"
-                            data-report-author="<%= m.senderUsername %>"><i class="bi bi-flag"></i></button>
-                  <% } %>
-                </div>
-              <% }) %>
-            </div>
-
-            <% var canISend = active.canReply || currentUser.role === 'admin'; %>
-            <% if (canISend) { %>
-              <div class="gv-chat-input-wrap">
-                <div class="gv-chat-picker d-none" id="emojiPicker">
-                  <div class="gv-emoji-grid" id="emojiGrid"></div>
-                </div>
-                <div class="gv-chat-picker gv-gif-picker d-none" id="gifPicker">
-                  <input type="search" id="gifSearchInput" class="form-control gv-input gv-gif-search" placeholder="Szukaj GIF-a..." autocomplete="off">
-                  <div class="gv-gif-grid" id="gifGrid"></div>
-                </div>
-                <form class="gv-chat-input-row" id="chatForm">
-                  <button type="button" class="gv-chat-action-btn" id="emojiBtn" title="Emoji" aria-label="Emoji"><i class="bi bi-emoji-smile"></i></button>
-                  <button type="button" class="gv-chat-action-btn" id="gifBtn" title="GIF" aria-label="GIF"><i class="bi bi-filetype-gif"></i></button>
-                  <input type="text" id="chatText" placeholder="Napisz wiadomość..." autocomplete="off">
-                  <button type="submit" class="gv-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
-                </form>
-              </div>
-            <% } else { %>
-              <p class="gv-group-hint px-2 py-2 mb-0"><i class="bi bi-info-circle"></i> Administrator wysłał tę wiadomość bez możliwości odpowiedzi.</p>
-            <% } %>
+            <%# Wiadomości i pole wiadomości buduje skrypt public/js/chat-page.js (wspólny kod: chat-core.js). %>
+            <div class="gv-chat-body" id="chatBody" data-conversation="<%= active.id %>" data-type="<%= active.type %>"
+                 data-me="<%= currentUser.id %>" data-admin="<%= currentUser.role === 'admin' %>"
+                 data-can-reply="<%= active.canReply !== false %>" data-messages="<%= initialMessagesJson %>"></div>
+            <div id="chatComposerHost"></div>
           <% } %>
         </div>
       </div>
@@ -396,9 +371,14 @@
                   <li>
                     <span><%= active.memberNames[id] %><%= id === active.ownerId ? ' (właściciel)' : '' %></span>
                     <% if (id !== active.ownerId) { %>
-                      <form action="/chat/<%= active.id %>/members/<%= id %>/remove" method="POST" onsubmit="return confirm('Usunąć <%= active.memberNames[id] %> z grupy?');">
-                        <button type="submit" class="gv-mini-btn gv-mini-warn">Usuń</button>
-                      </form>
+                      <span class="gv-admin-row-actions">
+                        <form action="/chat/<%= active.id %>/transfer/<%= id %>" method="POST" onsubmit="return confirm('Przekazać własność grupy użytkownikowi <%= active.memberNames[id] %>? Utracisz uprawnienia właściciela.');">
+                          <button type="submit" class="gv-mini-btn" title="Przekaż własność grupy"><i class="bi bi-key-fill"></i> Przekaż własność</button>
+                        </form>
+                        <form action="/chat/<%= active.id %>/members/<%= id %>/remove" method="POST" onsubmit="return confirm('Usunąć <%= active.memberNames[id] %> z grupy?');">
+                          <button type="submit" class="gv-mini-btn gv-mini-warn">Usuń</button>
+                        </form>
+                      </span>
                     <% } %>
                   </li>
                 <% }) %>
@@ -437,390 +417,6 @@
   <%- include('../partials/report-modal') %>
   <%- include('../partials/footer') %>
 
-  <script>
-    // Lista rozmów po lewej (nowe rozmowy, nowe wiadomości i kolejność) odświeża się sama - bez tego
-    // widać je dopiero po ręcznym przeładowaniu strony. Działa niezależnie od tego, czy jakaś rozmowa
-    // jest akurat otwarta (patrz niżej osobny, częstszy polling samej otwartej rozmowy).
-    (function () {
-      var col = document.getElementById('chatListCol');
-      var dmBox = document.getElementById('dmConversationList');
-      var groupBox = document.getElementById('groupConversationList');
-      if (!col || !dmBox || !groupBox) return;
-      var activeId = col.dataset.active || null;
-
-      function timeAgo(iso) {
-        var seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-        if (seconds < 60) return 'przed chwilą';
-        if (seconds < 3600) return Math.floor(seconds / 60) + ' min temu';
-        if (seconds < 86400) return Math.floor(seconds / 3600) + ' godz. temu';
-        return new Date(iso).toLocaleDateString('pl-PL');
-      }
-
-      function renderItem(c) {
-        var a = document.createElement('a');
-        a.href = '/chat?c=' + encodeURIComponent(c.id);
-        a.className = 'gv-chat-item text-decoration-none' + (c.id === activeId ? ' active' : '');
-
-        var avatar;
-        if (c.avatarUrl) {
-          avatar = document.createElement('img');
-          avatar.src = c.avatarUrl;
-          avatar.alt = '';
-          avatar.style.objectFit = 'cover';
-        } else {
-          avatar = document.createElement('div');
-        }
-        avatar.className = 'gv-c-avatar';
-
-        var info = document.createElement('div');
-        var name = document.createElement('b');
-        name.textContent = c.name;
-        var meta = document.createElement('span');
-        if (c.type === 'dm') {
-          meta.textContent = 'Rozmowa prywatna';
-        } else if (c.lastMessage) {
-          meta.textContent = (c.lastMessage.mine ? 'Ty: ' : c.lastMessage.senderUsername + ': ') + c.lastMessage.text;
-        } else {
-          meta.textContent = 'Brak wiadomości';
-        }
-        info.appendChild(name);
-        info.appendChild(meta);
-
-        a.appendChild(avatar);
-        a.appendChild(info);
-        if (c.unread > 0) {
-          var badge = document.createElement('span');
-          badge.className = 'gv-chat-unread';
-          badge.textContent = String(c.unread);
-          a.appendChild(badge);
-        }
-        return a;
-      }
-
-      function renderList(box, items, emptyText) {
-        box.innerHTML = '';
-        if (items.length === 0) {
-          if (!emptyText) return;
-          var empty = document.createElement('p');
-          empty.className = 'gv-game-card-count px-2';
-          empty.style.color = 'var(--text-lo)';
-          empty.style.fontSize = '11.5px';
-          empty.textContent = emptyText;
-          box.appendChild(empty);
-          return;
-        }
-        items.forEach(function (c) { box.appendChild(renderItem(c)); });
-      }
-
-      function refreshSidebar() {
-        fetch('/chat/api/list', { headers: { Accept: 'application/json' } })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (data) {
-            if (!data) return;
-            var items = data.conversations || [];
-            renderList(dmBox, items.filter(function (c) { return c.type === 'dm'; }), 'Brak rozmów. Napisz do kogoś powyżej.');
-            renderList(groupBox, items.filter(function (c) { return c.type === 'group'; }), null);
-          })
-          .catch(function () {});
-      }
-
-      setInterval(refreshSidebar, 6000);
-      document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) refreshSidebar();
-      });
-    })();
-  </script>
-
-  <% if (active) { %>
-  <script>
-    (function () {
-      var conversationId = <%- JSON.stringify(active.id) %>;
-      var meId = <%- JSON.stringify(currentUser.id) %>;
-      var chatBody = document.getElementById('chatBody');
-      // Formularza nie ma, gdy administrator wyłączył odpowiedź w tej rozmowie, a nie jesteś adminem.
-      var form = document.getElementById('chatForm');
-      var input = document.getElementById('chatText');
-      var sendBtn = form ? form.querySelector('button[type="submit"]') : null;
-      var lastTimestamp = <%- JSON.stringify(messages.length ? messages[messages.length - 1].createdAt : null) %>;
-      var seenIds = {};
-      var isSending = false;
-      var isPolling = false;
-
-      // Przycisk admina w topbarze: włącza/wyłącza możliwość odpowiedzi w tej konkretnej rozmowie
-      // (jedyne miejsce, w którym się to teraz ustawia - patrz routes/chat.js, POST toggle-reply).
-      var toggleReplyBtn = document.getElementById('toggleReplyBtn');
-      if (toggleReplyBtn) {
-        toggleReplyBtn.addEventListener('click', function () {
-          if (toggleReplyBtn.disabled) return;
-          toggleReplyBtn.disabled = true;
-          fetch('/chat/' + conversationId + '/toggle-reply', { method: 'POST', headers: { Accept: 'application/json' } })
-            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
-            .then(function (res) {
-              if (!res.ok) throw new Error((res.data && res.data.error) || 'Błąd');
-              var canReply = res.data.canReply;
-              var icon = toggleReplyBtn.querySelector('i');
-              icon.className = 'bi ' + (canReply ? 'bi-chat-dots-fill' : 'bi-chat-slash-fill');
-              toggleReplyBtn.title = canReply ? 'Wyłącz możliwość odpowiedzi' : 'Włącz możliwość odpowiedzi';
-              toggleReplyBtn.dataset.canReply = String(canReply);
-              var meta = document.getElementById('conversationMeta');
-              var badge = document.getElementById('canReplyBadge');
-              if (canReply && badge) {
-                badge.remove();
-              } else if (!canReply && !badge && meta) {
-                badge = document.createElement('span');
-                badge.className = 'gv-badge gv-badge-warn';
-                badge.id = 'canReplyBadge';
-                badge.title = 'Tylko administrator może pisać w tej rozmowie';
-                badge.textContent = 'bez możliwości odpowiedzi';
-                meta.appendChild(badge);
-              }
-            })
-            .catch(function () {
-              alert('Nie udało się zmienić ustawienia odpowiedzi. Spróbuj ponownie.');
-            })
-            .finally(function () {
-              toggleReplyBtn.disabled = false;
-            });
-        });
-      }
-
-      // Zapamiętaj ID wiadomości wyrenderowanych już przez serwer, żeby
-      // polling ich nie zdublował.
-      document.querySelectorAll('#chatBody .gv-msg[data-id]').forEach(function (el) {
-        seenIds[el.dataset.id] = true;
-      });
-
-      function appendMessage(m) {
-        if (seenIds[m.id]) return; // zabezpieczenie przed duplikatem
-        seenIds[m.id] = true;
-
-        var div = document.createElement('div');
-        div.className = 'gv-msg' + (m.senderId === meId ? ' me' : '');
-        div.dataset.id = m.id;
-        var time = new Date(m.createdAt).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-        var name = document.createElement('b');
-        name.textContent = m.senderUsername;
-        if (m.senderId !== meId) {
-          if (m.senderDeleted) {
-            name.className = 'gv-msg-deleted';
-            div.appendChild(name);
-          } else {
-            var link = document.createElement('a');
-            link.href = '/' + encodeURIComponent(m.senderUsername);
-            link.className = 'gv-chat-name-link';
-            link.appendChild(name);
-            div.appendChild(link);
-          }
-        }
-        if (m.kind === 'gif') {
-          var gifImg = document.createElement('img');
-          gifImg.src = m.text;
-          gifImg.alt = 'GIF';
-          gifImg.className = 'gv-msg-gif';
-          gifImg.loading = 'lazy';
-          div.appendChild(gifImg);
-        } else {
-          div.appendChild(document.createTextNode(m.text));
-        }
-        var small = document.createElement('small');
-        small.textContent = time;
-        div.appendChild(small);
-        if (m.senderId !== meId && !m.senderDeleted) {
-          // Zgłoszenie wiadomości otwiera wspólne okno (partials/report-modal.ejs).
-          var flag = document.createElement('button');
-          flag.type = 'button';
-          flag.className = 'gv-msg-report';
-          flag.title = 'Zgłoś wiadomość';
-          flag.setAttribute('data-bs-toggle', 'modal');
-          flag.setAttribute('data-bs-target', '#reportModal');
-          flag.setAttribute('data-report-type', 'message');
-          flag.setAttribute('data-report-url', '/reports/message/' + encodeURIComponent(m.id));
-          flag.setAttribute('data-report-author', m.senderUsername);
-          flag.innerHTML = '<i class="bi bi-flag"></i>';
-          div.appendChild(flag);
-        }
-        chatBody.appendChild(div);
-        chatBody.scrollTop = chatBody.scrollHeight;
-      }
-
-      // Wspólna wysyłka - zwykły tekst (z pola) albo GIF (kliknięty w panelu niżej).
-      // restoreOnError: tekst, który wracamy do pola, jeśli serwer odrzuci wiadomość (np. filtr, limit).
-      function sendMessage(text, kind, restoreOnError) {
-        if (isSending) return; // blokada podwójnego Entera/kliknięcia
-        isSending = true;
-        if (sendBtn) sendBtn.disabled = true;
-
-        fetch('/chat/' + conversationId + '/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'text=' + encodeURIComponent(text) + '&kind=' + encodeURIComponent(kind),
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (data.message) {
-              appendMessage(data.message);
-              lastTimestamp = data.message.createdAt;
-            } else if (data.error) {
-              // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
-              if (window.showToast) showToast(data.error, false);
-              if (restoreOnError && input) input.value = restoreOnError;
-            }
-          })
-          .finally(function () {
-            isSending = false;
-            if (sendBtn) sendBtn.disabled = false;
-            if (input) input.focus();
-          });
-      }
-
-      if (form) {
-        form.addEventListener('submit', function (e) {
-          e.preventDefault();
-          var text = input.value.trim();
-          if (!text) return;
-          input.value = ''; // czyścimy od razu, nie czekając na odpowiedź serwera
-          sendMessage(text, 'text', text);
-        });
-      }
-
-      /* ------------------------------ EMOJI ------------------------------ */
-
-      var EMOJI_LIST = ['😀', '😂', '😅', '😊', '😍', '😎', '🤔', '😴', '😭', '😡', '🥳', '😱', '🤯', '🙄', '😉', '🙃', '👍', '👎', '👏', '🙌', '🙏', '💪', '👀', '🔥', '💯', '🎉', '❤️', '💔', '⭐', '✅', '🎮', '🕹️', '🏆', '⚔️', '🛡️', '💀', '👾', '🚀'];
-      var emojiBtn = document.getElementById('emojiBtn');
-      var emojiPicker = document.getElementById('emojiPicker');
-      var gifBtn = document.getElementById('gifBtn');
-      var gifPicker = document.getElementById('gifPicker');
-
-      function closePickers() {
-        if (emojiPicker) emojiPicker.classList.add('d-none');
-        if (gifPicker) gifPicker.classList.add('d-none');
-      }
-
-      if (emojiBtn && emojiPicker) {
-        var emojiGrid = document.getElementById('emojiGrid');
-        EMOJI_LIST.forEach(function (emoji) {
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'gv-emoji-btn';
-          btn.textContent = emoji;
-          btn.addEventListener('click', function () {
-            input.value += emoji;
-            input.focus();
-          });
-          emojiGrid.appendChild(btn);
-        });
-
-        emojiBtn.addEventListener('click', function () {
-          var opening = emojiPicker.classList.contains('d-none');
-          closePickers();
-          if (opening) emojiPicker.classList.remove('d-none');
-        });
-      }
-
-      /* ------------------------------- GIF -------------------------------- */
-
-      if (gifBtn && gifPicker) {
-        var gifSearchInput = document.getElementById('gifSearchInput');
-        var gifGrid = document.getElementById('gifGrid');
-        var gifRequestId = 0;
-        var gifDebounce = null;
-
-        function renderGifs(gifs) {
-          gifGrid.innerHTML = '';
-          if (gifs.length === 0) {
-            var empty = document.createElement('p');
-            empty.className = 'gv-gif-empty';
-            empty.textContent = 'Brak wyników. Spróbuj innego hasła.';
-            gifGrid.appendChild(empty);
-            return;
-          }
-          gifs.forEach(function (gif) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.title = gif.title;
-            var img = document.createElement('img');
-            img.src = gif.previewUrl;
-            img.alt = gif.title;
-            img.loading = 'lazy';
-            btn.appendChild(img);
-            btn.addEventListener('click', function () {
-              sendMessage(gif.url, 'gif');
-              closePickers();
-            });
-            gifGrid.appendChild(btn);
-          });
-        }
-
-        function searchGifs(q) {
-          var requestId = ++gifRequestId;
-          fetch('/chat/gifs?q=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } })
-            .then(function (r) { return r.ok ? r.json() : { gifs: [] }; })
-            .then(function (data) {
-              if (requestId === gifRequestId) renderGifs(data.gifs || []);
-            })
-            .catch(function () {});
-        }
-
-        gifSearchInput.addEventListener('input', function () {
-          clearTimeout(gifDebounce);
-          var q = gifSearchInput.value.trim();
-          if (q.length < 2) { gifGrid.innerHTML = ''; return; }
-          gifDebounce = setTimeout(function () { searchGifs(q); }, 350);
-        });
-
-        gifBtn.addEventListener('click', function () {
-          var opening = gifPicker.classList.contains('d-none');
-          closePickers();
-          if (opening) {
-            gifPicker.classList.remove('d-none');
-            gifSearchInput.focus();
-          }
-        });
-      }
-
-      document.addEventListener('click', function (e) {
-        var insidePicker = (emojiPicker && emojiPicker.contains(e.target)) || (gifPicker && gifPicker.contains(e.target));
-        var onToggleBtn = e.target === emojiBtn || e.target === gifBtn || (emojiBtn && emojiBtn.contains(e.target)) || (gifBtn && gifBtn.contains(e.target));
-        if (!insidePicker && !onToggleBtn) closePickers();
-      });
-
-      function poll() {
-        if (isPolling) return; // nie nakładaj zapytań, jeśli poprzednie jeszcze trwa
-        isPolling = true;
-
-        var url = '/chat/' + conversationId + '/messages' + (lastTimestamp ? '?after=' + encodeURIComponent(lastTimestamp) : '');
-        fetch(url)
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            (data.messages || []).forEach(function (m) {
-              appendMessage(m);
-              lastTimestamp = m.createdAt;
-            });
-          })
-          .finally(function () { isPolling = false; });
-      }
-
-      setInterval(poll, 4000);
-      chatBody.scrollTop = chatBody.scrollHeight;
-
-      // Rozwijana lista członków grupy (jeśli aktywna rozmowa to grupa)
-      var groupToggle = document.getElementById('groupMembersToggle');
-      var groupDropdown = document.getElementById('groupMembersDropdown');
-      if (groupToggle && groupDropdown) {
-        groupToggle.addEventListener('click', function (e) {
-          e.stopPropagation();
-          var isOpen = groupDropdown.classList.toggle('d-none') === false;
-          groupToggle.classList.toggle('open', isOpen);
-        });
-        document.addEventListener('click', function (e) {
-          if (!groupDropdown.contains(e.target) && e.target !== groupToggle) {
-            groupDropdown.classList.add('d-none');
-            groupToggle.classList.remove('open');
-          }
-        });
-      }
-    })();
-  </script>
-  <% } %>
+  <script src="/js/chat-page.js" defer></script>
 </body>
 </html>

@@ -5,10 +5,11 @@ const http = require('http');
 const { sequelize, configureSqliteConcurrency } = require('../config/database');
 const { addMissingColumns } = require('../utils/schemaHelpers');
 const { syncAllUsersProgress } = require('../utils/progressHelpers');
-const { seedConversationReads } = require('../utils/chatHelpers');
+const { seedConversationReads, removeGameRooms } = require('../utils/chatHelpers');
 const { purgeOrphanedData } = require('../utils/cleanupHelpers');
 const { startModerationSettings } = require('../utils/moderationSettings');
 const { startModerationCleanup } = require('../utils/moderationStatus');
+const { startEmailDigest } = require('../utils/emailDigest');
 const { warmPopularPool } = require('../utils/gamePopularity');
 const { seedBlogIfEmpty } = require('../utils/blogImport');
 
@@ -42,12 +43,19 @@ sequelize
   })
   // Uzupełnia PD/poziom (users.points, users.level) u istniejących użytkowników.
   .then(() => syncAllUsersProgress())
+  // Pokoje gier zlikwidowano - usuwamy te, które zostały w bazie po starszej wersji.
+  .then(() => removeGameRooms())
+  .then((count) => {
+    if (count > 0) console.log(`[czat] usunięto ${count} pokoi gier (funkcja zlikwidowana).`);
+  })
   // Istniejące rozmowy traktujemy jako przeczytane (licznik nieprzeczytanych czatu).
   .then(() => seedConversationReads())
   // Ustawienia moderacji z panelu admina (limity zapytań, filtr, wymóg 2FA) trzymamy w pamięci.
   .then(() => startModerationSettings())
   // Zdejmuje blokady czasowe po terminie (co kilka minut).
   .then(() => startModerationCleanup())
+  // Podsumowania nieprzeczytanych na e-mail (tylko dla osób, które je włączyły; wymaga skonfigurowanej poczty).
+  .then(() => startEmailDigest())
   .then(() => {
     server.listen(port);
     // Ranking popularności gier budujemy z wyprzedzeniem, żeby pierwsze wejście na listę nie czekało.

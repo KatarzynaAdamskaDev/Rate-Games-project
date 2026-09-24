@@ -390,6 +390,10 @@
 }
 .gv-leader-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text-hi);
@@ -1005,8 +1009,8 @@
   grid-template-columns: 270px 1fr;
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
-  /* Stała wysokość - okno wiadomości przewija się w środku, więc DM, grupa
-     i pokój gry mają zawsze identyczny rozmiar niezależnie od liczby wiadomości. */
+  /* Stała wysokość - okno wiadomości przewija się w środku, więc DM i grupa
+     mają zawsze identyczny rozmiar niezależnie od liczby wiadomości. */
   height: min(720px, max(560px, calc(100vh - 140px)));
   min-height: 560px;
   background: var(--bg-1);
@@ -1057,19 +1061,12 @@
   min-height: 0;
   overflow: hidden;
 }
-/* Rozmowy i grupy przewijają się osobno, a "Pokoje gier" są przypięte na dole
-   (widoczne 2 pokoje + scroll), niezależnie od liczby rozmów. */
+/* Zaproszenia, rozmowy i grupy przewijają się razem w jednej kolumnie. */
 .gv-chat-list-scroll {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-}
-.gv-chat-rooms {
-  flex-shrink: 0;
-  border-top: 1px solid var(--panel-border);
-  margin-top: 8px;
-  padding-top: 4px;
 }
 .gv-chat-group-label {
   font-size: 10.5px;
@@ -1147,6 +1144,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* Bez tego kolumna siatki (grid item) nie zwęża się poniżej szerokości swojej najszerszej zawartości -
+     na telefonie pole wpisywania z przyciskami emoji/GIF wypychało czat poza ekran. */
+  min-width: 0;
 }
 .gv-chat-topbar {
   padding: 16px 20px;
@@ -1204,6 +1204,7 @@
 }
 .gv-chat-input-row input {
   flex: 1;
+  min-width: 0;
   background: var(--bg-2);
   border: 1px solid var(--panel-border);
   border-radius: 10px;
@@ -1318,9 +1319,6 @@
 @media (max-width: 980px) {
   .gv-chat-shell {
     grid-template-columns: 1fr;
-  }
-.gv-chat-list-col {
-    display: none;
   }
   .gv-form-grid,
   .gv-unlock-grid,
@@ -1641,27 +1639,6 @@
 
 .gv-group-name-toggle.open .gv-group-toggle-icon {
   transform: rotate(180deg);
-}
-
-.gv-chat-game-rooms-scroll {
-  max-height: 150px; /* ~2 pokoje gier widoczne, reszta pod scrollem */
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent) var(--bg-1);
-}
-
-.gv-chat-game-rooms-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.gv-chat-game-rooms-scroll::-webkit-scrollbar-track {
-  background: var(--bg-1);
-  border-radius: 999px;
-}
-
-.gv-chat-game-rooms-scroll::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  border-radius: 999px;
 }
 
 .gv-group-members-dropdown {
@@ -2485,10 +2462,6 @@
     grid-template-columns: 1fr;
     height: 520px;
     min-height: 0;
-  }
-
-  .gv-chat-list-col {
-    display: none;
   }
 
   .gv-msg {
@@ -8327,4 +8300,598 @@ input[type="search"].gv-input::-webkit-search-cancel-button:hover {
 .gv-writer-preview .gv-fig img {
   max-height: 360px;
   object-fit: contain;
+}
+
+/* ========================================================================
+   Czat: odpowiedzi, edycja/usuwanie, reakcje, "pisze...", pole wiadomości
+   (renderuje je public/js/chat-core.js - wspólnie dla /chat i mini czatu w navbarze)
+   ======================================================================== */
+
+.gv-msg,
+.nav-msg {
+  position: relative;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .gv-msg {
+    max-width: 82%;
+  }
+}
+
+/* usunięta wiadomość */
+.gv-msg.gv-mc-gone,
+.nav-msg.gv-mc-gone {
+  background: transparent;
+  color: var(--text-lo);
+  border: 1px dashed var(--panel-border);
+}
+.gv-mc-deleted-text {
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* cytat wiadomości, na którą odpowiadamy */
+.gv-mc-quote {
+  display: block;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 5px 9px;
+  text-align: left;
+  color: inherit;
+  font-size: 11.5px;
+  line-height: 1.35;
+  background: rgba(0, 0, 0, 0.18);
+  border: none;
+  border-left: 3px solid var(--accent-soft);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.gv-mc-quote b {
+  display: block;
+  margin: 0 0 1px;
+  font-size: 10.5px;
+  color: inherit;
+  opacity: 0.9;
+}
+.gv-mc-quote span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+.gv-mc-quote.gone span {
+  font-style: italic;
+}
+.gv-msg.me .gv-mc-quote,
+.nav-msg.me .gv-mc-quote {
+  background: rgba(255, 255, 255, 0.16);
+  border-left-color: rgba(255, 255, 255, 0.75);
+}
+.gv-mc-flash {
+  animation: gvMcFlash 1.4s ease;
+}
+@keyframes gvMcFlash {
+  0%,
+  60% {
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* reakcje pod wiadomością: każda ma swój kolor (--rx), który barwi ikonę, tło i obramowanie znaczka */
+.gv-rx-like { --rx: #5b9dff; --rx-bg: rgba(91, 157, 255, 0.16); --rx-line: rgba(91, 157, 255, 0.55); }
+.gv-rx-love { --rx: #ff5378; --rx-bg: rgba(255, 83, 120, 0.16); --rx-line: rgba(255, 83, 120, 0.55); }
+.gv-rx-haha { --rx: #ffc93c; --rx-bg: rgba(255, 201, 60, 0.16); --rx-line: rgba(255, 201, 60, 0.55); }
+.gv-rx-wow { --rx: #ffa02e; --rx-bg: rgba(255, 160, 46, 0.16); --rx-line: rgba(255, 160, 46, 0.55); }
+.gv-rx-sad { --rx: #7cc4ff; --rx-bg: rgba(124, 196, 255, 0.16); --rx-line: rgba(124, 196, 255, 0.55); }
+.gv-rx-fire { --rx: #ff7a2e; --rx-bg: rgba(255, 122, 46, 0.16); --rx-line: rgba(255, 122, 46, 0.55); }
+
+.gv-mc-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.gv-mc-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text-hi);
+  background: var(--rx-bg);
+  border: 1px solid var(--rx-line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.gv-mc-reaction i {
+  font-size: 14px;
+  color: var(--rx);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+.gv-mc-reaction:hover {
+  transform: translateY(-1px) scale(1.05);
+}
+/* Twoja reakcja: pełniejsze tło i pierścień */
+.gv-mc-reaction.mine {
+  background: var(--rx-line);
+  box-shadow: 0 0 0 1px var(--rx);
+}
+.gv-msg.me .gv-mc-reaction,
+.nav-msg.me .gv-mc-reaction {
+  background: rgba(12, 10, 20, 0.35);
+}
+.gv-msg.me .gv-mc-reaction.mine,
+.nav-msg.me .gv-mc-reaction.mine {
+  background: rgba(12, 10, 20, 0.6);
+}
+
+/* przyciski wiadomości (odpowiedz, zareaguj, edytuj, usuń, zgłoś) - nad dymkiem, po najechaniu/dotknięciu */
+.gv-mc-actions {
+  position: absolute;
+  bottom: 100%;
+  left: 8px;
+  z-index: 5;
+  display: flex;
+  gap: 1px;
+  margin-bottom: -6px;
+  padding: 2px;
+  background: var(--bg-1);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.gv-msg.me .gv-mc-actions,
+.nav-msg.me .gv-mc-actions {
+  left: auto;
+  right: 8px;
+}
+.gv-msg:hover .gv-mc-actions,
+.nav-msg:hover .gv-mc-actions,
+.gv-mc-active .gv-mc-actions,
+.gv-mc-actions:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+.gv-mc-action {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  line-height: 1;
+  color: var(--text-mid);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.gv-mc-action:hover {
+  color: var(--text-hi);
+  background: var(--bg-2);
+}
+.gv-mc-action-delete:hover {
+  color: var(--pink);
+}
+/* stary, pojedynczy przycisk zgłoszenia ("gv-msg-report") jest teraz jednym z przycisków paska */
+.gv-mc-actions .gv-msg-report {
+  position: static;
+  opacity: 1;
+  padding: 0;
+  font-size: 12.5px;
+}
+.gv-chat-body > :first-child,
+.nav-chat-messages > :first-child {
+  margin-top: 14px;
+}
+.nav-chat-messages {
+  padding-top: 20px;
+}
+
+/* wybór reakcji (dokleja się do body, żeby nie ucinała go lista wiadomości) */
+.gv-react-pop {
+  position: fixed;
+  z-index: 3000;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(21, 16, 34, 0.96);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  animation: gvReactPopIn 0.16s ease-out;
+  transform-origin: bottom center;
+}
+@keyframes gvReactPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.gv-react-pop-btn {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--rx);
+  background: var(--rx-bg);
+  border: 1px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.14s cubic-bezier(0.3, 1.6, 0.5, 1), background 0.14s ease;
+}
+.gv-react-pop-btn:hover {
+  transform: translateY(-5px) scale(1.22);
+  background: var(--rx-line);
+}
+.gv-react-pop-btn.active {
+  border-color: var(--rx);
+  background: var(--rx-line);
+}
+@media (max-width: 420px) {
+  .gv-react-pop-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+}
+
+/* "pisze..." nad polem wiadomości - stała wysokość, żeby lista nie skakała */
+.gv-typing {
+  min-height: 18px;
+  padding: 0 20px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--text-lo);
+}
+.gv-composer-mini .gv-typing {
+  padding: 0 12px;
+  font-size: 10px;
+}
+.gv-typing-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.gv-typing-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: gvTypingDot 1.2s infinite ease-in-out;
+}
+.gv-typing-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.gv-typing-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes gvTypingDot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+/* pasek "Odpowiadasz..." / "Edytujesz wiadomość" nad polem */
+.gv-composer-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 20px;
+  font-size: 12px;
+  color: var(--text-mid);
+  background: var(--bg-2);
+  border-top: 1px solid var(--panel-border);
+}
+.gv-composer-mini .gv-composer-context {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+.gv-composer-context > i {
+  color: var(--accent-soft);
+}
+.gv-composer-context.editing > i {
+  color: var(--amber);
+}
+.gv-composer-context-text {
+  flex: 1;
+  min-width: 0;
+}
+.gv-composer-context-text b {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-hi);
+}
+.gv-composer-context-text span {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-lo);
+}
+.gv-composer-context-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-lo);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.gv-composer-context-close:hover {
+  color: var(--text-hi);
+  background: var(--bg-1);
+}
+.gv-composer-note {
+  margin: 0;
+  padding: 10px 20px;
+  border-top: 1px solid var(--panel-border);
+}
+
+/* mini czat w navbarze: przyciski emoji/GIF i panele */
+.nav-chat-tool {
+  width: 32px;
+  flex-shrink: 0;
+  color: var(--text-mid);
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+.nav-chat-tool:hover {
+  color: var(--text-hi);
+  border-color: var(--accent);
+}
+.gv-composer-mini .nav-chat-form {
+  gap: 6px;
+  padding: 8px;
+}
+.gv-chat-picker.gv-chat-picker-mini {
+  left: 8px;
+  right: 8px;
+  max-height: 220px;
+  padding: 10px;
+  margin-bottom: 4px;
+}
+.gv-chat-picker-mini .gv-emoji-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 19px;
+}
+.gv-chat-picker-mini .gv-gif-grid img,
+.gv-chat-picker-mini .gv-gif-grid button {
+  height: 70px;
+}
+.nav-msg .gv-msg-gif {
+  max-width: 100%;
+  max-height: 160px;
+}
+
+/* ustawienia grupy: przyciski przy członku */
+.gv-admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.gv-admin-row-actions form {
+  margin: 0;
+}
+
+/* przycisk "Nowe wiadomości" - przyklejony do dołu listy, gdy czytamy wcześniejsze wiadomości */
+.gv-new-pill {
+  position: sticky;
+  bottom: 6px;
+  align-self: center;
+  z-index: 6;
+  flex-shrink: 0;
+  padding: 5px 14px;
+  font-size: 11.5px;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.gv-new-pill:hover {
+  background: var(--accent-soft);
+}
+
+/* ---- czat na wąskich ekranach: albo lista rozmów, albo otwarta rozmowa (z przyciskiem powrotu) ---- */
+.gv-chat-back {
+  display: none;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text-mid);
+  background: var(--bg-2);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+.gv-chat-back:hover {
+  color: var(--text-hi);
+  border-color: var(--accent);
+}
+@media (max-width: 980px) {
+  .gv-chat-shell[data-view="list"] .gv-chat-main-col {
+    display: none;
+  }
+  .gv-chat-shell[data-view="chat"] .gv-chat-list-col {
+    display: none;
+  }
+  .gv-chat-list-col {
+    border-right: none;
+  }
+  .gv-chat-back {
+    display: inline-flex;
+  }
+}
+
+/* ---- zaproszenia do grup: kolorowe przyciski, klikalny wiersz, karta zaproszenia ---- */
+.gv-invite-item {
+  border: 1px solid transparent;
+}
+.gv-invite-item.is-focus {
+  background: rgba(63, 224, 197, 0.08);
+  border-color: rgba(63, 224, 197, 0.45);
+}
+.gv-invite-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+}
+.gv-invite-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.gv-invite-btn.gv-invite-accept {
+  color: #06251a;
+  background: linear-gradient(135deg, #3ecf8e, #2ba36f);
+}
+.gv-invite-btn.gv-invite-accept:hover {
+  filter: brightness(1.1);
+}
+.gv-invite-btn.gv-invite-decline {
+  color: #ff5f6d;
+  background: rgba(255, 95, 109, 0.12);
+  border-color: #ff5f6d;
+}
+.gv-invite-btn.gv-invite-decline:hover {
+  background: rgba(255, 95, 109, 0.22);
+}
+.gv-invite-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 22px;
+  text-align: center;
+  overflow-y: auto;
+}
+.gv-invite-card-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+  object-fit: cover;
+  background: linear-gradient(135deg, var(--accent-soft), var(--pink));
+  box-shadow: 0 10px 30px var(--accent-glow);
+}
+.gv-invite-card h2 {
+  font-size: 18px;
+  color: var(--text-hi);
+  overflow-wrap: anywhere;
+}
+.gv-invite-card p {
+  max-width: 440px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-mid);
+  overflow-wrap: anywhere;
+}
+.gv-invite-card p b {
+  color: var(--text-hi);
+}
+.gv-invite-card-meta {
+  color: var(--text-lo);
+}
+.gv-invite-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.gv-invite-card-actions form {
+  margin: 0;
+}
+.gv-invite-card-actions button {
+  cursor: pointer;
+}
+
+/* ---- komentarze pod recenzją na listach (ładowane skryptem): stopka z datą i akcjami jak na stronie gry ---- */
+.gv-rcomment-foot {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.gv-rcomment-actions {
+  display: flex;
+  align-items: center;
+}
+.gv-rcomment-actions .gv-icon-btn {
+  padding: 3px 6px;
+}
+
+/* cel linku z powiadomienia (komentarz albo recenzja) - krótkie podświetlenie po przewinięciu */
+.gv-flash-target {
+  animation: gvFlashTarget 2.6s ease;
+}
+@keyframes gvFlashTarget {
+  0%,
+  70% {
+    box-shadow: 0 0 0 2px var(--accent-soft), 0 0 24px var(--accent-glow);
+    background: rgba(124, 92, 255, 0.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* nagłówek rozmowy: długa nazwa skraca się wielokropkiem zamiast wchodzić pod przyciski akcji */
+.gv-chat-topbar-info {
+  flex: 1;
+  min-width: 0;
+}
+.gv-chat-topbar .gv-chat-name-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }

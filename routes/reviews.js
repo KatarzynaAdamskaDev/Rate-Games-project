@@ -10,6 +10,7 @@ const {
   getReviewOfTheWeek,
 } = require('../utils/reviewStatsHelpers');
 const { buildPagerLinks } = require('../utils/gameListing');
+const { reportLocals } = require('../utils/reportReasons');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -27,6 +28,7 @@ router.get('/', async (req, res, next) => {
       ]);
 
     res.render('reviews', {
+      ...reportLocals('review', 'comment'),
       seo: { description: 'Najnowsze recenzje graczy, ranking najczęściej recenzowanych i najwyżej ocenianych gier oraz recenzja tygodnia w GameVerse.' },
       title: 'Recenzje graczy',
       stats,

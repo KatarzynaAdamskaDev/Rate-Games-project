@@ -6,6 +6,14 @@
 const path = require('path');
 const fs = require('fs');
 
+const PORT = 4321;
+const BASE_URL = `http://localhost:${PORT}`;
+// Zapisane sesje zalogowanych kont (tests/responsive/global-setup.js) - logujemy się raz na całą serię
+// testów, bo /auth/signin ma limit prób z jednego IP (middleware/rateLimit.js, 20/15 min).
+const AUTH_DIR = path.join(__dirname, '.auth');
+const USER_STATE = path.join(AUTH_DIR, 'user.json');
+const ADMIN_STATE = path.join(AUTH_DIR, 'admin.json');
+
 const VIEWPORTS = [
   { name: 'telefon-375', width: 375, height: 812 },
   { name: 'telefon-480', width: 480, height: 900 },
@@ -27,13 +35,32 @@ function loadSeedInfo() {
 
 /** Brak poziomego przewijania strony - najczęstszy, ogólny objaw zepsutej responsywności. */
 async function expectNoHorizontalOverflow(page, context) {
-  const overflow = await page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth,
-  }));
+  const overflow = await page.evaluate(() => {
+    const clientWidth = document.documentElement.clientWidth;
+    const scrollWidth = document.documentElement.scrollWidth;
+    const offenders = [];
+    if (scrollWidth > clientWidth + 1) {
+      document.querySelectorAll('body *').forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        // Elementy w przewijanych kontenerach (np. karuzela gier) celowo wychodzą poza ekran - pomijamy je.
+        let parent = el.parentElement;
+        let scrollable = false;
+        while (parent && parent !== document.body) {
+          const overflowX = getComputedStyle(parent).overflowX;
+          if (overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'hidden') { scrollable = true; break; }
+          parent = parent.parentElement;
+        }
+        if (!scrollable && rect.width > 0 && rect.right > clientWidth + 1) {
+          offenders.push(`${el.tagName.toLowerCase()}.${String(el.className).trim().split(/\s+/).slice(0, 2).join('.')} (prawa krawędź ${Math.round(rect.right)}px)`);
+        }
+      });
+    }
+    return { scrollWidth, clientWidth, offenders: offenders.slice(0, 5) };
+  });
   if (overflow.scrollWidth > overflow.clientWidth + 1) {
     throw new Error(
-      `${context || 'Strona'}: poziome przewijanie - scrollWidth=${overflow.scrollWidth}px > clientWidth=${overflow.clientWidth}px`
+      `${context || 'Strona'}: poziome przewijanie - scrollWidth=${overflow.scrollWidth}px > clientWidth=${overflow.clientWidth}px. ` +
+        `Winne elementy: ${overflow.offenders.join('; ') || '(nie udało się wskazać)'}`
     );
   }
 }
@@ -51,4 +78,15 @@ async function login(page, username, password) {
   ]);
 }
 
-module.exports = { VIEWPORTS, MOBILE_NAV_BREAKPOINT, loadSeedInfo, expectNoHorizontalOverflow, login };
+module.exports = {
+  PORT,
+  BASE_URL,
+  AUTH_DIR,
+  USER_STATE,
+  ADMIN_STATE,
+  VIEWPORTS,
+  MOBILE_NAV_BREAKPOINT,
+  loadSeedInfo,
+  expectNoHorizontalOverflow,
+  login,
+};

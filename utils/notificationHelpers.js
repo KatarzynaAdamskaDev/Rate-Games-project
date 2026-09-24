@@ -6,11 +6,12 @@
 const Notification = require('../models/Notification');
 const { isNotificationEnabled } = require('./notificationPrefs');
 const { hasBlocked } = require('./blockHelpers');
+const chatEvents = require('./chatEvents');
 
 const MAX_PER_USER = 50;
 // Komunikaty od moderatorów (np. usunięta recenzja) nie podlegają ustawieniom powiadomień użytkownika.
 const ALWAYS_DELIVERED = new Set(['moderation', 'admin-idea', 'admin-role']);
-const NO_DEDUPE = new Set(['moderation', 'report-result', 'admin-idea', 'admin-role']);
+const NO_DEDUPE = new Set(['moderation', 'report-result', 'admin-idea', 'admin-role', 'chat-deleted']);
 
 async function createNotification({ userId, type, actorId, message, link }) {
   if (!userId || userId === actorId) return null;
@@ -43,6 +44,13 @@ async function createNotification({ userId, type, actorId, message, link }) {
   });
   const stale = rows.slice(MAX_PER_USER).map((r) => r.id);
   if (stale.length > 0) await Notification.destroy({ where: { id: stale } });
+
+  // Otwarte karty odbiorcy odświeżają dzwonek od razu, zamiast czekać na kolejne odpytanie serwera.
+  try {
+    chatEvents.publish([userId], 'summary', {});
+  } catch (err) {
+    // powiadomienie jest zapisane - brak zdarzenia w czasie rzeczywistym niczego nie psuje
+  }
 
   return notification.get({ plain: true });
 }

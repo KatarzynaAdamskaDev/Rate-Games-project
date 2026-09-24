@@ -10,7 +10,7 @@ const Conversation = sequelize.define(
       primaryKey: true,
     },
     type: {
-      type: DataTypes.STRING, // 'dm' | 'group' | 'game-room'
+      type: DataTypes.STRING, // 'dm' | 'group'
       allowNull: false,
     },
     name: {

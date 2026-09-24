@@ -73,6 +73,11 @@ const User = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    // Kiedy ostatnio wysłano temu użytkownikowi e-mail z podsumowaniem nieprzeczytanych (utils/emailDigest.js).
+    lastDigestEmailAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     // Dwuetapowe logowanie (TOTP) - dostępne dla administratorów.
     twoFactorEnabled: {
       type: DataTypes.BOOLEAN,

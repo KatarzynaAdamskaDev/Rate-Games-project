@@ -26,7 +26,7 @@ const { createNotification } = require('../utils/notificationHelpers');
 const { buildProfileViewModel } = require('../utils/profileViewModel');
 const { deleteReviewData } = require('../utils/reviewSocialHelpers');
 const { syncUserProgress, setUserLevel } = require('../utils/progressHelpers');
-const { clearMessages, deleteConversation, getOrCreateDM, addMessage } = require('../utils/chatHelpers');
+const { clearMessages, deleteConversation, getOrCreateDM, addMessage, deleteMessage } = require('../utils/chatHelpers');
 const { getGamesByIds, getGameById } = require('../utils/gameCatalog');
 const { enrichReviews } = require('../utils/reviewStatsHelpers');
 const { buildPagerLinks } = require('../utils/gameListing');
@@ -839,8 +839,9 @@ router.post('/reports/content/:id/resolve', async (req, res, next) => {
         });
       }
     } else if (action === 'delete-message') {
-      const message = await Message.findByPk(report.targetId);
-      if (message) await message.destroy();
+      // Miękkie usunięcie (jak przy usunięciu przez autora): znika treść, a odpowiedzi na nią dalej mają
+      // do czego się odwoływać; uczestnicy rozmowy widzą to od razu.
+      await deleteMessage({ messageId: report.targetId, force: true });
       outcome = 'Usunięto wiadomość';
       if (target) {
         await createNotification({

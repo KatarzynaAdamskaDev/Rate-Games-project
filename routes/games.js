@@ -388,6 +388,8 @@ router.get('/:id/reviews/:reviewId/comments', async (req, res) => {
   res.json({
     comments: comments.map((c) => ({
       id: c.id,
+      userId: c.userId,
+      mine: !!meId && c.userId === meId,
       username: c.username,
       text: c.text,
       createdAt: c.createdAt,
@@ -430,7 +432,7 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, blockIfMuted
       type: 'review-comment',
       actorId: req.session.user.id,
       message: `${req.session.user.username} skomentował(a) Twoją recenzję${game ? ` gry „${game.title}”` : ''}`,
-      link: `/games/${commentedReview.gameId}#review-${commentedReview.id}`,
+      link: `/games/${commentedReview.gameId}#comment-${created.id}`,
     });
   }
 
@@ -439,6 +441,8 @@ router.post('/:id/reviews/:reviewId/comments', ensureAuthenticated, blockIfMuted
       ok: true,
       comment: {
         id: created.id,
+        userId: created.userId,
+        mine: true,
         username: created.username,
         text: created.text,
         createdAt: created.createdAt,
@@ -455,6 +459,11 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/delete', ensureAuthentic
   const gameId = String(req.params.id);
 
   const ok = await deleteComment(req.params.commentId, req.session.user.id);
+  if (wantsJsonResponse(req)) {
+    return ok
+      ? res.json({ ok: true })
+      : res.status(403).json({ ok: false, error: 'Możesz usuwać tylko swoje komentarze.' });
+  }
   if (!ok) {
     req.flash('error', 'Możesz usuwać tylko swoje komentarze.');
   }
@@ -477,7 +486,7 @@ router.post('/:id/reviews/:reviewId/comments/:commentId/like', ensureAuthenticat
         type: 'comment-like',
         actorId: req.session.user.id,
         message: `${req.session.user.username} polubił(a) Twój komentarz`,
-        link: `/games/${req.params.id}#review-${comment.reviewId}`,
+        link: `/games/${req.params.id}#comment-${comment.id}`,
       });
     }
   }

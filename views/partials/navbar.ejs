@@ -51,7 +51,7 @@
       <div class="nav-actions">
         <% if (user) { %>
           <!-- Mini czat (rozwijane okienko z licznikiem nieprzeczytanych) -->
-          <div class="nav-pop" id="navChat" data-me="<%= user.id %>">
+          <div class="nav-pop" id="navChat" data-me="<%= user.id %>" data-admin="<%= user.role === 'admin' %>">
             <button type="button" class="icon-btn" id="navChatBtn" title="Czat" aria-label="Czat" aria-expanded="false">
               <i class="bi bi-chat-dots"></i><span class="nav-badge d-none" id="navChatBadge"></span>
             </button>
@@ -64,10 +64,7 @@
               <div class="nav-chat-list" id="navChatList"></div>
               <div class="nav-chat-view d-none" id="navChatView">
                 <div class="nav-chat-messages" id="navChatMessages"></div>
-                <form class="nav-chat-form" id="navChatForm">
-                  <input type="text" maxlength="1000" autocomplete="off" placeholder="Napisz wiadomość..." aria-label="Wiadomość">
-                  <button type="submit" class="nav-chat-send" aria-label="Wyślij"><i class="bi bi-send-fill"></i></button>
-                </form>
+                <div id="navChatComposer"></div>
               </div>
             </div>
           </div>
@@ -122,6 +119,7 @@
 <% } %>
 
 <% if (user) { %>
+<script src="/js/chat-core.js" defer></script>
 <script src="/js/navbar-popups.js" defer></script>
 <% } %>
 

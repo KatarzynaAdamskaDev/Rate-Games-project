@@ -18,6 +18,7 @@ const { limiters } = require('../middleware/rateLimit');
 const { NOTIFICATION_TYPES, parsePrefs, serializePrefs } = require('../utils/notificationPrefs');
 const totp = require('../utils/totp');
 const { checkUploadToken, verifyAfterUpload, reject, isValid } = require('../middleware/csrf');
+const { reportLocals } = require('../utils/reportReasons');
 const { sanitizeImage } = require('../utils/imageSafety');
 const { MAX_FAVORITES, addFavorite, removeFavorite } = require('../utils/favoriteHelpers');
 const { follow, unfollow } = require('../utils/socialHelpers');
@@ -100,6 +101,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
 
   res.render('profile/show', {
     title: 'Twój profil',
+    ...reportLocals('review', 'comment'),
     ...vm,
     ...tabData,
     isOwnProfile: true,

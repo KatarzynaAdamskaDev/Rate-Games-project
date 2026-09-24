@@ -1,14 +1,17 @@
 /**
  * Okienka w navbarze: mini czat i powiadomienia (otwierane z animacją),
  * plus plakietki z liczbą nieprzeczytanych wiadomości i powiadomień.
- * Endpointy: /notifications/*, /chat/api/list, /chat/:id/messages.
+ * Endpointy: /notifications/*, /chat/api/list, /chat/:id/messages. Wiadomości w mini czacie renderuje i obsługuje
+ * wspólny kod z chat-core.js (odpowiedzi, edycja, reakcje, emoji, GIF-y); nowe zdarzenia przychodzą strumieniem SSE.
  */
 (function () {
   var chatRoot = document.getElementById('navChat');
-  if (!chatRoot) return;
+  if (!chatRoot || !window.GVChat) return;
 
+  var GV = window.GVChat;
   var JSON_HEADERS = { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
   var meId = chatRoot.dataset.me;
+  var isAdmin = chatRoot.dataset.admin === 'true';
 
   var chat = {
     btn: document.getElementById('navChatBtn'),
@@ -17,7 +20,7 @@
     list: document.getElementById('navChatList'),
     view: document.getElementById('navChatView'),
     messages: document.getElementById('navChatMessages'),
-    form: document.getElementById('navChatForm'),
+    composer: document.getElementById('navChatComposer'),
     title: document.getElementById('navChatTitle'),
     back: document.getElementById('navChatBack'),
     full: document.getElementById('navChatFull'),
@@ -40,10 +43,6 @@
     return new Date(iso).toLocaleDateString('pl-PL');
   }
 
-  function clock(iso) {
-    return new Date(iso).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-  }
-
   function setBadge(el, count) {
     if (count > 0) {
       el.textContent = count > 99 ? '99+' : String(count);
@@ -54,9 +53,10 @@
   }
 
   // Zabezpieczenie przed nakładaniem się zapytań: jeśli serwer akurat odpowiada wolniej
-  // (np. baza jest chwilowo zajęta zapisem wiadomości), kolejne tiknięcie interwału NIE
-  // odpala nowego fetcha na stos - czeka, aż poprzedni się zakończy.
+  // (np. baza jest chwilowo zajęta zapisem wiadomości), kolejne wywołanie NIE odpala nowego
+  // fetcha na stos - czeka, aż poprzedni się zakończy.
   var summaryInFlight = false;
+  var lastSummary = 0;
 
   function refreshSummary() {
     if (summaryInFlight) return;
@@ -69,7 +69,10 @@
         setBadge(bell.badge, data.notifications);
       })
       .catch(function () {})
-      .finally(function () { summaryInFlight = false; });
+      .then(function () {
+        summaryInFlight = false;
+        lastSummary = Date.now();
+      });
   }
 
   function isOpen(p) { return p.panel.classList.contains('open'); }
@@ -77,7 +80,7 @@
   function closePanel(p) {
     p.panel.classList.remove('open');
     p.btn.setAttribute('aria-expanded', 'false');
-    if (p === chat) stopPolling();
+    if (p === chat && chatView) chatView.close();
   }
 
   function openPanel(p) {
@@ -135,19 +138,26 @@
 
   /* ------------------------------ mini czat ------------------------------ */
 
-  var current = null; // { id, name }
-  var lastTimestamp = null;
-  var pollTimer = null;
-  var seen = {};
+  var chatView = null; // widok otwartej rozmowy (wspólny kod z pełnym czatem) - tworzony przy pierwszym otwarciu
 
-  function stopPolling() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = null;
+  function ensureView() {
+    if (chatView) return chatView;
+    chatView = new GV.ChatView({
+      listEl: chat.messages,
+      composerHost: chat.composer,
+      variant: 'mini',
+      ids: false,
+      meId: meId,
+      isAdmin: isAdmin,
+      onGone: showList, // rozmowa usunięta albo już nas w niej nie ma
+      onMeta: loadConversations,
+      onIncoming: refreshSummary, // otwarcie/odczyt rozmowy zmienia licznik nieprzeczytanych
+    });
+    return chatView;
   }
 
   function showList() {
-    stopPolling();
-    current = null;
+    if (chatView) chatView.close();
     chat.view.classList.add('d-none');
     chat.list.classList.remove('d-none');
     chat.back.classList.add('d-none');
@@ -216,110 +226,32 @@
     });
   }
 
+  var listInFlight = false;
+
   function loadConversations() {
+    if (listInFlight) return;
+    listInFlight = true;
     fetch('/chat/api/list', { headers: JSON_HEADERS })
       .then(function (r) { return r.ok ? r.json() : { conversations: [] }; })
-      .then(function (data) { renderConversations(data.conversations || []); })
-      .catch(function () {});
-  }
-
-  function appendMessage(m, type) {
-    if (seen[m.id]) return;
-    seen[m.id] = true;
-
-    var bubble = document.createElement('div');
-    bubble.className = 'nav-msg' + (m.senderId === meId ? ' me' : '');
-
-    if (m.senderId !== meId && type !== 'dm') {
-      var author = document.createElement('b');
-      author.textContent = m.senderUsername;
-      bubble.appendChild(author);
-    }
-    if (m.kind === 'gif') {
-      var gifImg = document.createElement('img');
-      gifImg.src = m.text;
-      gifImg.alt = 'GIF';
-      gifImg.className = 'gv-msg-gif';
-      gifImg.loading = 'lazy';
-      bubble.appendChild(gifImg);
-    } else {
-      bubble.appendChild(document.createTextNode(m.text));
-    }
-    var time = document.createElement('small');
-    time.textContent = clock(m.createdAt);
-    bubble.appendChild(time);
-
-    chat.messages.appendChild(bubble);
-    chat.messages.scrollTop = chat.messages.scrollHeight;
-    lastTimestamp = m.createdAt;
-  }
-
-  function pollMessages() {
-    if (!current) return;
-    var id = current.id;
-    var url = '/chat/' + encodeURIComponent(id) + '/messages' + (lastTimestamp ? '?after=' + encodeURIComponent(lastTimestamp) : '');
-    fetch(url, { headers: JSON_HEADERS })
-      .then(function (r) { return r.ok ? r.json() : { messages: [] }; })
       .then(function (data) {
-        if (!current || current.id !== id) return;
-        (data.messages || []).forEach(function (m) { appendMessage(m, current.type); });
+        // Lista jest widoczna tylko gdy nie ma otwartej rozmowy - inaczej nie ma czego przerysowywać.
+        if (!chat.list.classList.contains('d-none')) renderConversations(data.conversations || []);
       })
-      .catch(function () {});
+      .catch(function () {})
+      .then(function () { listInFlight = false; });
   }
 
   function openConversation(conv) {
-    current = conv;
-    seen = {};
-    lastTimestamp = null;
-    chat.messages.innerHTML = '';
     chat.list.classList.add('d-none');
     chat.view.classList.remove('d-none');
     chat.back.classList.remove('d-none');
     chat.title.textContent = conv.name;
     chat.full.href = '/chat?c=' + encodeURIComponent(conv.id);
-
-    fetch('/chat/' + encodeURIComponent(conv.id) + '/messages', { headers: JSON_HEADERS })
-      .then(function (r) { return r.ok ? r.json() : { messages: [] }; })
-      .then(function (data) {
-        if (!current || current.id !== conv.id) return;
-        (data.messages || []).forEach(function (m) { appendMessage(m, conv.type); });
-        refreshSummary();
-      })
-      .catch(function () {});
-
-    stopPolling();
-    pollTimer = setInterval(pollMessages, 4000);
-    chat.form.querySelector('input').focus();
+    ensureView().open({ id: conv.id, type: conv.type, canReply: conv.canReply });
+    chatView.composer.focus();
   }
 
   chat.back.addEventListener('click', showList);
-
-  chat.form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!current) return;
-    var input = chat.form.querySelector('input');
-    var text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-
-    var conv = current;
-    fetch('/chat/' + encodeURIComponent(conv.id) + '/messages', {
-      method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/x-www-form-urlencoded' }, JSON_HEADERS),
-      body: 'text=' + encodeURIComponent(text),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.message && current && current.id === conv.id) {
-          appendMessage(data.message, conv.type);
-        } else if (data.error) {
-          // Odrzucona wiadomość (antyspam, filtr, limit) - pokazujemy powód i oddajemy tekst do poprawy.
-          if (window.showToast) window.showToast(data.error, false);
-          input.value = text;
-        }
-      })
-      .catch(function () {});
-  });
 
   chat.btn.addEventListener('click', function (e) {
     e.stopPropagation();
@@ -334,6 +266,8 @@
   /* ------------------------------ zamykanie i odświeżanie ------------------------------ */
 
   document.addEventListener('click', function (e) {
+    // Panel reakcji i menu wiadomości są doklejane do <body> poza panelem - to nie jest "klik obok".
+    if (e.target.closest('.gv-react-pop')) return;
     [chat, bell].forEach(function (p) {
       if (isOpen(p) && !p.panel.contains(e.target)) closePanel(p);
     });
@@ -342,30 +276,21 @@
     if (e.key === 'Escape') [chat, bell].forEach(function (p) { if (isOpen(p)) closePanel(p); });
   });
 
-  // Karta w tle nie pyta serwera co 2 sekundy bez sensu - pauzujemy interwał, gdy karta
-  // jest ukryta (inna karta, zminimalizowane okno) i wracamy do odpytywania dopiero,
-  // gdy użytkownik znów na nią patrzy (z natychmiastowym odświeżeniem).
-  var summaryTimer = null;
-
-  function startSummaryPolling() {
-    if (summaryTimer) return;
-    summaryTimer = setInterval(refreshSummary, 2000);
-  }
-
-  function stopSummaryPolling() {
-    if (!summaryTimer) return;
-    clearInterval(summaryTimer);
-    summaryTimer = null;
-  }
+  // Plakietki odświeżają się od razu po zdarzeniu ze strumienia (nowa wiadomość, nowe powiadomienie).
+  // Zwykłe odpytywanie zostaje jako siatka bezpieczeństwa: rzadko przy działającym strumieniu (zdarzenia
+  // mogły pójść do innej instancji serwera), co kilka sekund bez niego. Karta w tle w ogóle nie pyta.
+  GV.Stream.on('summary', refreshSummary);
+  GV.Stream.on('open', refreshSummary);
+  GV.Stream.on('message', function () { if (isOpen(chat)) loadConversations(); });
+  GV.Stream.on('sync', function () { if (isOpen(chat)) loadConversations(); });
 
   refreshSummary();
-  startSummaryPolling();
+  setInterval(function () {
+    if (document.hidden) return;
+    var every = GV.Stream.isOpen() ? 30000 : 4000;
+    if (Date.now() - lastSummary >= every) refreshSummary();
+  }, 2000);
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) {
-      stopSummaryPolling();
-    } else {
-      refreshSummary();
-      startSummaryPolling();
-    }
+    if (!document.hidden) refreshSummary();
   });
 })();

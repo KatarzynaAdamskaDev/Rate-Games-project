@@ -7,9 +7,22 @@ const DEFAULT_DESCRIPTION =
   'GameVerse - oceniaj gry, pisz recenzje i odkrywaj tytuły polecane przez społeczność graczy.';
 const DEFAULT_IMAGE = '/images/og-default.png';
 
+/**
+ * Usuwa z tekstu wpisu znaczniki wstawek: kartę gry ([[game:ID]]), film YouTube, zdjęcie oraz znaczniki
+ * pomocnika pisania ({{img:N}}, {{video}}). W zajawce, opisie i podglądzie nie mają czego szukać - wcześniej
+ * znacznik w środku akapitu wyświetlał się na liście wpisów jako surowy tekst.
+ */
+function stripEmbeds(text) {
+  return String(text || '')
+    .replace(/\[\[game:[^\]]*\]\]/g, ' ')
+    .replace(/@\[youtube\]\([^)]*\)/g, ' ')
+    .replace(/!\[[^\]]*\]\([^)]*\)(?:\{[a-z]+\})?/g, ' ')
+    .replace(/\{\{(?:img:\d+|video)\}\}/g, ' ');
+}
+
 /** Zwykły tekst do opisu: bez formatowania (Markdown wpisów), w jednej linii, ucięty na granicy słowa. */
 function plainText(text, max = 200) {
-  const clean = String(text || '')
+  const clean = stripEmbeds(text)
     .replace(/^\s*(?:!\[[^\]]*\]\([^)]*\)(?:\{[a-z]+\})?|@\[youtube\]\([^)]*\)|\[\[game:[^\]]*\]\]|-{3,})\s*$/gm, ' ')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/^\s*>\s*\[![A-Z]+\]\s*/gm, '')
@@ -83,6 +96,7 @@ module.exports = {
   DEFAULT_DESCRIPTION,
   DEFAULT_IMAGE,
   plainText,
+  stripEmbeds,
   absoluteUrl,
   siteBase,
   jsonLd,

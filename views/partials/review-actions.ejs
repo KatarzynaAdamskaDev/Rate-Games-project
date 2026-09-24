@@ -4,7 +4,7 @@
 // Użycie: include('review-actions', { review, openHref: '/games/1#review-x' }) - openHref opcjonalny.
 const __openHref = typeof openHref !== 'undefined' ? openHref : null;
 %>
-<div class="gv-ractions" data-review-id="<%= review.id %>" data-game-id="<%= review.gameId %>">
+<div class="gv-ractions" data-review-id="<%= review.id %>" data-game-id="<%= review.gameId %>" data-me="<%= currentUser ? currentUser.id : '' %>">
   <% if (currentUser) { %>
     <button type="button" class="gv-icon-btn gv-ract-like <%= review.liked ? 'liked' : '' %>" title="Polub" aria-label="Polub">
   <% } else { %>
@@ -15,6 +15,19 @@ const __openHref = typeof openHref !== 'undefined' ? openHref : null;
   <button type="button" class="gv-icon-btn gv-ract-comments" title="Komentarze" aria-label="Komentarze" aria-expanded="false">
     <i class="bi bi-chat-dots"></i><span class="gv-count"><%= review.commentCount %></span>
   </button>
+  <button type="button" class="gv-icon-btn" title="Udostępnij recenzję" aria-label="Udostępnij recenzję"
+          data-share data-share-title="Recenzja od <%= review.username %>"
+          data-share-url="<%= absoluteUrl('/games/' + review.gameId + '?review=' + review.id) %>#review-<%= review.id %>">
+    <i class="bi bi-share"></i>
+  </button>
+  <% if (currentUser && currentUser.id !== review.userId) { %>
+    <button type="button" class="gv-icon-btn gv-report-btn" title="Zgłoś recenzję" aria-label="Zgłoś recenzję"
+            data-bs-toggle="modal" data-bs-target="#reportModal"
+            data-report-url="/games/<%= review.gameId %>/reviews/<%= review.id %>/report"
+            data-report-author="<%= review.username %>">
+      <i class="bi bi-flag"></i>
+    </button>
+  <% } %>
   <% if (currentUser && currentUser.id === review.userId) { %>
     <button type="button" class="gv-icon-btn gv-ract-edit-toggle" title="Edytuj" aria-label="Edytuj" data-target="edit-form-<%= review.id %>">
       <i class="bi bi-pencil"></i>

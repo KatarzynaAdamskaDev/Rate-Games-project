@@ -287,6 +287,20 @@ const tabLead = {
               </div>
               <div class="gv-edit-hint">Komunikaty od moderatorów (np. o usuniętej recenzji) docierają zawsze.</div>
 
+              <h3 class="mt-4">Powiadomienia e-mail</h3>
+              <div class="gv-switch-list">
+                <label class="gv-switch-row">
+                  <span class="gv-switch-icon"><i class="bi bi-envelope-paper-fill"></i></span>
+                  <span class="gv-switch-text">
+                    <b>Podsumowanie nieprzeczytanych na e-mail</b>
+                    <small>Raz na dobę, tylko jeśli coś Cię ominęło: nieprzeczytane wiadomości na czacie i nowe powiadomienia. Domyślnie wyłączone.</small>
+                  </span>
+                  <span class="form-check form-switch gv-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="emailDigest" value="1" <%= notificationPrefs.emailDigest ? 'checked' : '' %>>
+                  </span>
+                </label>
+              </div>
+
               <div class="gv-edit-actions">
                 <button type="submit" class="gv-btn-success">Zapisz ustawienia</button>
               </div>

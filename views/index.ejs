@@ -319,6 +319,7 @@
   </script>
 <% } %>
 
+<% if (currentUser) { %><%- include('partials/report-modal') %><% } %>
 <%- include('partials/footer') %>
 <script src="/js/game-picker.js"></script>
 <script src="/js/review-actions.js"></script>

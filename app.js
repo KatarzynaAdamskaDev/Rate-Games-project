@@ -78,8 +78,11 @@ app.use(csrfProtection);
 app.use(exposeLocals);
 app.use(seoLocals);
 
-// Ogólny limit akcji zmieniających dane (POST) z jednego adresu IP.
-app.use((req, res, next) => (req.method === 'POST' ? limiters.writes(req, res, next) : next()));
+// Ogólny limit akcji zmieniających dane (POST) z jednego adresu IP. Sygnały czatu w tle ("pisze...",
+// "przeczytane") mają własny limit na użytkownika (limiters.chatSignal) - inaczej kilka osób z jednego
+// adresu (biuro, szkoła) zjadłoby wspólną pulę samym pisaniem.
+const isChatSignal = (req) => /^\/chat\/[^/]+\/(typing|read)$/.test(req.path);
+app.use((req, res, next) => (req.method === 'POST' && !isChatSignal(req) ? limiters.writes(req, res, next) : next()));
 
 /* -------------------------------- Trasy -------------------------------- */
 app.use('/', indexRouter);

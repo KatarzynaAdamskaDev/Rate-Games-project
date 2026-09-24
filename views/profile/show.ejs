@@ -201,7 +201,7 @@
     </div>
   <% } %>
 
-  <% if (currentUser && !isOwnProfile) { %><%- include('../partials/report-modal') %><% } %>
+  <% if (currentUser) { %><%- include('../partials/report-modal') %><% } %>
 
   <% if (profileUser.bio) { %>
     <div class="modal fade" id="bioModal" tabindex="-1" aria-labelledby="bioModalLabel" aria-hidden="true">

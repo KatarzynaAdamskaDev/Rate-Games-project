@@ -19,20 +19,26 @@ const {
   renameGroup,
   setGroupPhoto,
   removeGroupMember,
-  getOrCreateGameRoom,
+  canDestroyConversation,
+  leaveGroup,
+  transferGroupOwnership,
   markConversationRead,
   getUnreadCounts,
   getMessages,
   getLastMessage,
   getMessagesAfter,
+  getMessagesSince,
   addMessage,
+  editMessage,
+  deleteMessage,
+  setReaction,
+  publishTyping,
   previewText,
   setCanReply,
   clearMessages,
   deleteConversation,
 } = require('../utils/chatHelpers');
 const { findByUsername, findById, getAllUsers } = require('../utils/userHelpers');
-const { getPopularGames } = require('../utils/igdbService');
 const { getMutualFriends, isFollowing } = require('../utils/socialHelpers');
 const { moderateText, moderateName } = require('../utils/contentFilter');
 const { searchGifs, isGiphyCdnUrl } = require('../utils/giphy');
@@ -45,6 +51,7 @@ const { createNotification } = require('../utils/notificationHelpers');
 const { sanitizeImage } = require('../utils/imageSafety');
 const { GROUP_PHOTO_DIR } = require('../config/storage');
 const { checkUploadToken, verifyAfterUpload, reject: rejectCsrf, isValid: csrfValid } = require('../middleware/csrf');
+const chatEvents = require('../utils/chatEvents');
 
 // Git nie przechowuje pustych katalogów - na świeżym klonie multer nie zapisałby pliku bez tego.
 fs.mkdirSync(GROUP_PHOTO_DIR, { recursive: true });
@@ -107,7 +114,11 @@ router.get('/', async (req, res) => {
     return { ...c, displayName };
   });
 
-  const activeId = req.query.c || (conversations[0] && conversations[0].id) || null;
+  // ?invite=ID (link z powiadomienia) pokazuje zaproszenie do grupy zamiast ostatnio otwartej rozmowy.
+  const pendingInvites = await getPendingInvitesForUser(me.id);
+  const focusedInvite = pendingInvites.find((inv) => inv.id === req.query.invite) || null;
+
+  const activeId = focusedInvite ? null : req.query.c || (conversations[0] && conversations[0].id) || null;
   const activeRaw = activeId ? await getConversationById(activeId) : null;
   const active = activeRaw ? await attachAvatars(activeRaw) : null;
   const canSeeActive = !!(active && active.memberIds.includes(me.id));
@@ -123,20 +134,25 @@ router.get('/', async (req, res) => {
   const isAdmin = me.role === 'admin';
   const allUsers = await getAllUsers();
   const mutualIds = new Set(await getMutualFriends(me.id));
-  const pendingInvites = await getPendingInvitesForUser(me.id);
 
   res.render('chat/chat', {
     title: 'Czat i grupy',
     conversations,
     active: canSeeActive ? active : null,
-    messages,
+    // Na wąskich ekranach widać albo listę rozmów, albo otwartą rozmowę (zob. CSS .gv-chat-shell[data-view]).
+    // Bez wybranej rozmowy (?c=) pokazujemy listę - tam są zaproszenia, wyszukiwarka graczy i nowe grupy.
+    chatView: focusedInvite || (canSeeActive && req.query.c) ? 'chat' : 'list',
+    focusedInvite,
+    // Wiadomości idą do widoku jako JSON dla skryptu czatu (public/js/chat-core.js). Widok wstawia go
+    // do atrybutu data-* przez <%= %>, czyli z ucieczką HTML - treść wiadomości nie wyjdzie poza atrybut.
+    initialMessagesJson: JSON.stringify(messages),
+    canDestroy: canSeeActive ? canDestroyConversation(active, me.id) : false,
     unreadByConversation: unread.byConversation,
     pendingInvites,
     // Administrator może pisać do każdego bez wzajemnej obserwacji (patrz POST /start/:username).
     otherUsers: allUsers
       .filter((u) => u.id !== me.id && (isAdmin || mutualIds.has(u.id)))
       .map((u) => u.username),
-    popularGames: await getPopularGames(20),
     reportReasonSets: { message: REASONS_BY_TYPE.message },
     reportCommentMax: MAX_COMMENT_LENGTH,
   });
@@ -186,6 +202,14 @@ router.get('/api/list', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+/* ------------------------ CZAS RZECZYWISTY (SSE) ------------------------ */
+
+// Jedno długo żyjące połączenie na kartę przeglądarki (EventSource). Przez nie płyną wszystkie zdarzenia
+// czatu i liczników - szczegóły w utils/chatEvents.js.
+router.get('/stream', (req, res) => {
+  chatEvents.openStream(req, res);
 });
 
 /* ------------------- WYSZUKIWANIE ZNAJOMYCH (do grupy) ------------------- */
@@ -275,7 +299,7 @@ async function sendGroupInvites(req, conversation, memberIds) {
         type: 'group-invite',
         actorId: req.session.user.id,
         message: `${req.session.user.username} zaprosił(a) Cię do grupy "${conversation.name}"`,
-        link: '/chat',
+        link: `/chat?invite=${conversation.id}`,
       })
     )
   );
@@ -459,29 +483,27 @@ router.post('/:conversationId/members/:userId/remove', async (req, res) => {
 
   const removedUsername = conversation.memberNames[userId];
   const ok = await removeGroupMember(conversationId, userId);
+  if (ok) {
+    await createNotification({
+      userId,
+      type: 'chat-deleted',
+      actorId: req.session.user.id,
+      message: `${req.session.user.username} usunął(-ęła) Cię z grupy „${conversation.name}”`,
+      link: '/chat',
+    });
+  }
   req.flash(ok ? 'success' : 'error', ok ? `${removedUsername || 'Użytkownik'} został(a) usunięty(a) z grupy.` : 'Nie udało się usunąć tego uczestnika.');
   res.redirect(`/chat?c=${conversationId}`);
-});
-
-/* ---------------------------- POKOJE GIER ---------------------------- */
-
-router.get('/rooms/:gameId', async (req, res, next) => {
-  const room = await getOrCreateGameRoom(
-    req.params.gameId,
-    req.session.user.id,
-    req.session.user.username
-  );
-  if (!room) return next();
-  res.redirect(`/chat?c=${room.id}`);
 });
 
 /* ------------------------- USUŃ / WYCZYŚĆ ROZMOWĘ ------------------------- */
 
 router.post('/:conversationId/clear', async (req, res) => {
   const { conversationId } = req.params;
+  const conversation = await getConversationById(conversationId);
 
-  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
-    req.flash('error', 'Brak dostępu do tej rozmowy.');
+  if (!canDestroyConversation(conversation, req.session.user.id)) {
+    req.flash('error', 'Nie możesz wyczyścić tej rozmowy (w grupie robi to tylko właściciel).');
     return res.redirect('/chat');
   }
 
@@ -492,15 +514,60 @@ router.post('/:conversationId/clear', async (req, res) => {
 
 router.post('/:conversationId/delete', async (req, res) => {
   const { conversationId } = req.params;
+  const conversation = await getConversationById(conversationId);
 
-  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
-    req.flash('error', 'Brak dostępu do tej rozmowy.');
+  if (!canDestroyConversation(conversation, req.session.user.id)) {
+    req.flash('error', 'Nie możesz usunąć tej rozmowy (grupę usuwa tylko jej właściciel - pozostali mogą ją opuścić).');
     return res.redirect('/chat');
   }
 
+  // Pozostali uczestnicy dowiadują się z powiadomienia, kto i co usunął (rozmowa znika im z listy).
+  const me = req.session.user;
+  const others = conversation.memberIds.filter((id) => id !== me.id);
+  const what = conversation.type === 'dm' ? 'Waszą prywatną rozmowę' : `grupę „${conversation.name}”`;
   await deleteConversation(conversationId);
+  await Promise.all(
+    others.map((userId) =>
+      createNotification({
+        userId,
+        type: 'chat-deleted',
+        actorId: me.id,
+        message: `${me.username} usunął(-ęła) ${what}`,
+        link: '/chat',
+      })
+    )
+  );
   req.flash('success', 'Rozmowa została usunięta.');
   res.redirect('/chat');
+});
+
+/* ---------------------- OPUŚĆ GRUPĘ / PRZEKAŻ WŁASNOŚĆ ---------------------- */
+
+router.post('/:conversationId/leave', async (req, res) => {
+  const { conversationId } = req.params;
+  const result = await leaveGroup(conversationId, req.session.user.id);
+  if (!result.ok) {
+    req.flash('error', 'Nie możesz opuścić tej rozmowy.');
+    return res.redirect('/chat');
+  }
+  if (result.deleted) req.flash('success', 'Opuściłeś(-aś) grupę - byłeś(-aś) ostatnim członkiem, więc grupa została usunięta.');
+  else if (result.newOwnerId) req.flash('success', 'Opuściłeś(-aś) grupę. Jej właścicielem został kolejny członek.');
+  else req.flash('success', 'Opuściłeś(-aś) grupę.');
+  res.redirect('/chat');
+});
+
+router.post('/:conversationId/transfer/:userId', async (req, res) => {
+  const { conversationId, userId } = req.params;
+  const conversation = await getConversationById(conversationId);
+  if (!ensureGroupOwner(req, res, conversation)) return;
+
+  const newOwnerName = conversation.memberNames[userId];
+  const ok = await transferGroupOwnership(conversationId, userId);
+  req.flash(
+    ok ? 'success' : 'error',
+    ok ? `${newOwnerName} jest teraz właścicielem grupy.` : 'Nie udało się przekazać własności tej osobie.'
+  );
+  res.redirect(`/chat?c=${conversationId}`);
 });
 
 /* --------------------- WŁĄCZ/WYŁĄCZ MOŻLIWOŚĆ ODPOWIEDZI (ADMIN) --------------------- */
@@ -543,75 +610,218 @@ router.post('/:conversationId/toggle-reply', async (req, res, next) => {
 
 /* --------------------------- WIADOMOŚCI (AJAX) --------------------------- */
 
-router.get('/:conversationId/messages', async (req, res) => {
-  const { conversationId } = req.params;
+const MAX_MESSAGE_LENGTH = 1000;
 
-  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
-    return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
+/**
+ * Rozmowa, w której zalogowany jest uczestnikiem - albo odpowiedź 403 i null (wywołujący od razu wychodzi).
+ * Jedno zapytanie zamiast osobnego sprawdzania dostępu i pobierania rozmowy.
+ */
+async function memberConversation(req, res) {
+  const conversation = await getConversationById(req.params.conversationId);
+  if (!conversation || !conversation.memberIds.includes(req.session.user.id)) {
+    res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
+    return null;
   }
+  return conversation;
+}
 
-  const messages = req.query.after
-    ? await getMessagesAfter(conversationId, req.query.after)
-    : await getMessages(conversationId);
+/**
+ * Powód, dla którego zalogowany nie może teraz pisać (ani edytować, ani reagować) w tej rozmowie -
+ * albo null, gdy może. Dotyczy tylko rozmów prywatnych: blokada między stronami i wyłączona przez
+ * administratora możliwość odpowiedzi.
+ */
+async function postingBlockedReason(req, conversation) {
+  if (conversation.type !== 'dm') return null;
+  const otherId = conversation.memberIds.find((id) => id !== req.session.user.id);
+  if (otherId && (await isBlockedEitherWay(req.session.user.id, otherId))) {
+    return 'Nie możesz wysyłać wiadomości do tego użytkownika (jedna ze stron zablokowała drugą).';
+  }
+  if (!conversation.canReply && req.session.user.role !== 'admin') {
+    return 'Administrator wyłączył możliwość odpowiedzi w tej rozmowie.';
+  }
+  return null;
+}
 
-  // Okno rozmowy jest otwarte, więc wszystko, co przyszło, jest już widoczne.
-  await markConversationRead(req.session.user.id, conversationId);
+const MESSAGE_ERRORS = {
+  'not-found': [404, 'Nie znaleziono tej wiadomości.'],
+  forbidden: [403, 'Możesz zmieniać tylko własne wiadomości.'],
+  deleted: [400, 'Ta wiadomość została już usunięta.'],
+  'not-text': [400, 'Edytować można tylko wiadomości tekstowe (GIF-a można usunąć).'],
+  'invalid-key': [400, 'Nieznana reakcja.'],
+  'reply-not-found': [400, 'Nie znaleziono wiadomości, na którą odpowiadasz.'],
+  'reply-deleted': [400, 'Wiadomość, na którą odpowiadasz, została usunięta.'],
+};
 
-  res.json({ messages });
+function sendMessageError(res, code) {
+  const [status, error] = MESSAGE_ERRORS[code] || [400, 'Nie udało się wykonać tej operacji.'];
+  return res.status(status).json({ error });
+}
+
+router.get('/:conversationId/messages', async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+
+    if (!(await canAccessConversation(req.session.user.id, conversationId))) {
+      return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
+    }
+
+    // since: nowe i zmienione (edycja, usunięcie, reakcja) od podanej chwili; after: tylko nowe.
+    let messages;
+    if (req.query.since) messages = await getMessagesSince(conversationId, req.query.since);
+    else if (req.query.after) messages = await getMessagesAfter(conversationId, req.query.after);
+    else messages = await getMessages(conversationId);
+
+    // Okno rozmowy jest otwarte, więc wszystko, co przyszło, jest już widoczne.
+    await markConversationRead(req.session.user.id, conversationId);
+
+    res.json({ messages });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/:conversationId/messages', blockIfMuted, limiters.chatMessage, async (req, res) => {
-  const { conversationId } = req.params;
+router.post('/:conversationId/messages', blockIfMuted, limiters.chatMessage, async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+    const conversation = await memberConversation(req, res);
+    if (!conversation) return;
 
-  if (!(await canAccessConversation(req.session.user.id, conversationId))) {
-    return res.status(403).json({ error: 'Brak dostępu do tej rozmowy.' });
-  }
-
-  const kind = req.body.kind === 'gif' ? 'gif' : 'text';
-  const rawText = (req.body.text || '').trim();
-  if (!rawText) {
-    return res.status(400).json({ error: kind === 'gif' ? 'Nie wybrano GIF-a.' : 'Wiadomość nie może być pusta.' });
-  }
-
-  const conversation = await getConversationById(conversationId);
-  if (conversation && conversation.type === 'dm') {
-    // W rozmowie prywatnej nie da się pisać do osoby, która zablokowała nas albo którą zablokowaliśmy.
-    const otherId = conversation.memberIds.find((id) => id !== req.session.user.id);
-    if (otherId && (await isBlockedEitherWay(req.session.user.id, otherId))) {
-      return res.status(403).json({ error: 'Nie możesz wysyłać wiadomości do tego użytkownika (jedna ze stron zablokowała drugą).' });
+    const kind = req.body.kind === 'gif' ? 'gif' : 'text';
+    const rawText = String(req.body.text || '').trim();
+    if (!rawText) {
+      return res.status(400).json({ error: kind === 'gif' ? 'Nie wybrano GIF-a.' : 'Wiadomość nie może być pusta.' });
     }
-    // Administrator mógł wyłączyć odpowiedź w tej rozmowie - wtedy tylko admin może w niej pisać.
-    if (!conversation.canReply && req.session.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Administrator wyłączył możliwość odpowiedzi w tej rozmowie.' });
+
+    const blocked = await postingBlockedReason(req, conversation);
+    if (blocked) return res.status(403).json({ error: blocked });
+
+    let finalText;
+    if (kind === 'gif') {
+      // Adres musi naprawdę pochodzić z CDN Giphy (zob. utils/giphy.js) - inaczej ktoś mógłby
+      // podesłać w wiadomości dowolny zewnętrzny obrazek, pomijając wyszukiwarkę i moderację.
+      if (!isGiphyCdnUrl(rawText)) {
+        return res.status(400).json({ error: 'Nieprawidłowy adres GIF-a.' });
+      }
+      finalText = rawText;
+    } else {
+      const checked = moderateText(rawText.slice(0, MAX_MESSAGE_LENGTH), { userId: req.session.user.id });
+      if (!checked.ok) {
+        return res.status(400).json({ error: checked.error });
+      }
+      finalText = checked.text;
     }
+
+    const result = await addMessage({
+      conversationId,
+      senderId: req.session.user.id,
+      senderUsername: req.session.user.username,
+      text: finalText,
+      kind,
+      replyToId: String(req.body.replyToId || '') || null,
+    });
+    if (!result.ok) return sendMessageError(res, result.error);
+    await markConversationRead(req.session.user.id, conversationId);
+
+    res.json({ message: result.message });
+  } catch (err) {
+    next(err);
   }
+});
 
-  let finalText;
-  if (kind === 'gif') {
-    // Adres musi naprawdę pochodzić z CDN Giphy (zob. utils/giphy.js) - inaczej ktoś mógłby
-    // podesłać w wiadomości dowolny zewnętrzny obrazek, pomijając wyszukiwarkę i moderację.
-    if (!isGiphyCdnUrl(rawText)) {
-      return res.status(400).json({ error: 'Nieprawidłowy adres GIF-a.' });
-    }
-    finalText = rawText;
-  } else {
-    const checked = moderateText(rawText.slice(0, 1000), { userId: req.session.user.id });
-    if (!checked.ok) {
-      return res.status(400).json({ error: checked.error });
-    }
-    finalText = checked.text;
+/* ------------------- EDYCJA / USUWANIE / REAKCJE NA WIADOMOŚĆ ------------------- */
+
+router.post('/:conversationId/messages/:messageId/edit', blockIfMuted, limiters.chatAction, async (req, res, next) => {
+  try {
+    const conversation = await memberConversation(req, res);
+    if (!conversation) return;
+    const blocked = await postingBlockedReason(req, conversation);
+    if (blocked) return res.status(403).json({ error: blocked });
+
+    const rawText = String(req.body.text || '').trim();
+    if (!rawText) return res.status(400).json({ error: 'Wiadomość nie może być pusta.' });
+    // Ta sama moderacja co przy wysyłaniu - edycja nie może być furtką do treści, które filtr by odrzucił.
+    const checked = moderateText(rawText.slice(0, MAX_MESSAGE_LENGTH), { userId: req.session.user.id });
+    if (!checked.ok) return res.status(400).json({ error: checked.error });
+
+    const result = await editMessage({
+      conversationId: conversation.id,
+      messageId: req.params.messageId,
+      userId: req.session.user.id,
+      text: checked.text,
+    });
+    if (!result.ok) return sendMessageError(res, result.error);
+    res.json({ message: result.message });
+  } catch (err) {
+    next(err);
   }
+});
 
-  const message = await addMessage({
-    conversationId,
-    senderId: req.session.user.id,
-    senderUsername: req.session.user.username,
-    text: finalText,
-    kind,
-  });
-  await markConversationRead(req.session.user.id, conversationId);
+router.post('/:conversationId/messages/:messageId/delete', limiters.chatAction, async (req, res, next) => {
+  try {
+    const conversation = await memberConversation(req, res);
+    if (!conversation) return;
 
-  res.json({ message });
+    const result = await deleteMessage({
+      conversationId: conversation.id,
+      messageId: req.params.messageId,
+      userId: req.session.user.id,
+    });
+    if (!result.ok) return sendMessageError(res, result.error);
+    res.json({ message: result.message });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:conversationId/messages/:messageId/react', limiters.chatAction, async (req, res, next) => {
+  try {
+    const conversation = await memberConversation(req, res);
+    if (!conversation) return;
+    const blocked = await postingBlockedReason(req, conversation);
+    if (blocked) return res.status(403).json({ error: blocked });
+
+    const result = await setReaction({
+      conversationId: conversation.id,
+      messageId: req.params.messageId,
+      user: { id: req.session.user.id, username: req.session.user.username },
+      key: String(req.body.key || ''),
+    });
+    if (!result.ok) return sendMessageError(res, result.error);
+    res.json({ message: result.message });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* --------------------- "PISZE..." I OZNACZANIE JAKO PRZECZYTANE --------------------- */
+
+router.post('/:conversationId/typing', limiters.chatSignal, async (req, res, next) => {
+  try {
+    const conversation = await memberConversation(req, res);
+    if (!conversation) return;
+    // Kto nie może tu pisać (blokada, wyłączona odpowiedź), nie pokazuje też, że pisze.
+    if (!(await postingBlockedReason(req, conversation))) {
+      await publishTyping(conversation.id, { id: req.session.user.id, username: req.session.user.username });
+    }
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Klient woła to, gdy w otwartej rozmowie pojawiła się cudza wiadomość - bez tego licznik w navbarze
+// naliczyłby ją jako nieprzeczytaną, choć właśnie ją widać na ekranie.
+router.post('/:conversationId/read', limiters.chatSignal, async (req, res, next) => {
+  try {
+    const conversation = await memberConversation(req, res);
+    if (!conversation) return;
+    await markConversationRead(req.session.user.id, conversation.id);
+    // Pozostałe karty tego samego użytkownika odświeżają swoje plakietki.
+    chatEvents.publish([req.session.user.id], 'summary', {});
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
