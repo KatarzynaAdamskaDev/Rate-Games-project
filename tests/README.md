@@ -97,7 +97,7 @@ Pierwszy raz trzeba pobrać przeglądarkę: `npx playwright install chromium`.
 - Serwer startuje sam (`tests/responsive/seed-and-start.js`) z **izolowaną bazą i katalogiem plików**
   (tak jak Jest - nigdy `data/dev.sqlite3` ani `public/images/`) i z dogranymi danymi: gra, recenzja,
   wpis na blogu, rozmowa na czacie i dwa konta (zwykłe i admin).
-- Strony sprawdzamy na 6 szerokościach: 375, 480, 768, 980, 1024 i 1440 px (dobrane pod breakpointy z CSS;
+- Strony sprawdzamy na 7 szerokościach: 320, 375, 480, 768, 980, 1024 i 1440 px (320 px to zapas na CI: na Linuksie czcionka pikselowa jest o kilka pikseli szersza niż na Windowsie, więc układ "na styk" przy 375 px lokalnie przechodzi, a w GitHub Actions się przelewa; reszta dobrana pod breakpointy z CSS;
   menu-hamburger przełącza się realnie przy 980 px).
 - `pages.spec.js` - strony publiczne bez poziomego przewijania; `authenticated.spec.js` - profil, czat,
   panel admina, modal "Napisz recenzję", panel emoji (uwaga: okno czatu ma `overflow: hidden`, więc
