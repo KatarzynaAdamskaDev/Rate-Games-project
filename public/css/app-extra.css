@@ -8916,3 +8916,30 @@ input[type="search"].gv-input::-webkit-search-cancel-button:hover {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* przyciski pod recenzją (polub, komentarze, udostępnij, zgłoś, edytuj, usuń) + "Otwórz recenzję": na wąskich ekranach
+   "Otwórz recenzję" przechodzi do następnej linii zamiast wypychać stronę poza ekran */
+.gv-ractions {
+  flex-wrap: wrap;
+}
+.gv-ractions .gv-rcard-open {
+  white-space: nowrap;
+}
+
+/* baner "Dołącz do społeczności" / "Jak Ci się podoba GameVerse?": na wąskim telefonie mniejsze wcięcia i łamanie długich słów -
+   przy 320 px słowo "społeczności" w nagłówku 22 px wychodziło o 1 px poza ekran (na Linuksie w CI - dalej) */
+.cta-band > div {
+  min-width: 0;
+  max-width: 100%;
+}
+.cta-band h3 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .cta-band {
+    padding: 28px 20px;
+  }
+  .cta-band h3 {
+    font-size: 18px;
+  }
+}
