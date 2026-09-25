@@ -38,10 +38,15 @@ function loadSeedInfo() {
 
 /** Brak poziomego przewijania strony - najczęstszy, ogólny objaw zepsutej responsywności. */
 async function expectNoHorizontalOverflow(page, context) {
+  // Mierzymy dopiero po załadowaniu czcionek (Press Start 2P jest szeroka) - inaczej wynik zależałby od tego,
+  // czy czcionka zdążyła się podmienić przed pomiarem (na CI bywa inaczej niż lokalnie). Limit 4 s na wypadek braku sieci.
+  await page.evaluate(() => Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 4000))]));
+
   const overflow = await page.evaluate(() => {
     const clientWidth = document.documentElement.clientWidth;
     const scrollWidth = document.documentElement.scrollWidth;
     const offenders = [];
+    const describe = (node) => `${node.tagName.toLowerCase()}${node.className ? '.' + String(node.className).trim().split(/\s+/).slice(0, 2).join('.') : ''}`;
     if (scrollWidth > clientWidth + 1) {
       document.querySelectorAll('body *').forEach((el) => {
         const rect = el.getBoundingClientRect();
@@ -54,15 +59,21 @@ async function expectNoHorizontalOverflow(page, context) {
           parent = parent.parentElement;
         }
         if (!scrollable && rect.width > 0 && rect.right > clientWidth + 1) {
-          offenders.push(`${el.tagName.toLowerCase()}.${String(el.className).trim().split(/\s+/).slice(0, 2).join('.')} (prawa krawędź ${Math.round(rect.right)}px)`);
+          // Sam znacznik i klasa nie wystarczają, żeby znaleźć winowajcę w logu CI - dodajemy szerokość, tekst i rodziców.
+          const chain = [];
+          for (let node = el.parentElement; node && chain.length < 3 && node !== document.body; node = node.parentElement) chain.push(describe(node));
+          const text = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+          offenders.push(`${describe(el)} "${text}" (szer. ${Math.round(rect.width)}px, prawa krawędź ${Math.round(rect.right)}px, w: ${chain.join(' < ')})`);
         }
       });
     }
-    return { scrollWidth, clientWidth, offenders: offenders.slice(0, 5) };
+    const fontLoaded = document.fonts.check('12px "Press Start 2P"');
+    return { scrollWidth, clientWidth, fontLoaded, offenders: offenders.slice(0, 5) };
   });
   if (overflow.scrollWidth > overflow.clientWidth + 1) {
     throw new Error(
-      `${context || 'Strona'}: poziome przewijanie - scrollWidth=${overflow.scrollWidth}px > clientWidth=${overflow.clientWidth}px. ` +
+      `${context || 'Strona'}: poziome przewijanie - scrollWidth=${overflow.scrollWidth}px > clientWidth=${overflow.clientWidth}px ` +
+        `(czcionka Press Start 2P załadowana: ${overflow.fontLoaded ? 'tak' : 'NIE'}). ` +
         `Winne elementy: ${overflow.offenders.join('; ') || '(nie udało się wskazać)'}`
     );
   }
