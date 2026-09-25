@@ -15,6 +15,9 @@ const USER_STATE = path.join(AUTH_DIR, 'user.json');
 const ADMIN_STATE = path.join(AUTH_DIR, 'admin.json');
 
 const VIEWPORTS = [
+  // Najwęższy telefon: daje zapas na CI (Linux) - tam czcionka pikselowa wychodzi o kilka pikseli szersza niż na Windowsie,
+  // więc układ, który mieści się "na styk" przy 375 px, na serwerze CI potrafi się przelać.
+  { name: 'telefon-320', width: 320, height: 640 },
   { name: 'telefon-375', width: 375, height: 812 },
   { name: 'telefon-480', width: 480, height: 900 },
   { name: 'tablet-768', width: 768, height: 1024 },

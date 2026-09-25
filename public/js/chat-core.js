@@ -801,21 +801,25 @@
   Composer.prototype.send = function (text, kind) {
     var self = this;
     var conv = this.opts.getConversation();
-    if (!conv || this.sending) return; // blokada podwójnego Enter/kliknięcia
-    this.setBusy(true);
+    if (!conv) return;
     this.lastTypingSent = 0; // po wysłaniu następne pisanie od razu znowu sygnalizuje "pisze..."
 
+    // Odpowiedź (cytat) dotyczy TEJ wiadomości - zdejmujemy ją od razu, żeby następna, wysłana zaraz potem, jej nie odziedziczyła.
+    // Nie blokujemy też wysyłania na czas odpowiedzi serwera: pole jest czyszczone od razu, więc podwójny Enter niczego
+    // nie zdubluje, a blokada gubiła kolejną wiadomość, gdy ktoś pisał szybko (własna wiadomość widać jeszcze przed odpowiedzią).
+    var replyTarget = this.state.replyTo;
     var payload = { text: text, kind: kind };
-    if (this.state.replyTo) payload.replyToId = this.state.replyTo.id;
+    if (replyTarget) payload.replyToId = replyTarget.id;
+    this.cancelContext(false);
 
     function restore() {
       if (kind === 'text' && !self.input.value) self.input.value = text; // oddajemy tekst do poprawy
+      if (replyTarget && !self.state.editing && !self.state.replyTo) self.startReply(replyTarget);
     }
 
     request(convUrl(conv, '/messages'), 'POST', payload)
       .then(function (res) {
         if (res.ok && res.data.message) {
-          self.cancelContext(false);
           self.opts.onMessage(res.data.message);
         } else {
           toast(res.data.error || 'Nie udało się wysłać wiadomości.', false);
@@ -827,7 +831,6 @@
         restore();
       })
       .then(function () {
-        self.setBusy(false);
         self.focus();
       });
   };

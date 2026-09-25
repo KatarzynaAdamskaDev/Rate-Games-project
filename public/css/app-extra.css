@@ -8895,3 +8895,24 @@ input[type="search"].gv-input::-webkit-search-cancel-button:hover {
   white-space: nowrap;
   vertical-align: bottom;
 }
+
+/* listy na pulpicie admina: nazwa/tekst może się zawinąć (albo złamać w środku słowa), zamiast wypychać datę poza kartę -
+   na Linuksie (CI) szerokości pikselowej czcionki wychodzą o kilka pikseli większe niż na Windowsie i wiersz się przelewał */
+.gv-admin-list li > a,
+.gv-admin-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* podpis autora recenzji ("Review by: nick"): długi nick łamie się zamiast wypychać kartę poza ekran (320-375 px) */
+.gv-review-byline {
+  min-width: 0;
+  max-width: 100%;
+}
+.gv-byline-link {
+  max-width: 100%;
+}
+.gv-byline-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
