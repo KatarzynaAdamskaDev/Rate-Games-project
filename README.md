@@ -76,6 +76,8 @@ Uzupełnij go po instalacji (wzór: `.env.example`):
   (https://www.google.com/recaptcha/admin/create). Puste = rejestracja bez realnej weryfikacji captchy.
 - `EMAIL_USER` / `EMAIL_PASS` - opcjonalnie, konto Gmail i hasło aplikacji do maili: reset hasła oraz podsumowania
   nieprzeczytanych (patrz "Czat" niżej). Bez nich poczta po prostu nie działa, reszta serwisu tak.
+- `GIPHY_API_KEY` - opcjonalnie, klucz Giphy (https://developers.giphy.com/dashboard) do wyszukiwarki GIF-ów na czacie.
+  Bez niego przycisk GIF działa, ale zawsze pokazuje pustą listę.
 - `EMAIL_DIGEST=off` - opcjonalnie, wyłącza wysyłanie podsumowań nawet przy skonfigurowanej poczcie;
   `EMAIL_DIGEST_INTERVAL_HOURS` - najkrótszy odstęp między podsumowaniami dla jednej osoby (domyślnie 24).
 - `AZURE_SQL_*` i `NODE_ENV=production` - tylko na produkcji (baza Azure SQL).

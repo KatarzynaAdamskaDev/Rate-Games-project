@@ -8943,3 +8943,87 @@ input[type="search"].gv-input::-webkit-search-cancel-button:hover {
     font-size: 18px;
   }
 }
+
+/* ==========================================================================
+   BANER NA STRONIE GŁÓWNEJ (hero) - wąskie ekrany
+   Wcześniej: (1) animacja przesuwała kartę na stałe o 156 px w prawo (na desktopie odsłania to okładki po lewej),
+   więc na telefonie i tablecie karta wychodziła poza ekran; (2) reguły ".hero h1" i ".hero p" (specyficzniejsze niż
+   ".gv-hero-title" i ".gv-hero-text") wygrywały z zapytaniami @media, więc czcionka się nie zmniejszała, a blok
+   zajmował więcej niż ekran.
+   ========================================================================== */
+@keyframes heroCardSlideNarrow {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 1100px) {
+  .gv-hero-card {
+    animation-name: heroCardSlideNarrow;
+    animation-duration: 0.7s;
+  }
+}
+
+/* rozmiary czcionek: selektory o wyższej specyficzności niż ".hero h1" / ".hero p" */
+@media (max-width: 1024px) {
+  .hero h1.gv-hero-title {
+    font-size: 1.3rem;
+    line-height: 1.45;
+  }
+  .hero p.gv-hero-text {
+    font-size: 0.95rem;
+    max-width: none;
+    margin-bottom: 1.4rem;
+  }
+}
+@media (max-width: 768px) {
+  .hero h1.gv-hero-title {
+    font-size: 1.05rem;
+    line-height: 1.4;
+  }
+  .hero p.gv-hero-text {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    margin-bottom: 1.1rem;
+  }
+  .hero .hero-ctas {
+    margin-bottom: 20px;
+  }
+}
+@media (max-width: 480px) {
+  .hero h1.gv-hero-title {
+    font-size: 0.9rem;
+    line-height: 1.45;
+    margin-bottom: 0.7rem;
+  }
+  .hero p.gv-hero-text {
+    font-size: 0.78rem;
+    line-height: 1.6;
+    margin-bottom: 0.9rem;
+  }
+  /* trzy liczby w jednym rzędzie zamiast trzech pięter - blok jest niższy o ok. 100 px */
+  .hero .hero-stats {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hero .hero-stats div {
+    flex: 1 1 28%;
+    min-width: 0;
+    padding: 4px;
+  }
+  .hero .hero-stats b {
+    font-size: 13px;
+  }
+  .hero .hero-stats span {
+    font-size: 8px;
+    overflow-wrap: anywhere;
+  }
+  .hero .hero-ctas {
+    margin-bottom: 14px;
+  }
+}
