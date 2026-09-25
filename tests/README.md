@@ -109,6 +109,8 @@ Pierwszy raz trzeba pobrać przeglądarkę: `npx playwright install chromium`.
   przeglądarki, w jednej rozmowie. Sprawdza, że to, co zrobi jedna, druga widzi BEZ odświeżania strony: nowa
   wiadomość, "pisze...", odpowiedź z cytatem, reakcje, edycja i usunięcie, przycisk "Nowe wiadomości" przy czytaniu
   starszych oraz mini czat w nawigacji (plakietka, emoji, odpowiedź). Testy idą po kolei (jedna wspólna rozmowa).
+- `hero.spec.js` - baner na stronie głównej: karta mieści się w ekranie i nie jest wyższa niż ekran, czcionki maleją razem
+  z szerokością (dawniej animacja spychała kartę poza ekran, a reguły `.hero h1`/`.hero p` blokowały zmniejszanie czcionki).
 - `chat-narrow.spec.js` - czat na telefonie i w małym oknie: lista rozmów (wyszukiwarka graczy, nowa grupa) jest dostępna,
   otwarta rozmowa ma przycisk powrotu; na szerokich ekranach lista i rozmowa są obok siebie.
 - Nie są częścią `npm test` (potrzebują przeglądarki), ale w CI mają własne zadanie (`responsive` w
