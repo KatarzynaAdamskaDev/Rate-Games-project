@@ -21,101 +21,9 @@ gameverse/
 └── package.json
 ```
 
-## Wymagania
-
-- **Node.js 20.17 lub nowszy** (najlepiej 22 LTS - wersja 22+ jest potrzebna do połączenia z Azure SQL na produkcji).
-  Pobierzesz go z https://nodejs.org (razem z nim instaluje się `npm`).
-- Konto deweloperskie Twitch (darmowe) po klucze do katalogu gier IGDB:
-  https://dev.twitch.tv/console - utwórz aplikację i skopiuj `Client ID` oraz `Client Secret`.
-
-Nic więcej nie trzeba: baza SQLite tworzy się sama, a wszystkie biblioteki instalują się jednym poleceniem.
-
-## Instalacja - jedna komenda
-
-```bash
-npm run setup
-```
-
-Skrypt `scripts/setup.js` sprawdza wersję Node.js, instaluje wszystkie zależności (`npm install`), tworzy
-plik `.env` z `.env.example` (z wylosowanym `SESSION_SECRET`) oraz katalogi na wgrywane pliki.
-Jeśli wolisz to zrobić ręcznie:
-
-```bash
-npm install
-cp .env.example .env    # Windows (PowerShell): Copy-Item .env.example .env
-```
-
-### Co instaluje `npm install`
-
-Wszystko jest zapisane w `package.json` - nie trzeba instalować pojedynczych pakietów.
-
-| Pakiet | Do czego służy |
-| --- | --- |
-| `express`, `ejs`, `express-session`, `connect-flash`, `morgan` | serwer, widoki, sesje (w bazie), komunikaty, logi |
-| `sequelize`, `sqlite3`, `tedious` | baza danych: SQLite lokalnie, Azure SQL (`tedious`) na produkcji |
-| `bcryptjs` | bezpieczne hashowanie haseł |
-| `multer`, `sharp` | wgrywanie plików i sprawdzanie / zmniejszanie obrazów (awatary, okładki) |
-| `opentype.js` | rysowanie tytułów na automatycznie tworzonych okładkach bloga (czcionka w `assets/fonts`) |
-| `qrcode` | kod QR do włączenia 2FA administratorów |
-| `axios`, `igdb-api-node` | pobieranie gier z IGDB |
-| `nodemailer` | wysyłka maili (reset hasła, opcjonalne podsumowania nieprzeczytanych) |
-| `dotenv`, `uuid` | zmienne środowiskowe, identyfikatory |
-| `nodemon` (dev) | automatyczny restart serwera w trybie `npm run dev` |
-
-Pakiety `sqlite3` i `sharp` mają gotowe binaria dla Windows, macOS i Linuksa - nie wymagają kompilatora.
-
-### Plik `.env`
-
-Uzupełnij go po instalacji (wzór: `.env.example`):
-
-- `SESSION_SECRET` - długi, losowy ciąg znaków (na produkcji obowiązkowy - bez niego serwer się nie uruchomi).
-- `SITE_URL` - publiczny adres serwisu bez końcowego ukośnika (np. `https://twoja-domena.pl`). Trafia do `sitemap.xml`,
-  `robots.txt` i podglądów linków (Open Graph). Puste = adres brany z żądania.
-- `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` - klucze IGDB. Bez nich aplikacja działa, ale bez katalogu gier.
-- `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` - opcjonalnie, klucze reCAPTCHA v2 "Checkbox"
-  (https://www.google.com/recaptcha/admin/create). Puste = rejestracja bez realnej weryfikacji captchy.
-- `EMAIL_USER` / `EMAIL_PASS` - opcjonalnie, konto Gmail i hasło aplikacji do maili: reset hasła oraz podsumowania
-  nieprzeczytanych (patrz "Czat" niżej). Bez nich poczta po prostu nie działa, reszta serwisu tak.
-- `GIPHY_API_KEY` - opcjonalnie, klucz Giphy (https://developers.giphy.com/dashboard) do wyszukiwarki GIF-ów na czacie.
-  Bez niego przycisk GIF działa, ale zawsze pokazuje pustą listę.
-- `EMAIL_DIGEST=off` - opcjonalnie, wyłącza wysyłanie podsumowań nawet przy skonfigurowanej poczcie;
-  `EMAIL_DIGEST_INTERVAL_HOURS` - najkrótszy odstęp między podsumowaniami dla jednej osoby (domyślnie 24).
-- `AZURE_SQL_*` i `NODE_ENV=production` - tylko na produkcji (baza Azure SQL).
-- `UPLOADS_DIR` - opcjonalnie, katalog na pliki wgrywane przez użytkowników (awatary, okładki, zdjęcia z bloga,
-  okładki gier). Puste = `public/images`. Na serwerze wdrażanym paczką ustaw trwały katalog poza aplikacją
-  (Azure App Service: `/home/uploads`) - patrz "Wdrożenie na Azure".
-
-## Uruchomienie
-
-```bash
-npm start        # produkcyjnie
-npm run dev      # z nodemon (auto-restart)
-```
-
-Aplikacja domyślnie startuje na `http://localhost:3000`.
-
-## Testy
-
-```bash
-npm test                  # wszystkie testy (jednostkowe i integracyjne), ok. 300 testów w kilka sekund
-npm run test:coverage     # to samo + raport pokrycia w coverage/index.html
-npm run test:responsive   # Playwright, prawdziwa przeglądarka: układ stron na 6 szerokościach ekranu + czat na żywo
-```
-
-Testy Playwright wymagają jednorazowo `npx playwright install chromium`; nie są częścią `npm test` (osobna komenda),
-ale w CI mają własne zadanie.
-
-Testy uruchamiają się na własnej, tymczasowej bazie SQLite i nie potrzebują żadnych kluczy API ani
-internetu - nie dotykają `data/dev.sqlite3` ani prawdziwych danych. GitHub Actions ([workflow
-wdrożeniowy](.github/workflows/main_gameverse.yml)) uruchamia oba zestawy (Jest i Playwright, w osobnych zadaniach)
-przy każdym pushu do `main` i pull requeście, a wdrożenie na Azure rusza dopiero, gdy oba przejdą. Więcej w [tests/README.md](tests/README.md)
-(jak dodać nowy test, czego testy świadomie nie sprawdzają).
-
 ## Czat
 
-Rozmowy prywatne (tylko wzajemni znajomi), grupy z zaproszeniami i mini czat w nawigacji. Pokoje gier zlikwidowano -
-przy starcie serwer usuwa te, które zostały w bazie po starej wersji.
-
+Rozmowy prywatne (tylko wzajemni znajomi), grupy z zaproszeniami i mini czat w nawigacji. 
 - **Na żywo (SSE).** Przeglądarka trzyma jedno połączenie `GET /chat/stream` (`utils/chatEvents.js`); przez nie
   płyną nowe wiadomości, edycje, reakcje, "pisze...", zmiany w rozmowach i liczniki w nawigacji. Bez odświeżania
   strony i bez odpytywania co kilka sekund. Rejestr połączeń jest w pamięci procesu (jak limity zapytań), więc przy
@@ -133,15 +41,6 @@ przy starcie serwer usuwa te, które zostały w bazie po starej wersji.
   włączyć list z nieprzeczytanymi wiadomościami i powiadomieniami. Wychodzi najwyżej raz na dobę i tylko jeśli od
   poprzedniego listu coś przybyło (`utils/emailDigest.js`); wymaga `EMAIL_USER` / `EMAIL_PASS`.
 
-## Konto administratora
-
-Panel administratora, dodawanie gier ręcznie i wpisów na blogu wymagają roli `admin`.
-Utwórz takie konto poleceniem:
-
-```bash
-npm run create-admin -- admin@example.com admin MojeHaslo123
-```
-
 Administrator ma w nawigacji link **ADMIN** (`/admin`): pulpit ze statystykami,
 użytkownicy (blokady, role, poziomy, "odblokuj wszystko", reset 2FA), recenzje,
 zgłoszenia, komentarze, gry własne, blog, moderacja czatu, eksport CSV i kopie
@@ -157,7 +56,7 @@ antyspam, limity zapytań, wymóg 2FA).
 - Użytkownik może zablokować inne konto: ukrywa jego komentarze, a tamta osoba nie napisze do niego
   na czacie ani go nie zaobserwuje (Edytuj profil -> Zablokowani użytkownicy).
 - Wgrywane obrazy (awatary, okładki bloga) są sprawdzane po sygnaturze pliku, ograniczane wymiarami
-  i przekodowywane do WebP (biblioteka `sharp` - po aktualizacji uruchom `npm install`).
+  i przekodowywane do WebP.
 
 ### Nadawanie i odbieranie uprawnień administratora
 
@@ -183,34 +82,8 @@ pamięci procesu i można je wyłączyć w panelu. Za serwerem pośredniczącym
 (Azure App Service) aplikacja ufa nagłówkowi `X-Forwarded-For` tylko przy
 `NODE_ENV=production`.
 
-## Dane
-
-Użytkownicy, recenzje, komentarze, czat, powiadomienia i pozostałe dane
-aplikacji są zapisywane w bazie danych (Sequelize): lokalnie w pliku SQLite
-`data/dev.sqlite3`, a na produkcji w Azure SQL. Brakujące tabele i kolumny są
-uzupełniane przy starcie serwera.
-
-Gry pochodzą z API IGDB (wymagane `TWITCH_CLIENT_ID` i `TWITCH_CLIENT_SECRET`
-w `.env`); gry dodane ręcznie przez administratora trafiają do tabeli
-`custom_games`. W formularzu ręcznego dodawania gry (Panel admina -> Gry własne) wpisanie tytułu
-(np. "CS2") uruchamia podpowiedzi z IGDB: po wybraniu gry formularz sam uzupełnia platformy, rok,
-kategorię, opis i okładkę (okładka jest pobierana, sprawdzana i zapisywana lokalnie jako WebP).
-Bez kluczy IGDB formularz działa jak dotychczas - dane wpisuje się ręcznie.
-Wpisy na blogu też są w bazie: tabele `blog_posts` (treść, okładka, status, termin publikacji) i `blog_post_tags`
-(tagi), a komentarze pod wpisami w `blog_comments`. Usunięcie wpisu kasuje jego tagi, komentarze i wgraną okładkę.
-Dawny plik `data/blog.json` nie jest już używany na bieżąco: przy pierwszym starcie z pustą tabelą aplikacja
-jednorazowo wczytuje z niego wpisy (a gdy go nie ma - dwa wpisy startowe z `data/blog.seed.json`). Wpisy z innego
-pliku, także do bazy produkcyjnej (z `.env` albo zmiennymi `AZURE_SQL_*`), wczytasz ręcznie:
-
-```bash
-npm run blog:import -- sciezka/do/blog.json            # pomija wpisy, które już są w bazie
-npm run blog:import -- sciezka/do/blog.json --overwrite # nadpisuje wpisy o tych samych id
-```
-
 Kopia zapasowa z panelu admina (JSON) obejmuje tabele bloga razem z resztą bazy.
 
-Hasła użytkowników są hashowane przy pomocy `bcryptjs` - nigdy nie są
-zapisywane jawnie.
 
 ## Pomocnik pisania artykułów (blog)
 
@@ -240,43 +113,6 @@ Etapy (postęp widać na żywo w oknie): sprawdzenie faktów w internecie -> nap
   wyniki wyszukiwania i miniatury kandydatów na zdjęcia - bez danych kont.
 - Bezpieczeństwo: wynik jest czyszczony (bez HTML i obcych linków), pobieranie plików ma limity i dopuszcza tylko wskazane
   hosty (ochrona przed SSRF), a wyniki wyszukiwania są dla modelu wyłącznie danymi.
-
-## Kopiowanie danych: lokalna SQLite <-> Azure SQL
-
-Skrypt `scripts/db-sync.js` kopiuje dane w obie strony. Domyślnie tylko pokazuje raport (nic nie zapisuje), a zapis
-włącza dopiero `--apply`. Dane są scalane: wiersze, które już są w bazie docelowej, zostają bez zmian, a konflikty
-(np. ta sama nazwa użytkownika pod innym id) są pomijane i wypisane w raporcie. Zapis to jedna transakcja, tabela
-`sessions` nie jest kopiowana, a przed zapisem powstaje lista zmian w `data/backups/` (przy lokalnej bazie także jej kopia).
-
-```bash
-npm run db:push -- --env-file=.env.azure            # podgląd: lokalna SQLite -> Azure SQL
-npm run db:push -- --env-file=.env.azure --apply    # zapis w Azure
-npm run db:pull -- --env-file=.env.azure            # podgląd: Azure SQL -> lokalna SQLite
-npm run db:pull -- --env-file=.env.azure --apply    # zapis w lokalnej bazie
-```
-
-Dane logowania do Azure trzymaj w `.env.azure` (`AZURE_SQL_SERVER`, `AZURE_SQL_DATABASE`, `AZURE_SQL_USER`,
-`AZURE_SQL_PASSWORD`; plik jest w `.gitignore`), a w portalu Azure dodaj swój adres IP do zapory serwera SQL.
-Inne opcje: `--tables=users,reviews`, `--exclude=admin_logs`, `--local=plik.sqlite3` oraz `--replace --confirm=NAZWA`
-(zastępuje zawartość wybranych tabel, np. żeby lustrzanie odtworzyć bazę; NAZWA to nazwa bazy docelowej albo pliku).
-`npm run db:list` wypisuje tabele. Pliki wgrane przez użytkowników nie są w bazie - kopiuje się je osobno (`UPLOADS_DIR`).
-Lista zmian i kopia bazy sprzed zapisu lądują w `data/backups/` - inny katalog wskażesz zmienną `DB_SYNC_BACKUP_DIR`.
-
-## Wdrożenie na Azure (App Service)
-
-Workflow `.github/workflows/main_gameverse.yml` wdraża całą paczkę (kod bez plików z `.gitignore`) po każdym pushu
-do `main`. Katalog aplikacji jest przy tym podmieniany (a przy włączonym `WEBSITE_RUN_FROM_PACKAGE` jest tylko do
-odczytu), więc **niczego, co ma przetrwać wdrożenie, nie wolno trzymać w plikach aplikacji**. Dlatego:
-
-- dane (użytkownicy, recenzje, wpisy bloga, komentarze, sesje) są w Azure SQL - `NODE_ENV=production` i `AZURE_SQL_*`
-  w Ustawieniach aplikacji (Configuration -> Application settings),
-- pliki wgrywane przez użytkowników mają trwały katalog poza aplikacją: ustaw `UPLOADS_DIR=/home/uploads`
-  (Linux; katalog `/home` App Service jest trwały i wspólny dla instancji). Aplikacja poda te pliki pod tymi samymi
-  adresami `/images/...`,
-- ustaw też `SESSION_SECRET`, `SITE_URL` oraz klucze IGDB.
-
-Pierwszy start po wdrożeniu tworzy brakujące tabele (także `blog_posts` i `blog_post_tags`) i wczytuje wpisy startowe.
-Własne wpisy z komputera przenieś poleceniem `npm run blog:import` (patrz "Dane").
 
 ## Funkcje
 
@@ -329,12 +165,4 @@ Własne wpisy z komputera przenieś poleceniem `npm run blog:import` (patrz "Dan
   (kto gra teraz, kto zagrał, Steam) - `utils/gamePopularity.js`; ranking odświeża się co kilka godzin
 - Panel dodawania gier / wpisów na blogu dla roli `admin`
 - Edycja profilu w zakładkach (ogólne, awatar, wygląd, powiadomienia, konto) z wyborem rodzajów powiadomień
-- Panel administratora `/admin` (patrz wyżej)
-
-## Czego brakuje / co warto dodać dalej
-
-- Realna wysyłka e-maili przy resecie hasła (np. `nodemailer`)
-- Pliki wgrywane przez użytkowników leżą na dysku serwera (`UPLOADS_DIR`); docelowo warto przenieść je do Azure Blob
-  Storage (zapis idzie przez jedno miejsce w kodzie: funkcje zapisujące przekodowany obraz w `routes/` i `utils/blogMedia.js`)
-- Edycja/usuwanie własnych opinii
-- Paginacja przy większej liczbie gier/wpisów
+- Panel administratora `/admin` 
